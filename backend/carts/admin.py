@@ -40,12 +40,13 @@ class CartItemInline(admin.TabularInline):
 @admin.register(Cart)
 class CartAdmin(SimpleHistoryAdmin):
     # настройка админки для модели корзины
-    list_display = ('get_user_email', 'get_total_items', 'get_total_price_display', 'created_at')
+    list_display = ('get_user_email', 'get_total_items', 'get_total_price_display', 'created_at', 'updated_at')
     list_filter = ('created_at', 'updated_at')
     search_fields = ('user__email',)
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('user',)
+    list_display_links = ('get_user_email',)
     
     inlines = (CartItemInline,)
     
@@ -76,7 +77,7 @@ class CartAdmin(SimpleHistoryAdmin):
 class CartItemAdmin(SimpleHistoryAdmin):
     # настройка админки для модели товара в корзине
     list_display = (
-        'get_cart_user', 'get_product_name', 'quantity', 
+        'get_cart_user', 'get_product_name', 'quantity',
         'get_product_price', 'get_total_price_display', 'created_at'
     )
     list_filter = ('created_at', 'quantity', 'product__categories')
@@ -84,6 +85,7 @@ class CartItemAdmin(SimpleHistoryAdmin):
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('cart', 'product')
+    list_display_links = ('get_cart_user', 'get_product_name')
     
     @display(description=_('пользователь'))
     def get_cart_user(self, obj):

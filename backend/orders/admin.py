@@ -39,6 +39,7 @@ class OrderStatusAdmin(SimpleHistoryAdmin):
     list_filter = ('is_final', 'created_at')
     search_fields = ('name', 'description')
     list_per_page = 25
+    list_display_links = ('name',)
     
     fieldsets = (
         (None, {
@@ -57,15 +58,16 @@ class OrderStatusAdmin(SimpleHistoryAdmin):
 class OrderAdmin(SimpleHistoryAdmin):
     # настройка админки для модели заказа
     list_display = (
-        'id', 'get_user_email', 'get_status_display', 
+        'id', 'get_user_email', 'get_status_display',
         'get_total_display', 'get_items_count', 'created_at'
     )
     list_filter = ('status', 'created_at', 'updated_at')
-    search_fields = ('user__email', 'shipping_address', 'notes')
+    search_fields = ('user__email', 'shipping_address', 'notes', 'id')
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('user', 'status')
     filter_horizontal = ()
+    list_display_links = ('id', 'get_user_email')
     
     inlines = (OrderItemInline,)
     
@@ -125,14 +127,15 @@ class OrderAdmin(SimpleHistoryAdmin):
 class OrderItemAdmin(SimpleHistoryAdmin):
     # настройка админки для модели товара в заказе
     list_display = (
-        'get_order_id', 'get_product_name', 'product_sku', 
+        'get_order_id', 'get_product_name', 'product_sku',
         'price', 'quantity', 'get_total_price_display', 'created_at'
     )
     list_filter = ('created_at', 'price', 'product__categories')
-    search_fields = ('product_name', 'product_sku', 'order__user__email')
+    search_fields = ('product_name', 'product_sku', 'order__user__email', 'order__id')
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('order', 'product')
+    list_display_links = ('get_order_id', 'get_product_name')
     
     @display(description=_('заказ №'))
     def get_order_id(self, obj):

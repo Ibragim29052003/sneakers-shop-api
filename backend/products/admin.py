@@ -48,12 +48,13 @@ class SubcategoryInline(admin.TabularInline):
 @admin.register(Category)
 class CategoryAdmin(SimpleHistoryAdmin):
     # настройка админки для модели категории
-    list_display = ('name', 'parent', 'get_is_active_status', 'created_at')
+    list_display = ('name', 'parent', 'get_is_active_status', 'created_at', 'get_subcategory_count')
     list_filter = ('parent', 'is_active', 'created_at')
     search_fields = ('name', 'description')
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('parent',)
+    list_display_links = ('name',)
     
     inlines = (SubcategoryInline,)
     
@@ -76,6 +77,11 @@ class CategoryAdmin(SimpleHistoryAdmin):
             return format_html('<span style="color: green;">✓ да</span>')
         return format_html('<span style="color: red;">✗ нет</span>')
     
+    @display(description=_('подкатегории'))
+    def get_subcategory_count(self, obj):
+        # отображение количества подкатегорий
+        return obj.subcategories.count()
+    
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('subcategories')
 
@@ -83,12 +89,13 @@ class CategoryAdmin(SimpleHistoryAdmin):
 @admin.register(Product)
 class ProductAdmin(SimpleHistoryAdmin):
     # настройка админки для модели товара
-    list_display = ('name', 'sku', 'get_price_display', 'get_is_active_status', 'created_at')
+    list_display = ('name', 'sku', 'get_price_display', 'get_is_active_status', 'created_at', 'get_category_list')
     list_filter = ('is_active', 'product_categories__category', 'created_at', 'price')
     search_fields = ('name', 'description', 'sku')
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ()  # убрали categories из-за связи через ProductCategory
+    list_display_links = ('name', 'sku')
     
     inlines = (ProductImageInline, ProductCategoryInline)  # добавили inline для связей
     
@@ -116,6 +123,12 @@ class ProductAdmin(SimpleHistoryAdmin):
             return format_html('<span style="color: green;">✓ да</span>')
         return format_html('<span style="color: red;">✗ нет</span>')
     
+    @display(description=_('категории'))
+    def get_category_list(self, obj):
+        # отображение списка категорий
+        categories = [pc.category.name for pc in obj.product_categories.select_related('category').all()]
+        return ', '.join(categories) if categories else '-'
+    
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('categories', 'images')
 
@@ -129,6 +142,7 @@ class ProductImageAdmin(SimpleHistoryAdmin):
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('product',)
+    list_display_links = ('get_product_name',)
     
     @display(description=_('товар'))
     def get_product_name(self, obj):
@@ -157,6 +171,7 @@ class ProductCategoryAdmin(SimpleHistoryAdmin):
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('product', 'category')
+    list_display_links = ('get_product_name', 'get_category_name')
     
     @display(description=_('товар'))
     def get_product_name(self, obj):

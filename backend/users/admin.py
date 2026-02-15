@@ -31,11 +31,12 @@ class UserProfileInline(admin.StackedInline):
 @admin.register(User)
 class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     # настройка админки для модели пользователя
-    list_display = ('email', 'get_full_name', 'get_is_active_status', 'date_joined', 'last_login')
+    list_display = ('email', 'get_full_name', 'get_is_active_status', 'date_joined', 'last_login', 'get_role_names')
     list_filter = ('is_active', 'is_staff', 'date_joined', 'user_roles__role')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('-date_joined',)
     date_hierarchy = 'date_joined'
+    list_display_links = ('email', 'get_full_name')
     
     readonly_fields = ('date_joined', 'last_login')
     
@@ -72,6 +73,12 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
             return format_html('<span style="color: green;">✓ да</span>')
         return format_html('<span style="color: red;">✗ нет</span>')
     
+    @display(description=_('роли'))
+    def get_role_names(self, obj):
+        # отображение ролей пользователя
+        roles = [ur.role.name for ur in obj.user_roles.select_related('role').all()]
+        return ', '.join(roles) if roles else '-'
+    
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('user_roles', 'profile')
     
@@ -84,9 +91,10 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
 @admin.register(Role)
 class RoleAdmin(SimpleHistoryAdmin):
     # настройка админки для модели ролей
-    list_display = ('name', 'description', 'get_user_count')
-    list_filter = ('name',)
+    list_display = ('name', 'description', 'get_user_count', 'created_at')
+    list_filter = ('name', 'created_at')
     search_fields = ('name', 'description')
+    date_hierarchy = 'created_at'
     
     @display(description=_('количество пользователей'))
     def get_user_count(self, obj):
@@ -105,6 +113,7 @@ class UserRoleAdmin(SimpleHistoryAdmin):
     search_fields = ('user__email', 'role__name')
     date_hierarchy = 'assigned_at'
     raw_id_fields = ('user',)
+    list_display_links = ('get_user_email', 'get_role_name')
     
     @display(description=_('пользователь'))
     def get_user_email(self, obj):
@@ -126,6 +135,7 @@ class UserProfileAdmin(SimpleHistoryAdmin):
     search_fields = ('user__email', 'phone', 'address', 'city')
     date_hierarchy = 'created_at'
     raw_id_fields = ('user',)
+    list_display_links = ('get_user_email',)
     
     @display(description=_('пользователь'))
     def get_user_email(self, obj):
