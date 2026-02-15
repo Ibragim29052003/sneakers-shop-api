@@ -110,6 +110,40 @@ class Product(models.Model):
     created_at = models.DateTimeField('дата создания', default=timezone.now)
     updated_at = models.DateTimeField('дата обновления', auto_now=True)
     
+    # связи с поставщиками (nullable - расширение существующей модели)
+    supplier = models.ForeignKey(
+        'suppliers.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products',
+        verbose_name='поставщик'
+    )
+    contract = models.ForeignKey(
+        'suppliers.SupplierContract',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products',
+        verbose_name='договор поставки'
+    )
+    created_from_request = models.ForeignKey(
+        'suppliers.SupplierProductRequest',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_products',
+        verbose_name='создан из заявки'
+    )
+    created_from_source = models.ForeignKey(
+        'suppliers.ProductSupplierSource',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products',
+        verbose_name='источник создания'
+    )
+    
     # связь с категориями
     # используем related_name вместо direct ManyToMany для совместимости с ProductCategory
     categories = models.ManyToManyField(

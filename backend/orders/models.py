@@ -84,6 +84,13 @@ class Order(models.Model):
     def get_items_count(self):
         # получение количества товаров в заказе
         return self.items.count()
+    
+    def calculate_total(self):
+        """Расчёт общей суммы заказа."""
+        total = sum(item.get_total_price() for item in self.items.all())
+        self.total = total
+        self.save(update_fields=['total', 'updated_at'])
+        return self.total
 
 
 class OrderItem(models.Model):

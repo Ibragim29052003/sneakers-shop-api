@@ -4,6 +4,7 @@ Views for users app.
 from rest_framework import viewsets, status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 from .models import Role, UserRole, UserProfile
@@ -50,7 +51,7 @@ class UserCreateAPIView(generics.CreateAPIView):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """API view for user profile."""
     serializer_class = UserProfileSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
     
     def get_object(self):
         return self.request.user.profile
@@ -91,7 +92,7 @@ class RoleViewSet(viewsets.ModelViewSet):
     """ViewSet for Role management."""
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
 
 class UserRoleViewSet(viewsets.ModelViewSet):

@@ -91,10 +91,9 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
 @admin.register(Role)
 class RoleAdmin(SimpleHistoryAdmin):
     # настройка админки для модели ролей
-    list_display = ('name', 'description', 'get_user_count', 'created_at')
-    list_filter = ('name', 'created_at')
+    list_display = ('name', 'description', 'get_user_count')
+    list_filter = ('name',)
     search_fields = ('name', 'description')
-    date_hierarchy = 'created_at'
     
     @display(description=_('количество пользователей'))
     def get_user_count(self, obj):
