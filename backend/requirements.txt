@@ -1,0 +1,20 @@
+# Зависимости Django и фреймворка
+Django==6.0.2
+djangorestframework==3.16.1
+djangorestframework-simplejwt==5.5.1
+django-filter==25.2
+django-cors-headers==4.9.0
+django-import-export==4.4.0
+django-simple-history==3.11.0
+
+# Генерация PDF
+reportlab==4.3.0
+
+# База данных
+psycopg2-binary==2.9.11
+
+# Продакшен сервер
+gunicorn==25.0.3
+
+# Инструменты разработки
+ipython==8.20.0

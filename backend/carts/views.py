@@ -1,5 +1,5 @@
 """
-Views for carts app.
+Представления для приложения корзины
 """
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -11,7 +11,7 @@ from .serializers import CartSerializer, CartItemSerializer
 
 
 class CartViewSet(viewsets.ModelViewSet):
-    """ViewSet for Cart model."""
+    """ViewSet для модели корзины."""
     serializer_class = CartSerializer
     permission_classes = [IsAuthenticated]
     
@@ -19,19 +19,19 @@ class CartViewSet(viewsets.ModelViewSet):
         return Cart.objects.filter(user=self.request.user)
     
     def get_object(self):
-        """Get or create cart for user."""
+        """Получение или создание корзины для пользователя."""
         cart, created = Cart.objects.get_or_create(user=self.request.user)
         return cart
     
     def list(self, request, *args, **kwargs):
-        """Get current user's cart."""
+        """Получение корзины текущего пользователя."""
         cart = self.get_object()
         serializer = self.get_serializer(cart)
         return Response(serializer.data)
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
-    """ViewSet for CartItem model."""
+    """ViewSet для модели товаров в корзине."""
     serializer_class = CartItemSerializer
     permission_classes = [IsAuthenticated]
     
@@ -39,12 +39,12 @@ class CartItemViewSet(viewsets.ModelViewSet):
         return CartItem.objects.filter(cart__user=self.request.user)
     
     def perform_create(self, serializer):
-        """Add item to cart."""
+        """Добавление товара в корзину."""
         cart = get_object_or_404(Cart, user=self.request.user)
         product = serializer.validated_data.get('product')
         quantity = serializer.validated_data.get('quantity', 1)
         
-        # Check if item already in cart
+        # Проверка, есть ли товар уже в корзине
         existing_item = CartItem.objects.filter(cart=cart, product=product).first()
         if existing_item:
             existing_item.quantity += quantity
@@ -54,7 +54,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
         serializer.save(cart=cart)
     
     def update(self, request, *args, **kwargs):
-        """Update cart item quantity."""
+        """Обновление количества товара в корзине."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         quantity = request.data.get('quantity')

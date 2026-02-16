@@ -1,276 +1,162 @@
 """
-Admin configuration для модуля управления поставщиками
+Настройка админки для приложения поставщиков
 """
 from django.contrib import admin
+from django.contrib.admin import display
 from django.utils.html import format_html
+from django.urls import reverse
 from .models import (
     Supplier,
     SupplierContract,
-    ContractStatus,
-    DocumentType,
     ContractDocument,
     SupplierProductRequest,
-    RequestStatus,
     RequestDocument,
     SupplierProduct,
-    ProductSupplierSource,
-    AlertType,
     SystemAlert,
+    ContractStatus,
+    RequestStatus,
+    DocumentType,
+    AlertType,
+    ProductSupplierSource,
 )
+from simple_history.admin import SimpleHistoryAdmin
 
-
-# 
-# СПРАВОЧНИКИ (READ-ONLY админка)
-# 
-
-@admin.register(ContractStatus)
-class ContractStatusAdmin(admin.ModelAdmin):
-    """Админка для статусов договоров"""
-    list_display = ('id', 'name', 'description', 'is_active', 'created_at')
-    list_filter = ('is_active',)
-    search_fields = ('name', 'description')
-    list_editable = ('is_active',)
-    ordering = ('name',)
-    
-    # Поля только для чтения
-    readonly_fields = ('id', 'created_at')
-
-
-@admin.register(RequestStatus)
-class RequestStatusAdmin(admin.ModelAdmin):
-    """Админка для статусов заявок"""
-    list_display = ('id', 'name', 'description', 'is_active', 'created_at')
-    list_filter = ('is_active',)
-    search_fields = ('name', 'description')
-    list_editable = ('is_active',)
-    ordering = ('name',)
-    
-    readonly_fields = ('id', 'created_at')
-
-
-@admin.register(AlertType)
-class AlertTypeAdmin(admin.ModelAdmin):
-    """Админка для типов уведомлений"""
-    list_display = ('id', 'name', 'description', 'created_at')
-    search_fields = ('name', 'description')
-    ordering = ('name',)
-    
-    readonly_fields = ('id', 'created_at')
-
-
-@admin.register(ProductSupplierSource)
-class ProductSupplierSourceAdmin(admin.ModelAdmin):
-    """Админка для источников создания товаров"""
-    list_display = ('id', 'name', 'description', 'created_at')
-    search_fields = ('name', 'description')
-    ordering = ('name',)
-    
-    readonly_fields = ('id', 'created_at')
-
-
-@admin.register(DocumentType)
-class DocumentTypeAdmin(admin.ModelAdmin):
-    """Админка для типов документов"""
-    list_display = ('id', 'name', 'description', 'created_at')
-    search_fields = ('name', 'description')
-    ordering = ('name',)
-    
-    readonly_fields = ('id', 'created_at')
-
-
-# 
-# ОСНОВНЫЕ МОДЕЛИ
-# 
 
 @admin.register(Supplier)
-class SupplierAdmin(admin.ModelAdmin):
-    """Админка для поставщиков"""
-    list_display = ('id', 'name', 'inn', 'phone', 'email', 'is_active', 'created_at')
+class SupplierAdmin(SimpleHistoryAdmin):
+    """Админка для модели поставщиков."""
+    list_display = ('name', 'inn', 'phone', 'email', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
-    search_fields = ('name', 'inn', 'email', 'contact_person')
+    search_fields = ('name', 'inn', 'contact_person', 'email')
+    date_hierarchy = 'created_at'
     list_editable = ('is_active',)
-    ordering = ('name',)
+    readonly_fields = ('created_at', 'updated_at')
     
-    # Поля только для чтения
-    readonly_fields = ('id', 'created_at', 'updated_at')
-    
-    # Группировка полей
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('name', 'is_active')
-        }),
-        ('Реквизиты', {
-            'fields': ('inn', 'kpp', 'ogrn', 'legal_address', 'actual_address')
-        }),
-        ('Контакты', {
-            'fields': ('phone', 'email', 'website', 'contact_person', 'contact_phone')
-        }),
-        ('Дополнительно', {
-            'fields': ('notes', 'created_at', 'updated_at')
-        }),
-    )
-
-
-class ContractDocumentInline(admin.TabularInline):
-    """Inline для документов договора"""
-    model = ContractDocument
-    extra = 1
-    fields = ('document_type', 'file', 'file_name', 'description', 'uploaded_at')
-    readonly_fields = ('uploaded_at',)
-    
-    def has_delete_permission(self, request, obj=None):
-        """Разрешаем удаление"""
-        return True
-
 
 @admin.register(SupplierContract)
-class SupplierContractAdmin(admin.ModelAdmin):
-    """Админка для договоров с поставщиками"""
-    list_display = ('id', 'contract_number', 'supplier', 'status', 'start_date', 'end_date', 'total_amount', 'is_auto_renew')
-    list_filter = ('status', 'is_auto_renew', 'start_date', 'end_date')
-    search_fields = ('contract_number', 'title', 'supplier__name', 'description')
-    ordering = ('-created_at',)
+class SupplierContractAdmin(SimpleHistoryAdmin):
+    """Админка для модели договоров поставщиков."""
+    list_display = ('contract_number', 'supplier', 'status', 'start_date', 'end_date', 'get_expiration_status')
+    list_filter = ('status', 'start_date', 'end_date')
+    search_fields = ('contract_number', 'supplier__name', 'title')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at', 'updated_at')
     
-    # Поля только для чтения
-    readonly_fields = ('id', 'created_at', 'updated_at')
-    
-    # Inline документы
-    inlines = [ContractDocumentInline]
-    
-    # Группировка полей
-    fieldsets = (
-        ('Основное', {
-            'fields': ('supplier', 'status', 'contract_number', 'title')
-        }),
-        ('Сроки', {
-            'fields': ('start_date', 'end_date', 'is_auto_renew')
-        }),
-        ('Финансы', {
-            'fields': ('total_amount',)
-        }),
-        ('Дополнительно', {
-            'fields': ('description', 'notes', 'created_at', 'updated_at')
-        }),
-    )
-    
-    # Автоматическое отображение даты окончания с цветовой индикацией
-    @admin.display(description='дата окончания')
-    def get_end_date_display(self, obj):
-        from datetime import timedelta
-        from django.utils import timezone
-        
-        if obj.end_date < timezone.now().date():
-            return format_html(
-                '<span style="color: red;">{}</span>',
-                obj.end_date
-            )
-        elif obj.end_date <= timezone.now().date() + timedelta(days=30):
-            return format_html(
-                '<span style="color: orange;">{}</span>',
-                obj.end_date
-            )
-        return obj.end_date
-
-
-class RequestDocumentInline(admin.TabularInline):
-    """Inline для документов заявки"""
-    model = RequestDocument
-    extra = 1
-    fields = ('document_type', 'file', 'file_name', 'description', 'uploaded_at')
-    readonly_fields = ('uploaded_at',)
+    @display(description='Статус истечения')
+    def get_expiration_status(self, obj):
+        """Отображение статуса истечения договора."""
+        if obj.is_expired:
+            return format_html('<span style="color: red;">Истёк</span>')
+        elif obj.is_expiring_soon:
+            return format_html('<span style="color: orange;">Истекает скоро</span>')
+        else:
+            return format_html('<span style="color: green;">Активен</span>')
 
 
 @admin.register(SupplierProductRequest)
-class SupplierProductRequestAdmin(admin.ModelAdmin):
-    """Админка для заявок на поставку"""
-    list_display = ('id', 'product_name', 'supplier', 'status', 'quantity', 'suggested_price', 'created_at')
-    list_filter = ('status', 'created_at')
-    search_fields = ('product_name', 'product_sku', 'supplier__name', 'notes')
-    ordering = ('-created_at',)
+class SupplierProductRequestAdmin(SimpleHistoryAdmin):
+    """Админка для модели заявок на поставку товара."""
+    list_display = ('product_name', 'supplier', 'status', 'manager', 'created_at', 'get_review_status')
+    list_filter = ('status', 'created_at', 'supplier', 'manager')
+    search_fields = ('product_name', 'product_sku', 'supplier__name')
+    date_hierarchy = 'created_at'
+    raw_id_fields = ('supplier', 'manager', 'reviewed_by')
+    readonly_fields = ('created_at', 'updated_at', 'reviewed_at')
     
-    # Поля только для чтения
-    readonly_fields = ('id', 'created_at', 'updated_at')
-    
-    # Inline документы
-    inlines = [RequestDocumentInline]
-    
-    # Группировка полей
-    fieldsets = (
-        ('Основное', {
-            'fields': ('supplier', 'status')
-        }),
-        ('Информация о товаре', {
-            'fields': ('product_name', 'product_sku', 'product_description', 'quantity', 'suggested_price')
-        }),
-        ('Проверка', {
-            'fields': ('reviewed_by', 'reviewed_at', 'review_comment')
-        }),
-        ('Дополнительно', {
-            'fields': ('notes', 'created_at', 'updated_at')
-        }),
-    )
-    
-    # Автоматическое заполнение reviewed_at при изменении статуса
-    def save_model(self, request, obj, form, change):
-        if change and 'status' in form.changed_data:
-            from django.utils import timezone
-            obj.reviewed_at = timezone.now()
-            if not obj.reviewed_by_id:
-                obj.reviewed_by = request.user
-        super().save_model(request, obj, form, change)
+    @display(description='Статус проверки')
+    def get_review_status(self, obj):
+        """Отображение статуса проверки заявки."""
+        if obj.reviewed_by:
+            return format_html(
+                '<span style="color: green;">Проверено {} {}</span>',
+                obj.reviewed_by.first_name,
+                obj.reviewed_by.last_name
+            )
+        return format_html('<span style="color: orange;">На проверке</span>')
+
+
+@admin.register(ContractStatus)
+class ContractStatusAdmin(SimpleHistoryAdmin):
+    """Админка для модели статусов договоров."""
+    list_display = ('name', 'description', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'description')
+
+
+@admin.register(RequestStatus)
+class RequestStatusAdmin(SimpleHistoryAdmin):
+    """Админка для модели статусов заявок."""
+    list_display = ('name', 'description', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'description')
+
+
+@admin.register(DocumentType)
+class DocumentTypeAdmin(SimpleHistoryAdmin):
+    """Админка для модели типов документов."""
+    list_display = ('name', 'description')
+    search_fields = ('name', 'description')
+
+
+@admin.register(AlertType)
+class AlertTypeAdmin(SimpleHistoryAdmin):
+    """Админка для модели типов уведомлений."""
+    list_display = ('name', 'description')
+    search_fields = ('name', 'description')
+
+
+@admin.register(ProductSupplierSource)
+class ProductSupplierSourceAdmin(SimpleHistoryAdmin):
+    """Админка для модели источников товара."""
+    list_display = ('name', 'description')
+    search_fields = ('name', 'description')
+
+
+@admin.register(ContractDocument)
+class ContractDocumentAdmin(SimpleHistoryAdmin):
+    """Админка для модели документов договоров."""
+    list_display = ('file_name', 'contract', 'document_type', 'uploaded_by', 'uploaded_at')
+    list_filter = ('document_type', 'uploaded_at')
+    search_fields = ('file_name', 'contract__contract_number', 'uploaded_by__email')
+    date_hierarchy = 'uploaded_at'
+    raw_id_fields = ('contract', 'uploaded_by')
+
+
+@admin.register(RequestDocument)
+class RequestDocumentAdmin(SimpleHistoryAdmin):
+    """Админка для модели документов заявок."""
+    list_display = ('file_name', 'request', 'document_type', 'uploaded_by', 'uploaded_at')
+    list_filter = ('document_type', 'uploaded_at')
+    search_fields = ('file_name', 'request__product_name', 'uploaded_by__email')
+    date_hierarchy = 'uploaded_at'
+    raw_id_fields = ('request', 'uploaded_by')
 
 
 @admin.register(SupplierProduct)
-class SupplierProductAdmin(admin.ModelAdmin):
-    """Админка для связи товаров и поставщиков"""
-    list_display = ('id', 'product', 'supplier', 'supplier_sku', 'supplier_price', 'is_preferred', 'updated_at')
-    list_filter = ('is_preferred',)
-    search_fields = ('product__name', 'product__sku', 'supplier__name', 'supplier_sku')
-    list_editable = ('is_preferred',)
-    ordering = ('-is_preferred', 'supplier__name', 'product__name')
-    
-    # Поля только для чтения
-    readonly_fields = ('id', 'created_at', 'updated_at')
+class SupplierProductAdmin(SimpleHistoryAdmin):
+    """Админка для модели поставок товаров."""
+    list_display = ('product', 'supplier', 'supplier_sku', 'is_preferred', 'created_at')
+    list_filter = ('is_preferred', 'created_at')
+    search_fields = ('product__name', 'supplier__name', 'supplier_sku')
+    date_hierarchy = 'created_at'
+    raw_id_fields = ('product', 'supplier', 'contract')
 
 
 @admin.register(SystemAlert)
-class SystemAlertAdmin(admin.ModelAdmin):
-    """Админка для системных уведомлений"""
-    list_display = ('id', 'alert_type', 'title', 'is_read', 'contract', 'request', 'created_at')
+class SystemAlertAdmin(SimpleHistoryAdmin):
+    """Админка для модели системных уведомлений."""
+    list_display = ('alert_type', 'title', 'is_read', 'created_at', 'get_read_status')
     list_filter = ('alert_type', 'is_read', 'created_at')
     search_fields = ('title', 'message')
-    list_editable = ('is_read',)
-    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
+    raw_id_fields = ('read_by', 'contract', 'request')
     
-    # Поля только для чтения
-    readonly_fields = ('id', 'created_at')
-    
-    # Группировка полей
-    fieldsets = (
-        ('Основное', {
-            'fields': ('alert_type', 'title', 'message')
-        }),
-        ('Статус', {
-            'fields': ('is_read', 'read_by', 'read_at')
-        }),
-        ('Связанные объекты', {
-            'fields': ('contract', 'request')
-        }),
-        ('Служебное', {
-            'fields': ('created_at',)
-        }),
-    )
-    
-    # Действия в админке
-    actions = ['mark_as_read', 'mark_as_unread']
-    
-    @admin.action(description='Отметить как прочитанные')
-    def mark_as_read(self, request, queryset):
-        from django.utils import timezone
-        updated = queryset.update(is_read=True, read_by=request.user, read_at=timezone.now())
-        self.message_user(request, f'Обновлено {updated} уведомлений.')
-    
-    @admin.action(description='Отметить как непрочитанные')
-    def mark_as_unread(self, request, queryset):
-        updated = queryset.update(is_read=False, read_by=None, read_at=None)
-        self.message_user(request, f'Обновлено {updated} уведомлений.')
+    @display(description='Статус прочтения')
+    def get_read_status(self, obj):
+        """Отображение статуса прочтения уведомления."""
+        if obj.is_read:
+            return format_html(
+                '<span style="color: green;">Прочитано {}</span>',
+                obj.read_at.strftime('%d.%m.%Y %H:%M') if obj.read_at else '-'
+            )
+        return format_html('<span style="color: orange;">Не прочитано</span>')

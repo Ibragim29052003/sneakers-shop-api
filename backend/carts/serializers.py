@@ -1,5 +1,5 @@
 """
-Serializers for carts app.
+Сериализаторы для приложения корзины
 """
 from rest_framework import serializers
 from .models import Cart, CartItem
@@ -8,7 +8,7 @@ from products.models import Product
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    """Serializer for CartItem model."""
+    """Сериализатор для модели товаров в корзине."""
     product = ProductSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.all(),
@@ -26,12 +26,12 @@ class CartItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
     
     def get_total_price(self, obj):
-        """Calculate total price for item."""
+        """Расчет общей стоимости товара."""
         return str(obj.get_total_price())
 
 
 class CartSerializer(serializers.ModelSerializer):
-    """Serializer for Cart model."""
+    """Сериализатор для модели корзины."""
     items = CartItemSerializer(many=True, read_only=True)
     total_items = serializers.SerializerMethodField()
     total_price = serializers.SerializerMethodField()
@@ -45,9 +45,9 @@ class CartSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'user']
     
     def get_total_items(self, obj):
-        """Get total number of items."""
+        """Получение общего количества товаров."""
         return obj.items.count()
     
     def get_total_price(self, obj):
-        """Calculate total cart price."""
+        """Расчет общей стоимости корзины."""
         return str(obj.get_total_price())

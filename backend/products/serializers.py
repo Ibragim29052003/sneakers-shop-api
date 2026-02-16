@@ -1,12 +1,12 @@
 """
-Serializers for products app.
+Сериализаторы для приложения товаров
 """
 from rest_framework import serializers
 from .models import Category, Product, ProductCategory, ProductImage
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    """Serializer for Category model."""
+    """Сериализатор для модели категории."""
     parent_name = serializers.CharField(source='parent.name', read_only=True)
     subcategories_count = serializers.SerializerMethodField()
     
@@ -19,12 +19,12 @@ class CategorySerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
     
     def get_subcategories_count(self, obj):
-        """Get count of subcategories."""
+        """Получение количества подкатегорий."""
         return obj.subcategories.count()
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    """Serializer for ProductImage model."""
+    """Сериализатор для модели изображений товара."""
     
     class Meta:
         model = ProductImage
@@ -33,7 +33,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """Serializer for Product model."""
+    """Сериализатор для модели товара."""
     images = ProductImageSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
     main_image_url = serializers.SerializerMethodField()
@@ -43,12 +43,12 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'price', 'sku',
             'is_active', 'created_at', 'updated_at', 'categories',
-            'images', 'main_image_url'
+            'images', 'main_image_url', 'external_url'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
     def get_main_image_url(self, obj):
-        """Get main image URL."""
+        """Получение URL главного изображения."""
         main_image = obj.images.filter(is_main=True).first()
         if main_image:
             return main_image.image.url
@@ -59,7 +59,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ProductCategorySerializer(serializers.ModelSerializer):
-    """Serializer for ProductCategory model."""
+    """Сериализатор для модели связи товаров и категорий."""
     product_name = serializers.CharField(source='product.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     

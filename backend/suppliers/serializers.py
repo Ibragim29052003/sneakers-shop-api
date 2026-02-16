@@ -1,5 +1,5 @@
 """
-Serializers for suppliers app.
+Сериализаторы для приложения поставщиков
 """
 from rest_framework import serializers
 from .models import (
@@ -19,7 +19,7 @@ from .models import (
 
 
 class ContractStatusSerializer(serializers.ModelSerializer):
-    """Serializer for ContractStatus model."""
+    """Сериализатор для модели статусов договоров."""
     
     class Meta:
         model = ContractStatus
@@ -28,7 +28,7 @@ class ContractStatusSerializer(serializers.ModelSerializer):
 
 
 class RequestStatusSerializer(serializers.ModelSerializer):
-    """Serializer for RequestStatus model."""
+    """Сериализатор для модели статусов заявок."""
     
     class Meta:
         model = RequestStatus
@@ -37,7 +37,7 @@ class RequestStatusSerializer(serializers.ModelSerializer):
 
 
 class DocumentTypeSerializer(serializers.ModelSerializer):
-    """Serializer for DocumentType model."""
+    """Сериализатор для модели типов документов."""
     
     class Meta:
         model = DocumentType
@@ -46,7 +46,7 @@ class DocumentTypeSerializer(serializers.ModelSerializer):
 
 
 class AlertTypeSerializer(serializers.ModelSerializer):
-    """Serializer for AlertType model."""
+    """Сериализатор для модели типов уведомлений."""
     
     class Meta:
         model = AlertType
@@ -55,7 +55,7 @@ class AlertTypeSerializer(serializers.ModelSerializer):
 
 
 class ProductSupplierSourceSerializer(serializers.ModelSerializer):
-    """Serializer for ProductSupplierSource model."""
+    """Сериализатор для модели источников товара."""
     
     class Meta:
         model = ProductSupplierSource
@@ -64,7 +64,7 @@ class ProductSupplierSourceSerializer(serializers.ModelSerializer):
 
 
 class SupplierSerializer(serializers.ModelSerializer):
-    """Serializer for Supplier model."""
+    """Сериализатор для модели поставщиков."""
     contracts_count = serializers.SerializerMethodField()
     products_count = serializers.SerializerMethodField()
     
@@ -86,7 +86,7 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class SupplierContractSerializer(serializers.ModelSerializer):
-    """Serializer for SupplierContract model."""
+    """Сериализатор для модели договоров поставщиков."""
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     status_name = serializers.CharField(source='status.name', read_only=True)
     documents_count = serializers.SerializerMethodField()
@@ -112,7 +112,7 @@ class SupplierContractSerializer(serializers.ModelSerializer):
 
 
 class ContractDocumentSerializer(serializers.ModelSerializer):
-    """Serializer for ContractDocument model."""
+    """Сериализатор для модели документов договоров."""
     uploaded_by_name = serializers.CharField(source='uploaded_by.email', read_only=True)
     document_type_name = serializers.CharField(source='document_type.name', read_only=True)
     
@@ -127,7 +127,7 @@ class ContractDocumentSerializer(serializers.ModelSerializer):
 
 
 class SupplierProductRequestSerializer(serializers.ModelSerializer):
-    """Serializer for SupplierProductRequest model."""
+    """Сериализатор для модели заявок на поставку товара."""
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     status_name = serializers.CharField(source='status.name', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.email', read_only=True)
@@ -150,7 +150,7 @@ class SupplierProductRequestSerializer(serializers.ModelSerializer):
 
 
 class SupplierProductRequestCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating SupplierProductRequest."""
+    """Сериализатор для создания заявок на поставку товара."""
     
     class Meta:
         model = SupplierProductRequest
@@ -161,7 +161,7 @@ class SupplierProductRequestCreateSerializer(serializers.ModelSerializer):
 
 
 class SupplierProductRequestManageSerializer(serializers.ModelSerializer):
-    """Serializer for managing SupplierProductRequest (approve/reject)."""
+    """Сериализатор для управления заявками на поставку (одобрение/отклонение)."""
     
     class Meta:
         model = SupplierProductRequest
@@ -169,7 +169,7 @@ class SupplierProductRequestManageSerializer(serializers.ModelSerializer):
 
 
 class RequestDocumentSerializer(serializers.ModelSerializer):
-    """Serializer for RequestDocument model."""
+    """Сериализатор для модели документов заявок."""
     uploaded_by_name = serializers.CharField(source='uploaded_by.email', read_only=True)
     document_type_name = serializers.CharField(source='document_type.name', read_only=True)
     
@@ -184,7 +184,7 @@ class RequestDocumentSerializer(serializers.ModelSerializer):
 
 
 class SupplierProductSerializer(serializers.ModelSerializer):
-    """Serializer for SupplierProduct model."""
+    """Сериализатор для модели поставок товаров."""
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     contract_number = serializers.CharField(source='contract.contract_number', read_only=True)
@@ -200,7 +200,7 @@ class SupplierProductSerializer(serializers.ModelSerializer):
 
 
 class SystemAlertSerializer(serializers.ModelSerializer):
-    """Serializer for SystemAlert model."""
+    """Сериализатор для модели системных уведомлений."""
     alert_type_name = serializers.CharField(source='alert_type.name', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
     read_by_email = serializers.CharField(source='read_by.email', read_only=True)
@@ -228,7 +228,7 @@ class SystemAlertSerializer(serializers.ModelSerializer):
 
 
 class SystemAlertCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating SystemAlert."""
+    """Сериализатор для создания системных уведомлений."""
     
     class Meta:
         model = SystemAlert

@@ -1,12 +1,25 @@
 """
 настройка админки для приложения товаров
+
+Демонстрация:
+- models.ImageField (в модели ProductImage)
+- models.FileField (в других приложениях)
+- Генерация PDF документа в админке
+- Действия на сайте администрирования (admin actions)
 """
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.http import HttpResponse
+from django.urls import reverse
 from .models import Category, Product, ProductCategory, ProductImage
 from simple_history.admin import SimpleHistoryAdmin
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 
 class ProductCategoryInline(admin.TabularInline):
@@ -110,6 +123,137 @@ class ProductAdmin(SimpleHistoryAdmin):
     )
     
     readonly_fields = ('created_at', 'updated_at')
+    
+    # =========================================================================
+    # ПРИМЕРЫ АДМИНСКИХ ДЕЙСТВИЙ (ADMIN ACTIONS)
+    # =========================================================================
+    
+    def archive_products(self, request, queryset):
+        """
+        Действие: архивирование выбранных товаров.
+        
+        ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ ADMIN ACTIONS:
+        1. Массовое удаление объектов
+        2. Массовое изменение статуса
+        3. Экспорт данных
+        4. Отправка email уведомлений
+        5. Генерация отчётов
+        """
+        updated = queryset.update(status='archived', is_active=False)
+        self.message_user(request, f'{updated} товаров архивировано.')
+    archive_products.short_description = 'Архивировать выбранные товары'
+    
+    def activate_products(self, request, queryset):
+        """Действие: активация выбранных товаров."""
+        updated = queryset.update(status='active', is_active=True)
+        self.message_user(request, f'{updated} товаров активировано.')
+    activate_products.short_description = 'Активировать выбранные товары'
+    
+    def mark_as_draft(self, request, queryset):
+        """Действие: перевод в черновик."""
+        updated = queryset.update(status='draft')
+        self.message_user(request, f'{updated} товаров переведено в черновик.')
+    mark_as_draft.short_description = 'Перевести в черновик'
+    
+    # Регистрация действий
+    actions = [archive_products, activate_products, mark_as_draft, 'generate_pdf_report']
+    
+    # =========================================================================
+    # ПРИМЕР ГЕНЕРАЦИИ PDF В АДМИНКЕ
+    # =========================================================================
+    
+    def generate_pdf_report(self, request, queryset):
+        """
+        Действие: генерация PDF отчёта о выбранных товарах.
+        
+        ПРИМЕР ГЕНЕРАЦИИ PDF (стр. 488 учебника):
+        
+        Использование reportlab для создания PDF документов:
+        1. Создание документа с помощью SimpleDocTemplate
+        2. Добавление таблиц, параграфов, изображений
+        3. Стилизация элементов
+        4. Возврат HTTP ответа с PDF
+        """
+        # Создание PDF документа
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="products_report.pdf"'
+        
+        # Создание документа A4
+        doc = SimpleDocTemplate(response, pagesize=A4)
+        elements = []
+        
+        # Стили
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+        )
+        
+        # Заголовок
+        elements.append(Paragraph('Отчёт по товарам', title_style))
+        elements.append(Spacer(1, 20))
+        
+        # Данные для таблицы
+        data = [['Название', 'Артикул', 'Цена', 'Статус']]
+        for product in queryset:
+            data.append([
+                product.name,
+                product.sku,
+                f'{product.price} ₽',
+                product.get_status_display()
+            ])
+        
+        # Создание таблицы
+        table = Table(data, colWidths=[2.5*inch, 1.5*inch, 1*inch, 1.2*inch])
+        
+        # Стилизация таблицы
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        elements.append(table)
+        
+        # Итоговая информация
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph(f'Всего товаров: {len(queryset)}', styles['Normal']))
+        
+        # Сборка документа
+        doc.build(elements)
+        
+        return response
+    
+    generate_pdf_report.short_description = 'Сгенерировать PDF отчёт'
+    
+    @display(description=_('цена'))
+    def get_price_display(self, obj):
+        # отображение цены с валютой
+        return f'{obj.price} ₽'
+    
+    @display(description=_('активен'))
+    def get_is_active_status(self, obj):
+        # отображение статуса активности
+        if obj.is_active:
+            return format_html('<span style="color: green;">✓ да</span>')
+        return format_html('<span style="color: red;">✗ нет</span>')
+    
+    @display(description=_('категории'))
+    def get_category_list(self, obj):
+        # отображение списка категорий
+        categories = [pc.category.name for pc in obj.product_categories.select_related('category').all()]
+        return ', '.join(categories) if categories else '-'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('categories', 'images')
     
     @display(description=_('цена'))
     def get_price_display(self, obj):

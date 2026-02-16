@@ -22,9 +22,11 @@ class OrderItemInline(admin.TabularInline):
     @display(description=_('товар'))
     def get_product_name(self, obj):
         # отображение названия товара со ссылкой
-        from django.urls import reverse
-        url = reverse('admin:products_product_change', args=[obj.product.id])
-        return format_html('<a href="{}">{}</a>', url, obj.product.name)
+        if obj.product:
+            from django.urls import reverse
+            url = reverse('admin:products_product_change', args=[obj.product.id])
+            return format_html('<a href="{}">{}</a>', url, obj.product.name)
+        return obj.product_name
     
     @display(description=_('сумма'))
     def get_total_price_display(self, obj):

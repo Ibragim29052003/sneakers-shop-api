@@ -239,7 +239,7 @@ class SupplierContract(models.Model):
     status = models.ForeignKey(
         ContractStatus,
         on_delete=models.PROTECT,
-        related_name='contracts',
+        related_name='Contracts',
         verbose_name='статус',
         default=ContractStatus.DRAFT
     )
@@ -459,6 +459,14 @@ class SupplierProduct(models.Model):
         on_delete=models.CASCADE,
         related_name='product_suppliers',
         verbose_name='товар'
+    )
+    contract = models.ForeignKey(
+        SupplierContract,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_products',
+        verbose_name='договор'
     )
     supplier_sku = models.CharField('артикул у поставщика', max_length=50, blank=True)
     supplier_price = models.DecimalField(

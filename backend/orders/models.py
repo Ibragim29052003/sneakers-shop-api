@@ -126,7 +126,9 @@ class OrderItem(models.Model):
     
     def get_total_price(self):
         # расчёт общей стоимости позиции
-        return self.price * self.quantity
+        if self.price is not None:
+            return self.price * self.quantity
+        return Decimal('0.00')
     
     @display(description='сумма')
     def get_total_price_display(self):

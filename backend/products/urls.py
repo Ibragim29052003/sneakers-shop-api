@@ -1,5 +1,23 @@
 """
 URL configuration for products app.
+
+В этом файле демонстрируется использование reverse() и get_absolute_url.
+
+Для работы Product.get_absolute_url() необходимо добавить маршрут в core/urls.py:
+path('products/<int:pk>/', ProductViewSet.as_view({'get': 'retrieve'}), name='product-detail')
+
+Эндпоинты для ProductViewSet (доступны через router):
+- GET /api/products/ - список товаров
+- POST /api/products/ - создать товар
+- GET /api/products/{id}/ - получить товар
+- PUT /api/products/{id}/ - обновить товар
+- DELETE /api/products/{id}/ - удалить товар
+- GET /api/products/filter-examples/ - примеры использования filter()
+- GET /api/products/exclude-examples/ - примеры использования exclude()
+- GET /api/products/order-by-examples/ - примеры использования order_by()
+- GET /api/products/double-underscore-examples/ - примеры использования __
+- GET /api/products/aggregation-examples/ - примеры агрегации и аннотирования
+- GET /api/products/related-name-examples/ - примеры использования related_name
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter

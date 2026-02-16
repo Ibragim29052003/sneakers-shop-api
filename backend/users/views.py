@@ -1,12 +1,13 @@
 """
-Views for users app.
+Представления для приложения пользователей
 """
 from rest_framework import viewsets, status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
+
 from .models import Role, UserRole, UserProfile
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -22,21 +23,21 @@ User = get_user_model()
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Custom token view with user info."""
+    """Пользовательское представление получения токена с информацией о пользователе."""
     serializer_class = CustomTokenObtainPairSerializer
 
 
 class UserCreateAPIView(generics.CreateAPIView):
-    """API view for user registration."""
+    """API представление для регистрации пользователя."""
     serializer_class = UserCreateSerializer
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        # Create empty profile for new user
+        # Создание пустого профиля для нового пользователя
         UserProfile.objects.create(user=user)
-        # Assign default 'user' role
+        # Назначение роли по умолчанию
         try:
             default_role = Role.objects.get(name='user')
             UserRole.objects.create(user=user, role=default_role)
@@ -49,7 +50,7 @@ class UserCreateAPIView(generics.CreateAPIView):
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
-    """API view for user profile."""
+    """API представление для профиля пользователя."""
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
     
@@ -66,7 +67,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    """ViewSet for User management."""
+    """ViewSet для управления пользователями."""
     queryset = User.objects.all()
     serializer_class = UserSerializer
     
@@ -89,14 +90,14 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class RoleViewSet(viewsets.ModelViewSet):
-    """ViewSet for Role management."""
+    """ViewSet для управления ролями."""
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated]
 
 
 class UserRoleViewSet(viewsets.ModelViewSet):
-    """ViewSet for UserRole management."""
+    """ViewSet для управления назначениями ролей."""
     queryset = UserRole.objects.all()
     serializer_class = UserRoleSerializer
     

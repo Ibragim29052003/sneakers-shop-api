@@ -1,5 +1,5 @@
 """
-Serializers for users app.
+Сериализаторы для приложения пользователей
 """
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -10,25 +10,25 @@ User = get_user_model()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Custom token serializer with additional user info."""
+    """Пользовательский сериализатор токена с дополнительной информацией о пользователе."""
     
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # Add custom claims
+        # Добавление пользовательских полей
         token['email'] = user.email
         token['is_staff'] = user.is_staff
         return token
     
     def validate(self, attrs):
         data = super().validate(attrs)
-        # Add user info to response
+        # Добавление информации о пользователе в ответ
         data['user'] = UserSerializer(self.user).data
         return data
 
 
 class RoleSerializer(serializers.ModelSerializer):
-    """Serializer for Role model."""
+    """Сериализатор для модели роли."""
     
     class Meta:
         model = Role
@@ -36,7 +36,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 class UserRoleSerializer(serializers.ModelSerializer):
-    """Serializer for UserRole model."""
+    """Сериализатор для модели назначения роли пользователю."""
     role = RoleSerializer(read_only=True)
     role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), source='role', write_only=True)
     
@@ -47,7 +47,7 @@ class UserRoleSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Serializer for UserProfile model."""
+    """Сериализатор для модели профиля пользователя."""
     
     class Meta:
         model = UserProfile
@@ -56,7 +56,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer for User model."""
+    """Сериализатор для модели пользователя."""
     profile = UserProfileSerializer(read_only=True)
     roles = UserRoleSerializer(source='user_roles', many=True, read_only=True)
     
@@ -70,7 +70,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new users."""
+    """Сериализатор для создания новых пользователей."""
     password = serializers.CharField(write_only=True, required=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, required=True)
     
@@ -80,7 +80,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({'password_confirm': 'Passwords do not match'})
+            raise serializers.ValidationError({'password_confirm': 'Пароли не совпадают'})
         return attrs
     
     def create(self, validated_data):
@@ -90,7 +90,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating user profile."""
+    """Сериализатор для обновления профиля пользователя."""
     
     class Meta:
         model = User

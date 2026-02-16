@@ -70,14 +70,16 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     def get_is_active_status(self, obj):
         # отображение статуса активности с цветовой индикацией
         if obj.is_active:
-            return format_html('<span style="color: green;">✓ да</span>')
-        return format_html('<span style="color: red;">✗ нет</span>')
+            return format_html('<span style="color: green;">{} да</span>', '✓')
+        return format_html('<span style="color: red;">{} нет</span>', '✗')
     
     @display(description=_('роли'))
     def get_role_names(self, obj):
         # отображение ролей пользователя
         roles = [ur.role.name for ur in obj.user_roles.select_related('role').all()]
-        return ', '.join(roles) if roles else '-'
+        if roles:
+            return ', '.join(roles)
+        return '-'
     
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('user_roles', 'profile')

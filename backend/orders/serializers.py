@@ -1,5 +1,5 @@
 """
-Serializers for orders app.
+Сериализаторы для приложения заказов
 """
 from rest_framework import serializers
 from .models import OrderStatus, Order, OrderItem
@@ -7,7 +7,7 @@ from users.serializers import UserSerializer
 
 
 class OrderStatusSerializer(serializers.ModelSerializer):
-    """Serializer for OrderStatus model."""
+    """Сериализатор для модели статусов заказов."""
     
     class Meta:
         model = OrderStatus
@@ -16,7 +16,7 @@ class OrderStatusSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    """Serializer for OrderItem model."""
+    """Сериализатор для модели товаров в заказе."""
     
     class Meta:
         model = OrderItem
@@ -28,7 +28,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    """Serializer for Order model."""
+    """Сериализатор для модели заказов."""
     items = OrderItemSerializer(many=True, read_only=True)
     status_info = OrderStatusSerializer(source='status', read_only=True)
     user = UserSerializer(read_only=True)
@@ -43,19 +43,19 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'user', 'total']
     
     def get_total_display(self, obj):
-        """Get total price as string."""
+        """Получение общей суммы в виде строки."""
         return str(obj.total)
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating orders."""
+    """Сериализатор для создания заказов."""
     
     class Meta:
         model = Order
         fields = ['status', 'shipping_address', 'notes']
     
     def create(self, validated_data):
-        """Create order from cart."""
+        """Создание заказа из корзины."""
         user = self.context['request'].user
         from carts.models import Cart
         from django.db import transaction
@@ -64,7 +64,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             cart = Cart.objects.get(user=user)
             order = Order.objects.create(user=user, **validated_data)
             
-            # Create order items
+            # Создание товаров в заказе
             for cart_item in cart.items.all():
                 OrderItem.objects.create(
                     order=order,
@@ -75,10 +75,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     quantity=cart_item.quantity
                 )
             
-            # Calculate total
+            # Расчет общей суммы
             order.calculate_total()
             
-            # Clear cart
+            # Очистка корзины
             cart.items.all().delete()
             
             return order

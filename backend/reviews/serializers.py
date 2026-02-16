@@ -1,5 +1,5 @@
 """
-Serializers for reviews app.
+Сериализаторы для приложения отзывов
 """
 from rest_framework import serializers
 from .models import Review
@@ -8,7 +8,7 @@ from products.serializers import ProductSerializer
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    """Serializer for Review model."""
+    """Сериализатор для модели отзывов."""
     user = UserSerializer(read_only=True)
     product = ProductSerializer(read_only=True)
     rating_stars = serializers.SerializerMethodField()
@@ -26,29 +26,29 @@ class ReviewSerializer(serializers.ModelSerializer):
         ]
     
     def get_rating_stars(self, obj):
-        """Get rating as stars string."""
+        """Получение оценки в виде строки со звездами."""
         return '★' * obj.rating + '☆' * (5 - obj.rating)
 
 
 class ReviewCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating reviews."""
+    """Сериализатор для создания отзывов."""
     
     class Meta:
         model = Review
         fields = ['rating', 'comment']
     
     def validate_rating(self, value):
-        """Validate rating value."""
+        """Валидация значения оценки."""
         if not 1 <= value <= 5:
             raise serializers.ValidationError('Рейтинг должен быть от 1 до 5.')
         return value
     
     def create(self, validated_data):
-        """Create review for product."""
+        """Создание отзыва для товара."""
         user = self.context['request'].user
         product = self.context['product']
         
-        # Check if user already reviewed this product
+        # Проверка, оставлял ли пользователь отзыв на этот товар
         if Review.objects.filter(user=user, product=product).exists():
             raise serializers.ValidationError(
                 {'detail': 'Вы уже оставили отзыв на этот товар.'}
@@ -58,14 +58,14 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
 
 
 class ReviewUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating reviews."""
+    """Сериализатор для обновления отзывов."""
     
     class Meta:
         model = Review
         fields = ['rating', 'comment']
     
     def validate_rating(self, value):
-        """Validate rating value."""
+        """Валидация значения оценки."""
         if not 1 <= value <= 5:
             raise serializers.ValidationError('Рейтинг должен быть от 1 до 5.')
         return value

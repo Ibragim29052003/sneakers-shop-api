@@ -1,5 +1,5 @@
 """
-Views for reviews app.
+Представления для приложения отзывов
 """
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -11,34 +11,34 @@ from .serializers import ReviewSerializer
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
-    """ViewSet for Review model."""
+    """ViewSet для модели отзывов."""
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Get reviews for a specific product or user."""
-        product_id = self.kwargs.get('product_pk')
-        if product_id:
-            return Review.objects.filter(product_id=product_id)
+        """Получение отзывов для конкретного товара или пользователя."""
+        product_pk = self.kwargs.get('product_pk')
+        if product_pk:
+            return Review.objects.filter(product_id=product_pk)
         return Review.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
-        """Create review for product."""
-        product_id = self.kwargs.get('product_pk')
-        if product_id:
+        """Создание отзыва для товара."""
+        product_pk = self.kwargs.get('product_pk')
+        if product_pk:
             serializer.save(
                 user=self.request.user,
-                product_id=product_id
+                product_id=product_pk
             )
         else:
             serializer.save(user=self.request.user)
     
     def update(self, request, *args, **kwargs):
-        """Update review - only own reviews."""
+        """Обновление отзыва - только собственные отзывы."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
-        # Check if user owns this review
+        # Проверка, является ли пользователь владельцем отзыва
         if instance.user != request.user:
             return Response(
                 {'detail': 'Вы можете редактировать только свои отзывы.'},
@@ -51,7 +51,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     def destroy(self, request, *args, **kwargs):
-        """Delete review - only own reviews."""
+        """Удаление отзыва - только собственные отзывы."""
         instance = self.get_object()
         
         if instance.user != request.user:

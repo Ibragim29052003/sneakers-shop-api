@@ -1,16 +1,16 @@
 """
-URL configuration for suppliers app.
+Конфигурация URL для приложения поставщиков
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    # Reference data
+    # Справочники
     ContractStatusViewSet,
     RequestStatusViewSet,
     DocumentTypeViewSet,
     AlertTypeViewSet,
     ProductSupplierSourceViewSet,
-    # Main views
+    # Основные представления
     SupplierViewSet,
     SupplierContractViewSet,
     ContractDocumentViewSet,
@@ -18,21 +18,21 @@ from .views import (
     RequestDocumentViewSet,
     SupplierProductViewSet,
     SystemAlertViewSet,
-    # Custom views
+    # Пользовательские представления
     AssignManagerView,
     UserAlertsView,
 )
 
 router = DefaultRouter()
 
-# Reference data (admin only)
+# Справочники (только админ)
 router.register(r'contract-statuses', ContractStatusViewSet, basename='contract-status')
 router.register(r'request-statuses', RequestStatusViewSet, basename='request-status')
 router.register(r'document-types', DocumentTypeViewSet, basename='document-type')
 router.register(r'alert-types', AlertTypeViewSet, basename='alert-type')
 router.register(r'product-sources', ProductSupplierSourceViewSet, basename='product-source')
 
-# Main resources
+# Основные ресурсы
 router.register(r'suppliers', SupplierViewSet, basename='supplier')
 router.register(r'supplier-contracts', SupplierContractViewSet, basename='supplier-contract')
 router.register(r'contract-documents', ContractDocumentViewSet, basename='contract-document')
@@ -44,7 +44,7 @@ router.register(r'system-alerts', SystemAlertViewSet, basename='system-alert')
 urlpatterns = [
     path('', include(router.urls)),
     
-    # Custom endpoints
+    # Пользовательские эндпоинты
     path('supplier-requests/<int:request_id>/assign-manager/', 
          AssignManagerView.as_view(), 
          name='assign-manager'),

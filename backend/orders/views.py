@@ -1,5 +1,5 @@
 """
-Views for orders app.
+Представления для приложения заказов
 """
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -14,14 +14,14 @@ from products.models import Product
 
 
 class OrderStatusViewSet(viewsets.ModelViewSet):
-    """ViewSet for OrderStatus model."""
+    """ViewSet для модели статусов заказов."""
     queryset = OrderStatus.objects.all()
     serializer_class = OrderStatusSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-    """ViewSet for Order model."""
+    """ViewSet для модели заказов."""
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     
@@ -29,15 +29,15 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Order.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
-        """Create order from cart."""
+        """Создание заказа из корзины."""
         with transaction.atomic():
             user = self.request.user
             cart = get_object_or_404(Cart, user=user)
             
-            # Create order
+            # Создание заказа
             order = serializer.save(user=user)
             
-            # Create order items from cart items
+            # Создание товаров в заказе из товаров корзины
             for cart_item in cart.items.all():
                 order_item = OrderItem.objects.create(
                     order=order,
@@ -48,15 +48,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                     quantity=cart_item.quantity
                 )
             
-            # Calculate total
+            # Расчет общей суммы
             order.calculate_total()
             
-            # Clear cart
+            # Очистка корзины
             cart.items.all().delete()
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        """Update order status."""
+        """Обновление статуса заказа."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         status_id = request.data.get('status')
@@ -72,7 +72,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 class OrderItemViewSet(viewsets.ModelViewSet):
-    """ViewSet for OrderItem model."""
+    """ViewSet для модели товаров в заказе."""
     serializer_class = OrderItemSerializer
     permission_classes = [IsAuthenticated]
     

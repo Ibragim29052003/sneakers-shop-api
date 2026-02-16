@@ -1,5 +1,5 @@
 """
-Custom permissions for role-based access control.
+Кастомные разрешения для ролевой модели доступа.
 """
 from rest_framework import permissions
 from django.contrib.auth import get_user_model
@@ -9,7 +9,7 @@ User = get_user_model()
 
 class IsAdminUser(permissions.BasePermission):
     """
-    Permission check for admin role.
+    Проверка разрешений для администратора.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -19,7 +19,7 @@ class IsAdminUser(permissions.BasePermission):
 
 class IsUser(permissions.BasePermission):
     """
-    Permission check for regular user role.
+    Проверка разрешений для обычного пользователя.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -29,38 +29,38 @@ class IsUser(permissions.BasePermission):
 
 class IsManagerOrAdmin(permissions.BasePermission):
     """
-    Permission check for manager or admin role.
-    Manager is defined by having manager_id assigned in supplier_product_requests.
+    Проверка разрешений для менеджера или администратора.
+    Менеджер определяется по назначению manager_id в заявках поставщиков.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        # Check if user is admin
+        # Проверка, является ли пользователь админом
         if request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists():
             return True
-        # Check if user is manager of any request
+        # Проверка, является ли пользователь менеджером какой-либо заявки
         from suppliers.models import SupplierProductRequest
         return SupplierProductRequest.objects.filter(manager_id=request.user.id).exists()
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
-    Object-level permission to only allow owners to edit their objects.
+    Разрешение уровня объекта, позволяющее только владельцам редактировать свои объекты.
     """
     def has_object_permission(self, request, view, obj):
-        # Read permissions are allowed for any request
+        # Разрешения на чтение разрешены для любого запроса
         if request.method in permissions.SAFE_METHODS:
             return True
         
-        # Write permissions only for owner or admin
+        # Разрешения на запись только для владельца или админа
         if not request.user or not request.user.is_authenticated:
             return False
         
-        # Admin can do anything
+        # Админ может делать все
         if request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists():
             return True
         
-        # Check if user owns the object
+        # Проверка, является ли пользователь владельцем объекта
         if hasattr(obj, 'user'):
             return obj.user == request.user
         elif hasattr(obj, 'created_by'):
@@ -71,7 +71,7 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
-    Allow read for all, write only for admin.
+    Разрешить чтение всем, запись только админу.
     """
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
@@ -85,8 +85,8 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 class IsManagerForRequest(permissions.BasePermission):
     """
-    Permission check for manager of specific supplier product request.
-    User is manager if they are assigned as manager_id in the request.
+    Проверка разрешений для менеджера конкретной заявки поставщика.
+    Пользователь является менеджером, если ему назначен manager_id в заявке.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -97,11 +97,11 @@ class IsManagerForRequest(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         
-        # Admin can do anything
+        # Админ может делать все
         if request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists():
             return True
         
-        # Check if user is manager of this request
+        # Проверка, является ли пользователь менеджером этой заявки
         if hasattr(obj, 'manager_id'):
             return obj.manager_id == request.user.id
         
@@ -110,8 +110,8 @@ class IsManagerForRequest(permissions.BasePermission):
 
 class CanManageSupplierRequests(permissions.BasePermission):
     """
-    Permission to manage supplier product requests.
-    Admin can manage all requests, manager can manage their assigned requests.
+    Проверка разрешений для управления заявками поставщиков.
+    Админ может управлять всеми заявками, менеджер может управлять назначенными ему заявками.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -122,11 +122,11 @@ class CanManageSupplierRequests(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         
-        # Admin can do anything
+        # Админ может делать все
         if request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists():
             return True
         
-        # Check if user is manager of this request
+        # Проверка, является ли пользователь менеджером этой заявки
         if hasattr(obj, 'manager_id'):
             return obj.manager_id == request.user.id
         
@@ -135,8 +135,8 @@ class CanManageSupplierRequests(permissions.BasePermission):
 
 class CanAssignManager(permissions.BasePermission):
     """
-    Permission to assign manager to supplier product request.
-    Only admin can assign managers.
+    Проверка разрешений для назначения менеджера заявке поставщика.
+    Только админ может назначать менеджеров.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -146,8 +146,8 @@ class CanAssignManager(permissions.BasePermission):
 
 class IsAuthenticatedOrReadOnlyForPublic(permissions.BasePermission):
     """
-    Allows read access to everyone, write only to authenticated users.
-    For public endpoints like categories and products.
+    Разрешает доступ на чтение всем, на запись только аутентифицированным пользователям.
+    Для публичных эндпоинтов, таких как категории и товары.
     """
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:

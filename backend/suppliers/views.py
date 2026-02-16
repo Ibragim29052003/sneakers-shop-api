@@ -1,5 +1,5 @@
 """
-Views for suppliers app.
+Представления для приложения поставщиков
 """
 from rest_framework import viewsets, status, filters
 from rest_framework.views import APIView
@@ -53,10 +53,10 @@ from .permissions import (
 )
 
 
-# ==================== Reference Data Views ====================
+# ==================== Справочники ====================
 
 class ContractStatusViewSet(viewsets.ModelViewSet):
-    """ViewSet for ContractStatus model."""
+    """ViewSet для модели статусов договоров."""
     queryset = ContractStatus.objects.all()
     serializer_class = ContractStatusSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -66,7 +66,7 @@ class ContractStatusViewSet(viewsets.ModelViewSet):
 
 
 class RequestStatusViewSet(viewsets.ModelViewSet):
-    """ViewSet for RequestStatus model."""
+    """ViewSet для модели статусов заявок."""
     queryset = RequestStatus.objects.all()
     serializer_class = RequestStatusSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -76,7 +76,7 @@ class RequestStatusViewSet(viewsets.ModelViewSet):
 
 
 class DocumentTypeViewSet(viewsets.ModelViewSet):
-    """ViewSet for DocumentType model."""
+    """ViewSet для модели типов документов."""
     queryset = DocumentType.objects.all()
     serializer_class = DocumentTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -86,7 +86,7 @@ class DocumentTypeViewSet(viewsets.ModelViewSet):
 
 
 class AlertTypeViewSet(viewsets.ModelViewSet):
-    """ViewSet for AlertType model."""
+    """ViewSet для модели типов уведомлений."""
     queryset = AlertType.objects.all()
     serializer_class = AlertTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -96,7 +96,7 @@ class AlertTypeViewSet(viewsets.ModelViewSet):
 
 
 class ProductSupplierSourceViewSet(viewsets.ModelViewSet):
-    """ViewSet for ProductSupplierSource model."""
+    """ViewSet для модели источников товара."""
     queryset = ProductSupplierSource.objects.all()
     serializer_class = ProductSupplierSourceSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -105,10 +105,10 @@ class ProductSupplierSourceViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_at']
 
 
-# ==================== Supplier Views ====================
+# ==================== Поставщики ====================
 
 class SupplierViewSet(viewsets.ModelViewSet):
-    """ViewSet for Supplier model."""
+    """ViewSet для модели поставщиков."""
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
     permission_classes = [IsAdminUser]
@@ -119,10 +119,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
 
-# ==================== Contract Views ====================
+# ==================== Договоры ====================
 
 class SupplierContractViewSet(viewsets.ModelViewSet):
-    """ViewSet for SupplierContract model."""
+    """ViewSet для модели договоров поставщиков."""
     queryset = SupplierContract.objects.all()
     serializer_class = SupplierContractSerializer
     permission_classes = [IsAdminUser]
@@ -134,7 +134,7 @@ class SupplierContractViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Filter by expiring soon
+        # Фильтрация по истекающим договорам
         expiring_soon = self.request.query_params.get('expiring_soon')
         if expiring_soon == 'true':
             from datetime import timedelta
@@ -146,7 +146,7 @@ class SupplierContractViewSet(viewsets.ModelViewSet):
 
 
 class ContractDocumentViewSet(viewsets.ModelViewSet):
-    """ViewSet for ContractDocument model."""
+    """ViewSet для модели документов договоров."""
     queryset = ContractDocument.objects.all()
     serializer_class = ContractDocumentSerializer
     permission_classes = [IsAdminUser]
@@ -159,10 +159,10 @@ class ContractDocumentViewSet(viewsets.ModelViewSet):
         serializer.save(uploaded_by=self.request.user)
 
 
-# ==================== Supplier Product Request Views ====================
+# ==================== Заявки на поставку ====================
 
 class SupplierProductRequestViewSet(viewsets.ModelViewSet):
-    """ViewSet for SupplierProductRequest model."""
+    """ViewSet для модели заявок на поставку товара."""
     queryset = SupplierProductRequest.objects.all()
     serializer_class = SupplierProductRequestSerializer
     permission_classes = [IsAuthenticated]
@@ -176,7 +176,7 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return SupplierProductRequestCreateSerializer
         if self.action in ['update', 'partial_update']:
-            # Check if user is admin or manager of this request
+            # Проверка прав администратора или менеджера заявки
             return SupplierProductRequestManageSerializer
         return SupplierProductRequestSerializer
     
@@ -187,10 +187,10 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        # Admin sees all requests
+        # Админ видит все заявки
         if user.is_staff or user.user_roles.filter(role__name='admin').exists():
             return SupplierProductRequest.objects.all()
-        # Manager sees their assigned requests
+        # Менеджер видит свои назначенные заявки
         if hasattr(self, 'action') and self.action in ['list', 'retrieve']:
             return SupplierProductRequest.objects.filter(
                 manager_id=user.id
@@ -201,11 +201,11 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
         serializer.save()
     
     def update(self, request, *args, **kwargs):
-        """Update request - for managing (approve/reject) requests."""
+        """Обновление заявки - для управления (одобрения/отклонения) заявок."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
-        # Check permissions
+        # Проверка прав
         if not request.user.is_staff and not request.user.user_roles.filter(role__name='admin').exists():
             if instance.manager_id != request.user.id:
                 return Response(
@@ -216,7 +216,7 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         
-        # If status is being changed to approved/rejected, set reviewed_by and reviewed_at
+        # Если статус изменяется на одобрено/отклонено, установить reviewed_by и reviewed_at
         if 'status' in request.data and instance.status.name not in ['approved', 'rejected']:
             instance.reviewed_by = request.user
             instance.reviewed_at = timezone.now()
@@ -227,11 +227,11 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
 
 
 class AssignManagerView(APIView):
-    """API view for assigning manager to supplier product request."""
+    """API view для назначения менеджера заявки поставщика."""
     permission_classes = [CanAssignManager]
     
     def post(self, request, request_id):
-        """Assign a manager to a supplier product request."""
+        """Назначение менеджера заявке поставщика."""
         supplier_request = get_object_or_404(SupplierProductRequest, id=request_id)
         manager_id = request.data.get('manager_id')
         
@@ -247,7 +247,7 @@ class AssignManagerView(APIView):
         supplier_request.manager = manager
         supplier_request.save()
         
-        # Create notification for manager
+        # Создание уведомления для менеджера
         SystemAlert.objects.create(
             alert_type=AlertType.objects.get(name='request_waiting_review'),
             user=manager,
@@ -263,7 +263,7 @@ class AssignManagerView(APIView):
 
 
 class RequestDocumentViewSet(viewsets.ModelViewSet):
-    """ViewSet for RequestDocument model."""
+    """ViewSet для модели документов заявок."""
     queryset = RequestDocument.objects.all()
     serializer_class = RequestDocumentSerializer
     permission_classes = [IsAuthenticated]
@@ -284,10 +284,10 @@ class RequestDocumentViewSet(viewsets.ModelViewSet):
         serializer.save(uploaded_by=self.request.user)
 
 
-# ==================== Supplier Product Views ====================
+# ==================== Поставки товаров ====================
 
 class SupplierProductViewSet(viewsets.ModelViewSet):
-    """ViewSet for SupplierProduct model."""
+    """ViewSet для модели поставок товаров."""
     queryset = SupplierProduct.objects.all()
     serializer_class = SupplierProductSerializer
     permission_classes = [IsAdminUser]
@@ -298,10 +298,10 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     ordering = ['-is_preferred', 'supplier__name']
 
 
-# ==================== System Alert Views ====================
+# ==================== Системные уведомления ====================
 
 class SystemAlertViewSet(viewsets.ModelViewSet):
-    """ViewSet for SystemAlert model."""
+    """ViewSet для модели системных уведомлений."""
     queryset = SystemAlert.objects.all()
     serializer_class = SystemAlertSerializer
     permission_classes = [IsAuthenticated]
@@ -312,10 +312,10 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        # Admin sees all alerts
+        # Админ видит все уведомления
         if user.is_staff or user.user_roles.filter(role__name='admin').exists():
             return SystemAlert.objects.all()
-        # Regular users see only their alerts
+        # Обычные пользователи видят только свои уведомления
         return SystemAlert.objects.filter(user=user)
     
     def get_serializer_class(self):
@@ -327,11 +327,11 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
         serializer.save()
     
     def update(self, request, *args, **kwargs):
-        """Mark alert as read."""
+        """Отметка уведомления как прочитанного."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
-        # Check if user owns this alert or is admin
+        # Проверка, является ли пользователь владельцем уведомления или админом
         if instance.user != request.user:
             if not (request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists()):
                 return Response(
@@ -339,7 +339,7 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_403_FORBIDDEN
                 )
         
-        # If marking as read, set read_by and read_at
+        # Если отмечается как прочитанное, установить read_by и read_at
         if 'is_read' in request.data and request.data['is_read'] and not instance.is_read:
             instance.read_by = request.user
             instance.read_at = timezone.now()
@@ -351,7 +351,7 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     def mark_as_read(self, request, pk=None):
-        """Mark specific alert as read."""
+        """Отметка конкретного уведомления как прочитанного."""
         alert = get_object_or_404(SystemAlert, id=pk, user=request.user)
         alert.is_read = True
         alert.read_by = request.user
@@ -361,11 +361,11 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
 
 
 class UserAlertsView(APIView):
-    """API view for getting current user's alerts."""
+    """API view для получения уведомлений текущего пользователя."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Get current user's alerts."""
+        """Получение уведомлений текущего пользователя."""
         alerts = SystemAlert.objects.filter(user=request.user)
         unread_count = alerts.filter(is_read=False).count()
         serializer = SystemAlertSerializer(alerts, many=True)
@@ -376,7 +376,7 @@ class UserAlertsView(APIView):
         })
     
     def post(self, request):
-        """Mark all alerts as read."""
+        """Отметка всех уведомлений как прочитанных."""
         SystemAlert.objects.filter(user=request.user, is_read=False).update(
             is_read=True,
             read_by=request.user,
