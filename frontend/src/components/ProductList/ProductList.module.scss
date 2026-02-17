@@ -1,0 +1,32 @@
+@use "../../shared/scss/helpers/" as *;
+
+.productList {
+
+  &__loading {
+    @include flex-center;
+    flex-direction: column;
+    gap: rem(16);
+    padding: rem(60) 0;
+
+    &_text {
+      font-size: rem(16);
+      color: var(--color-medium-gray);
+    }
+  }
+
+  &__empty {
+    text-align: center;
+    padding: rem(60) rem(20);
+
+    &_title {
+      font-size: fluid(25, 20);
+      font-weight: 600;
+      margin-bottom: rem(8);
+    }
+
+    &_text {
+      font-size: fluid(18, 15);
+      color: var(--color-medium-gray);
+    }
+  }
+}

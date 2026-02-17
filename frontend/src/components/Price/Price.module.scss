@@ -1,0 +1,27 @@
+@use "../../shared/scss/helpers/" as *;
+
+.price {
+  @include flex-center;
+  gap: rem(8);
+  font-family: var(--font-family-CeraPro-Medium);
+
+  @include mobile {
+    gap: rem(4);
+  }
+
+  &__oldPrice {
+    text-decoration: line-through;
+    color: var(--color-gray);
+    font-size: fluid(20, 14);
+  }
+
+  &__newPrice {
+    font-weight: 700;
+    color: var(--color-accent);
+    font-size: fluid(22, 18);
+  }
+
+  @include tablet-above {
+    justify-content: flex-start;
+  }
+}

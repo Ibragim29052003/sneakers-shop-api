@@ -1,0 +1,1 @@
+export { default as WomenPage } from './WomenPage';

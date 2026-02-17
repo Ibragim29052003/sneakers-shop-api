@@ -1,0 +1,121 @@
+@use "../../shared/scss/helpers/" as *;
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(rem(8)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sortPanel {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  position: relative;
+  font-family: var(--font-family-CeraPro-Regular);
+  font-size: fluid(16, 12);
+
+  &__label {
+    display: none;
+    @include mobile-above {
+      @include flex-center;
+      gap: rem(10);
+      opacity: 0.5;
+    }
+  }
+
+  &__customSelect {
+    position: relative;
+    border: var(--border);
+    border-radius: rem(22);
+    background: var(--color-white);
+    cursor: pointer;
+    padding: rem(8) rem(14);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    gap: rem(6);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+
+    @include hover {
+      box-shadow: 0 rem(4) rem(12) rgba(0, 0, 0, 0.08);
+    }
+
+    &:focus {
+      outline: 1px solid var(--color-black);
+    }
+
+    &_open {
+      border-color: var(--color-black);
+
+      .sortPanel__icon {
+        transform: rotate(180deg);
+      }
+    }
+
+    @include mobile-above {
+      min-width: rem(230);
+    }
+  }
+
+  &__selected {
+  }
+
+  &__icon {
+    font-size: rem(12);
+    transition: transform 0.2s ease;
+  }
+
+  &__options {
+    position: absolute;
+    top: calc(100% + rem(8));
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: rem(5);
+    padding: rem(6);
+    border-radius: rem(14);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+
+    box-shadow: 0 rem(8) rem(30) rgba(0, 0, 0, 0.08),
+      0 rem(2) rem(6) rgba(0, 0, 0, 0.04);
+
+    animation: dropdownIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top;
+
+    z-index: 20;
+  }
+
+  &__option {
+    padding: rem(10) rem(14);
+    border: var(--border);
+    border-color: transparent;
+    border-radius: rem(10);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+
+    @include hover {
+      transform: translateX(rem(2));
+      border-color: var(--color-light-gray);
+    }
+
+    &_active {
+      background: var(--color-black);
+      color: var(--color-white);
+    }
+  }
+
+  @include mobile {
+    justify-content: stretch;
+    &__customSelect {
+      width: 100%;
+    }
+  }
+}

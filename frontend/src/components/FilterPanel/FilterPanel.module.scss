@@ -1,0 +1,71 @@
+@use "../../shared/scss/helpers/" as *;
+
+.filterPanel {
+  display: flex;
+  flex-direction: column;
+  gap: rem(30);
+  border-radius: rem(14);
+  padding: rem(20) rem(40) rem(30) rem(20);
+  background: var(--color-extra-light-gray);
+
+  @include tablet {
+    padding: rem(15) rem(25) rem(20) rem(15);
+  }
+
+  &__title {
+    font-size: fluid(28, 24);
+    font-family: var(--font-family-CeraPro-Bold);
+    margin: 0;
+  }
+
+  &__buttons {
+    @include flex-center;
+    gap: rem(5);
+    font-family: var(--font-family-CeraPro-Regular);
+  }
+
+  &__clear,
+  &__apply {
+    width: 100%;
+    font-weight: 500;
+    font-size: rem(16);
+    padding: rem(12);
+    border-radius: rem(10);
+    border: var(--border);
+    background: var(--color-white);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-dark-el-gray);
+    }
+
+    @include mobile-s {
+      font-size: rem(14);
+    }
+  }
+
+  &__info {
+    display: grid;
+    gap: rem(30);
+    > :not(:last-child):not(.filterPanel__buttons) {
+      border-bottom: var(--border);
+      padding-bottom: rem(30);
+    }
+  }
+
+  &__apply {
+    @include mobile-above {
+      display: none;
+    }
+  }
+
+  @include mobile {
+    padding-inline: 3rem;
+    border-radius: 0;
+    background: var(--color-white);
+  }
+
+  @include mobile-s {
+    padding: rem(16);
+  }
+}

@@ -1,0 +1,47 @@
+@use "../../../shared/scss/helpers/" as *;
+
+.productGrid {
+  
+  &__grid {
+    scroll-margin-top: rem(120);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: fluid(15, 10);
+    list-style: none;
+    margin-bottom: rem(30);
+    padding: 0;
+    padding-left: rem(10);
+
+    @include tablet {
+      grid-template-columns: repeat(2, 1fr);
+      gap: rem(20);
+    }
+
+    @include mobile {
+      gap: rem(14);
+    }
+
+    @include mobile-s {
+      gap: rem(4);
+    }
+    &_filterInvisible {
+      padding-left: 0;
+    }
+  }
+
+  &__item {
+    display: flex;
+  }
+
+  &__wide {
+    grid-template-columns: repeat(4, 1fr);
+
+    @include tablet {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    @include mobile {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}

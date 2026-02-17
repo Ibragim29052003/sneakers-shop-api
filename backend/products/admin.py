@@ -46,30 +46,17 @@ class ProductImageInline(admin.TabularInline):
         return ''
 
 
-class SubcategoryInline(admin.TabularInline):
-    # inline для отображения подкатегорий
-    model = Category
-    extra = 0
-    fields = ('name', 'is_active')
-    verbose_name = 'подкатегория'
-    verbose_name_plural = 'подкатегории'
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request)
-
 
 @admin.register(Category)
 class CategoryAdmin(SimpleHistoryAdmin):
     # настройка админки для модели категории
-    list_display = ('name', 'parent', 'get_is_active_status', 'created_at', 'get_subcategory_count')
+    list_display = ('name', 'parent', 'is_active', 'created_at')
     list_filter = ('parent', 'is_active', 'created_at')
     search_fields = ('name', 'description')
     list_per_page = 25
     date_hierarchy = 'created_at'
     raw_id_fields = ('parent',)
     list_display_links = ('name',)
-    
-    inlines = (SubcategoryInline,)
     
     fieldsets = (
         (None, {
@@ -82,21 +69,6 @@ class CategoryAdmin(SimpleHistoryAdmin):
     )
     
     readonly_fields = ('created_at', 'updated_at')
-    
-    @display(description=_('активен'))
-    def get_is_active_status(self, obj):
-        # отображение статуса активности с цветовой индикацией
-        if obj.is_active:
-            return format_html('<span style="color: green;">✓ да</span>')
-        return format_html('<span style="color: red;">✗ нет</span>')
-    
-    @display(description=_('подкатегории'))
-    def get_subcategory_count(self, obj):
-        # отображение количества подкатегорий
-        return obj.subcategories.count()
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('subcategories')
 
 
 @admin.register(Product)
@@ -233,27 +205,6 @@ class ProductAdmin(SimpleHistoryAdmin):
         return response
     
     generate_pdf_report.short_description = 'Сгенерировать PDF отчёт'
-    
-    @display(description=_('цена'))
-    def get_price_display(self, obj):
-        # отображение цены с валютой
-        return f'{obj.price} ₽'
-    
-    @display(description=_('активен'))
-    def get_is_active_status(self, obj):
-        # отображение статуса активности
-        if obj.is_active:
-            return format_html('<span style="color: green;">✓ да</span>')
-        return format_html('<span style="color: red;">✗ нет</span>')
-    
-    @display(description=_('категории'))
-    def get_category_list(self, obj):
-        # отображение списка категорий
-        categories = [pc.category.name for pc in obj.product_categories.select_related('category').all()]
-        return ', '.join(categories) if categories else '-'
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('categories', 'images')
     
     @display(description=_('цена'))
     def get_price_display(self, obj):

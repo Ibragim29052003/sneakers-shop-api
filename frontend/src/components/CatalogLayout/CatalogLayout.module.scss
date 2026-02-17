@@ -1,0 +1,163 @@
+@use "../../shared/scss/helpers/" as *;
+
+.catalog {
+  &__mobileBar {
+    display: none;
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+
+    &_full {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: rem(16);
+    position: sticky;
+    top: rem(20);
+    height: fit-content;
+    font-family: var(--font-family-CeraPro-Regular);
+  }
+
+  &__toggleButton {
+    @include flex-center;
+    gap: rem(8);
+    padding: rem(10) rem(16);
+    border: 1px solid var(--color-dark-el-gray);
+    border-radius: rem(22);
+    background: var(--color-white);
+    color: var(--color-black);
+    font-size: fluid(16, 12);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-duration);
+    width: fit-content;
+
+    @include hover {
+      background: var(--color-black);
+      color: var(--color-white);
+      border-color: var(--color-black);
+    }
+  }
+
+  &__toggleArrow {
+    transition: transform var(--transition-duration);
+    transform: rotate(180deg);
+
+    &_open {
+      transform: rotate(0);
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: rem(20);
+  }
+
+  &__filterButton {
+    padding: rem(10) rem(16);
+    border-radius: rem(22);
+    background: var(--color-black);
+    color: var(--color-white);
+    border: none;
+    font-weight: 600;
+  }
+
+  &__drawer {
+    position: fixed;
+    inset: 0;
+    background: var(--color-white);
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+
+    &_open {
+      transform: translateX(0);
+      overscroll-behavior: contain;
+    }
+  }
+
+  &__drawerHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: rem(18);
+    border-bottom: var(--border);
+    font-weight: 600;
+
+    &_close {
+      @include square(rem(24));
+      padding: 0;
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--color-black);
+      @include hover {
+        color: var(--color-accent);
+      }
+    }
+
+    &_line {
+      display: block;
+      width: 100%;
+      height: rem(2);
+      background-color: currentColor;
+      border-radius: 1rem;
+      transition-duration: var(--transition-duration);
+
+      &:first-child {
+        transform: rotate(45deg);
+        @include abs-center;
+      }
+
+      &:last-child {
+        transform: rotate(-45deg);
+      }
+    }
+
+    &_button {
+      @include wb-button;
+    }
+  }
+
+  @include mobile {
+    &__body {
+      grid-template-columns: 1fr;
+    }
+
+    &__sidebar {
+      display: none;
+    }
+
+    &__mobileBar {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: rem(12);
+      padding-block: 2rem;
+      > * {
+        flex: 1;
+      }
+    }
+
+    &__content > :global(.sortPanel) {
+      display: none;
+    }
+  }
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &_visible {
+      justify-content: flex-end;
+    }
+  }
+}

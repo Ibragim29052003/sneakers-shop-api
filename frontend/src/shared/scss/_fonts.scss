@@ -1,0 +1,41 @@
+@font-face {
+  font-family: 'v_Calligraphic421BT';
+  src: url('@/shared/assets/fonts/v_Calligraphic421BT.woff2') format('woff2'),
+       url('@/shared/assets/fonts/v_Calligraphic421BT.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CeraPro-Bold';
+  src: url('@/shared/assets/fonts/CeraPro-Bold.woff2') format('woff2'),
+       url('@/shared/assets/fonts/CeraPro-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CeraPro-Black';
+  src: url('@/shared/assets/fonts/CeraPro-Black.woff2') format('woff2'),
+       url('@/shared/assets/fonts/CeraPro-Black.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CeraPro-Medium';
+  src: url('@/shared/assets/fonts/CeraPro-Medium.woff2') format('woff2'),
+       url('@/shared/assets/fonts/CeraPro-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CeraPro-Regular';
+  src: url('@/shared/assets/fonts/CeraPro-Regular.woff2') format('woff2'),
+       url('@/shared/assets/fonts/CeraPro-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

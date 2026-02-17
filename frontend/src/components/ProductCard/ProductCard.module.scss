@@ -1,0 +1,138 @@
+@use "../../shared/scss/helpers/" as *;
+
+.card {
+  position: relative;
+  background: var(--color-white);
+  border: 1px solid var(--color-dark-el-gray);
+  border-radius: rem(14);
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    transform: translateY(rem(-4));
+    box-shadow: 0 rem(8) rem(22) rgba(0, 0, 0, 0.12);
+  }
+
+  &__link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  &__imageContainer {
+    position: relative;
+    background: var(--color-extra-light-gray);
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.35s ease;
+  }
+
+  &:hover &__image {
+    transform: scale(1.07);
+  }
+
+  &__badge {
+    position: absolute;
+    left: rem(12);
+    bottom: rem(12);
+    padding: rem(6) rem(10);
+    border-radius: rem(6);
+    font-size: rem(12);
+    font-weight: 600;
+    color: var(--color-white);
+
+    &_discount {
+      background: var(--color-red);
+    }
+
+    &_site {
+      background: var(--color-dark-gray);
+    }
+  }
+
+  &__favorite {
+    position: absolute;
+    top: rem(12);
+    right: rem(12);
+    @include square(rem(36));
+    border-radius: 50%;
+    background: var(--color-white);
+    @include flex-center;
+    box-shadow: var(--box-shadow);
+    cursor: pointer;
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: scale(1.08);
+    }
+
+    &_active {
+      background: var(--color-black);
+      color: var(--color-white);
+    }
+  }
+
+  &__content {
+    padding: rem(16) rem(16) rem(18);
+    display: flex;
+    flex-direction: column;
+    gap: rem(6);
+  }
+
+  &__title {
+    font-family: var(--font-family-CeraPro-Medium);
+    font-size: fluid(17, 14);
+    line-height: 1.3;
+    margin: 0;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: rem(40);
+  }
+
+  @include mobile {
+    &:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    &:hover &__image {
+      transform: none;
+    }
+
+    &__content {
+      padding: rem(12);
+    }
+
+    &__title {
+      font-size: rem(14);
+    }
+  }
+
+  &__imageSkeleton {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+  }
+
+  &__titleSkeleton {
+    height: rem(16);
+    width: 90%;
+    border-radius: rem(4);
+  }
+
+  &__priceSkeleton {
+    height: rem(18);
+    width: 45%;
+    border-radius: rem(4);
+  }
+}

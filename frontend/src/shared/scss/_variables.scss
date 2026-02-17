@@ -1,0 +1,81 @@
+@use '../../shared/scss/helpers/' as *;
+
+:root {
+  /* Основные цвета */
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-accent: #665AB5;
+
+  /* Серые */
+  --color-dark-gray: #151515;
+  --color-gray: #3E3E3E;
+  --color-medium-gray: #606060;
+  --color-ml-gray: #3D3D3D;
+  --color-light-gray: #CBCBCB;
+  --color-dark-el-gray: #EAEAEA;
+  --color-el-gray: #FAFAFA;
+  --color-extra-light-gray: #F7F7F7;
+
+  /* Синие */
+  --color-dark-blue: #081420;
+  --color-blue: #002073;
+  --color-light-blue: #5AB5FF;
+  --color-extra-light-blue: #a2d2f9;
+  --color-lavender: #6C5FBC;
+
+  /* Фиолетовые */
+  --color-purple: #665AB5;
+  --color-light-purple: #A596FF;
+  --color-extra-light-purple: #d8cbfc;
+
+  /* Зеленые */
+  --color-dark-green: #005128;
+  --color-green: #309D5B;
+  --color-light-green: #5acf89;
+  --color-extra-light-green: #a2f8b2;
+  --color-el-green: #cafadc;
+
+  /* Красные/Розовые */
+  --color-red: #EB3F5E;
+  --color-light-red: #FF5C5C;
+  --color-extra-light-red: #fcaaaa;
+
+  --color-pink: #DB79AD;
+  --color-light-pink: #DBD9EE;
+  --color-red-pink: #F7C5BA;
+
+  /* Оранжевые/Желтые */
+  --color-orange: #FBAD18;
+  --color-light-orange: #FFBB71;
+  --color-extra-light-orange: #f7d1a8;
+  --color-yellow: #F6E259;
+  --color-light-yellow: #F7EDD0;
+
+  /* Коричневые */
+  --color-brown: #4C2F1B;
+  --color-light-brown: #86522C;
+  --color-extra-light-brown: #af917b;
+
+
+  --font-family-v_Calligraphic421BT: 'v_Calligraphic421BT', sans-serif;
+  --font-family-CeraPro-Bold: 'CeraPro-Bold', sans-serif;
+  --font-family-CeraPro-Black: 'CeraPro-Black', sans-serif;
+  --font-family-CeraPro-Medium: 'CeraPro-Medium', sans-serif;
+  --font-family-CeraPro-Regular: 'CeraPro-Regular', sans-serif;
+
+  --container-width: #{rem(1250)};
+  --container-padding-x: #{rem(10)};
+
+  --border: #{rem(1)} solid var(--color-light-gray);
+  --border-light: #{rem(1.25)} solid var(--color-dark-el-gray);
+
+  --transition-duration: .2s;
+  --transition-duration-05: .5s;
+
+  --box-shadow: 0 #{rem(2)} #{rem(4)} rgba(0, 0, 0, 0.1);
+
+
+  @include tablet {
+    --container-width: #{rem(890)};
+  }
+}

@@ -1,0 +1,9 @@
+@use "../../shared/scss/helpers/" as *;
+
+.skeleton {
+  background-color: var(--color-extra-light-gray);
+  border-radius: inherit;
+  position: relative;
+  overflow: hidden;
+}
+

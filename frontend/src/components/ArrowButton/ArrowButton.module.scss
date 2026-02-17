@@ -1,0 +1,52 @@
+@use "../../shared/scss/helpers/" as *;
+
+.arrow {
+  display: none;
+  @include mobile-above {
+    position: absolute !important;
+    @include abs-y;
+    @include square(rem(40));
+    @include flex-center();
+    border-radius: 50%;
+    background-color: var(--color-white);
+    box-shadow: var(--box-shadow);
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+  }
+  @include hover {
+    background-color: var(--color-accent); // или ваш цвет бренда
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+
+    .arrow__svg {
+      stroke: var(--color-white);
+    }
+  }
+
+  &__left {
+    left: rem(5);
+  }
+  &__right {
+    right: rem(5);
+  }
+
+  &__svg {
+    @include square(rem(15));
+
+    stroke: var(--color-black);
+
+    &_left {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__visible {
+    opacity: 1;
+  }
+
+  &__invisible {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+}

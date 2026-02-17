@@ -1,0 +1,109 @@
+@use "../../shared/scss/helpers/" as *;
+
+.pagination {
+  display: flex;
+  justify-content: center;
+
+  &__list {
+    display: flex;
+    align-items: center;
+    gap: rem(8);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  &__item {
+    display: flex;
+  }
+
+  &__button {
+    @include flex-center;
+    @include square(rem(40));
+
+    border-radius: 50%;
+    border: rem(1) solid var(--color-light-gray);
+    background-color: var(--color-white);
+    color: var(--color-dark-gray);
+    cursor: pointer;
+    transition: background-color var(--transition-duration),
+      border-color var(--transition-duration),
+      transform var(--transition-duration);
+
+    svg {
+      @include square(rem(10));
+      stroke: var(--color-black);
+
+      pointer-events: none;
+    }
+
+    @include hover {
+      background-color: var(--color-el-gray);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-accent);
+      outline-offset: rem(2);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &_left {
+      svg {
+        transform: rotate(180deg);
+      }
+    }
+
+    &_right {
+    }
+
+    @include mobile {
+      @include square(rem(36));
+    }
+  }
+
+  &__numberPage {
+    @include flex-center;
+    min-width: rem(40);
+    height: rem(40);
+    padding: 0 rem(8);
+
+    font-family: var(--font-family-CeraPro-Medium);
+    font-size: rem(14);
+    line-height: 1;
+
+    border-radius: rem(8);
+    border: rem(1) solid var(--color-light-gray);
+    background-color: var(--color-white);
+    color: var(--color-dark-gray);
+    cursor: pointer;
+
+    transition: background-color var(--transition-duration),
+      color var(--transition-duration), border-color var(--transition-duration);
+
+    @include hover {
+      background-color: var(--color-extra-light-gray);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-accent);
+      outline-offset: rem(2);
+    }
+
+    &[aria-current="page"] {
+      background-color: var(--color-accent);
+      border-color: var(--color-accent);
+      color: var(--color-white);
+      cursor: default;
+    }
+
+    @include mobile {
+      min-width: rem(36);
+      height: rem(36);
+      font-size: rem(13);
+    }
+  }
+}

@@ -1,0 +1,26 @@
+@use "../../shared/scss/helpers/" as *;
+
+.spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+
+  &__spinnerCircle {
+    width: rem(40);
+    height: rem(40);
+    border: rem(4) solid #f3f3f3;
+    border-top: rem(4) solid #3742fa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
