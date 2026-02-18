@@ -171,6 +171,68 @@ class ProductImage(models.Model):
         return ''
 
 
+class SliderImage(models.Model):
+    """
+    Модель для изображений слайдера на главной странице.
+    Отдельная таблица от товаров - слайды заполняются и редактируются отдельно.
+    """
+    title = models.CharField('заголовок слайда', max_length=200)
+    description = models.TextField('описание', blank=True)
+    image = models.ImageField('изображение слайдера', upload_to='slider/%Y/%m/%d')
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='slider_images',
+        verbose_name='связанный товар'
+    )
+    price = models.DecimalField(
+        'цена',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Цена товара на слайде. Если указан товар, используется цена товара.'
+    )
+    old_price = models.DecimalField(
+        'старая цена',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Старая цена для отображения скидки'
+    )
+    link = models.URLField('ссылка', blank=True, help_text='Ссылка при нажатии на слайд')
+    is_active = models.BooleanField('активен', default=True)
+    order = models.PositiveIntegerField('порядок', default=0)
+    created_at = models.DateTimeField('дата добавления', default=timezone.now)
+    updated_at = models.DateTimeField('дата обновления', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'слайд'
+        verbose_name_plural = 'слайды'
+        ordering = ['order', '-created_at']
+    
+    def __str__(self):
+        return self.title
+    
+    def get_image_url(self):
+        """Получение полного URL изображения."""
+        if self.image:
+            return self.image.url
+        return None
+    
+    @display(description='превью')
+    def image_preview(self):
+        if self.image:
+            return format_html(
+                '<img src="{}" style="width: 200px; height: auto;" />',
+                self.image.url
+            )
+        return ''
+
+
 class Product(models.Model):
     """
     Основная модель товара.

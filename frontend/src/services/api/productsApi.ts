@@ -40,6 +40,24 @@ export interface Product {
   external_url: string | null;
 }
 
+// Модель слайда для слайдера
+export interface SliderSlide {
+  id: number;
+  title: string;
+  description: string;
+  image_url: string | null;
+  product: number | null;
+  product_name: string | null;
+  product_price: string | null;
+  price: string | null;
+  old_price: string | null;
+  link: string | null;
+  is_active: boolean;
+  order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Ответ с пагинацией от Django REST Framework
 export interface ProductsResponse {
   count: number;         // общее количество товаров
@@ -158,6 +176,16 @@ export const productsApi = createApi({
     }),
 
     /**
+     * ПОЛУЧИТЬ АКТИВНЫЕ СЛАЙДЫ ДЛЯ СЛАЙДЕРА
+     * 
+     * Использование:
+     * const { data } = useGetActiveSliderSlidesQuery()
+     */
+    getActiveSliderSlides: builder.query<SliderSlide[], void>({
+      query: () => '/slider/active-slides/',
+    }),
+
+    /**
      * АВТОРИЗАЦИЯ (LOGIN)
      * 
      * builder.mutation - создаёт эндпоинт для изменения данных (POST, PUT, DELETE)
@@ -217,6 +245,7 @@ export const {
   useGetProductByIdQuery,        // для getProductById
   useGetCategoriesQuery,         // для getCategories
   useGetCategoryByIdQuery,       // для getCategoryById
+  useGetActiveSliderSlidesQuery, // для getActiveSliderSlides
   useLoginMutation,              // для login
   useRegisterMutation,           // для register
   useRefreshTokenMutation,       // для refreshToken

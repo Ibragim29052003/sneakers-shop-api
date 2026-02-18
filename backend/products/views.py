@@ -17,8 +17,8 @@ from django.shortcuts import redirect, Http404
 from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value
 from django.db.models.functions import Concat
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Category, Product, ProductImage
-from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer
+from .models import Category, Product, ProductImage, SliderImage
+from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -1085,3 +1085,36 @@ class ProductImageViewSet(viewsets.ModelViewSet):
             # Редирект на список товаров при 404
             from django.urls import reverse
             return redirect(reverse('product-list'))
+
+
+class SliderImageViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления слайдами слайдера на главной странице.
+    
+    Отдельный endpoint для слайдов - слайды заполняются и редактируются
+    отдельно от товаров. Каждый слайд может быть привязан к товару.
+    """
+    queryset = SliderImage.objects.all()
+    serializer_class = SliderImageSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active', 'product']
+    search_fields = ['title', 'description']
+    ordering_fields = ['order', 'created_at']
+    ordering = ['order', '-created_at']
+    
+    def get_queryset(self):
+        """
+        Получение слайдов с предзагрузкой связанного товара.
+        """
+        return super().get_queryset().select_related('product')
+    
+    @action(detail=False, methods=['get'], url_path='active-slides')
+    def active_slides(self, request):
+        """
+        Получение только активных слайдов для публичного API.
+        
+        Используется на главной странице для отображения слайдера.
+        """
+        slides = self.queryset.filter(is_active=True)
+        serializer = self.get_serializer(slides, many=True)
+        return Response(serializer.data)

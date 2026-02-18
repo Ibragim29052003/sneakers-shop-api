@@ -5,8 +5,8 @@ import { selectFilters } from "@/redux/filter/selectors";
 
 // Импортируем хуки из RTK Query
 // useGetFilteredProductsQuery - получает отфильтрованные товары для каталога
-// useGetProductsQuery - получает товары для слайдера
-import { useGetFilteredProductsQuery, useGetProductsQuery } from "@/services/api/productsApi";
+// useGetActiveSliderSlidesQuery - получает слайды из отдельной таблицы
+import { useGetFilteredProductsQuery, useGetActiveSliderSlidesQuery } from "@/services/api/productsApi";
 
 // Импортируем экшн для обновления слайдов в Redux
 import { setSlides } from "@/redux/slider/slice";
@@ -34,22 +34,21 @@ interface CategoryPageProps {
 type CatalogProduct = Omit<Slide, "link" | "description">;
 
 /**
- * Функция преобразования Product (с бэкенда) в Slide (для слайдера)
+ * Функция преобразования SliderSlide в Slide (для слайдера)
  * 
- * @param product - товар с бэкенда
- * @returns - товар в формате для слайдера
+ * @param slide - слайд из API /slider/active-slides/
+ * @returns - слайд в формате для компонента Slider
  */
-const transformProductToSlide = (product: any): Slide => ({
-  id: String(product.id),
-  // Используем main_image_url или первое изображение из массива
-  imageUrl: product.main_image_url || product.images?.[0]?.image || "",
-  title: product.name,
-  description: product.description || "",
-  // Цена приходит строкой "5000.00" - преобразуем в число
-  newPrice: parseFloat(product.price),
-  oldPrice: undefined,
-  // Ссылка на страницу товара
-  link: `/product/${product.id}`,
+const transformSliderSlideToSlide = (slide: any): Slide => ({
+  id: String(slide.id),
+  imageUrl: slide.image_url || "",
+  title: slide.title,
+  description: slide.description || "",
+  // Цена: если есть своя цена слайда - используем её, иначе цену товара
+  newPrice: slide.price ? parseFloat(slide.price) : (slide.product_price ? parseFloat(slide.product_price) : 0),
+  oldPrice: slide.old_price ? parseFloat(slide.old_price) : undefined,
+  // Ссылка: если есть link - используем его, иначе ссылка на товар
+  link: slide.link || (slide.product ? `/product/${slide.product}` : "#"),
 });
 
 /**
@@ -92,49 +91,50 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
   });
 
   /**
-   * ЗАПРОС 2: Получение товаров для слайдера
+   * ЗАПРОС 2: Получение слайдов для слайдера
    * 
-   * Загружаем только 10 товаров (page_size: 10) для показа в слайдере
+   * Использует отдельный эндпоинт /api/v1/slider/active-slides/
+   * Слайды берутся из отдельной таблицы SliderImage
    */
   const {
-    data: productsResponse,   // полный ответ с пагинацией
+    data: sliderSlides,   // массив слайдов
     isLoading: slidesLoading,  // индикатор загрузки
     error: slidesError,       // ошибка
-  } = useGetProductsQuery({ 
-    category, 
-    page_size: 10 
-  });
+  } = useGetActiveSliderSlidesQuery();
 
   /**
    * ПРИ ПОЛУЧЕНИИ ДАННЫХ - сохраняем в Redux для слайдера
    * 
    * useEffect запускается когда:
-   * 1. productsResponse изменится (пришёл ответ от сервера)
+   * 1. sliderSlides изменится (пришёл ответ от сервера)
    * 2. slidesLoading изменится (загрузка завершилась)
    */
   useEffect(() => {
     // Проверяем что загрузка завершена и данные есть
-    if (!slidesLoading && productsResponse?.results) {
-      // Преобразуем товары в формат слайдера
-      const slides = productsResponse.results.map(transformProductToSlide);
+    if (!slidesLoading && sliderSlides) {
+      // Преобразуем слайды в формат для компонента Slider
+      const slides = sliderSlides.map(transformSliderSlideToSlide);
       // Сохраняем в Redux store
       dispatch(setSlides(slides));
     }
-  }, [dispatch, productsResponse, slidesLoading]);
+  }, [dispatch, sliderSlides, slidesLoading]);
 
   // Преобразуем товары для каталога
   const catalogProducts: CatalogProduct[] = products?.map(transformProductToCatalogProduct) || [];
 
-  // Показываем загрузку
-  if (slidesLoading) return <Spiner />;
+  // Показываем загрузку (пока грузятся или товары или слайдеры)
+  if (slidesLoading || productsLoading) return <Spiner />;
   
   // Показываем ошибку если есть
   if (slidesError || productsError) return <div>Ошибка загрузки товаров</div>;
 
+  // Определяем, нужно ли показывать слайдер (есть ли слайды)
+  const shouldShowSlider = sliderSlides && sliderSlides.length > 0;
+
   return (
     <div className={styles.categoryPage}>
       {/* Слайдер - получает данные через Redux (useAppSelector) */}
-      <Slider />
+      {shouldShowSlider && <Slider />}
       
       {/* Каталог с товарами */}
       <CatalogLayout

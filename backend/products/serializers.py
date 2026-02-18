@@ -2,7 +2,8 @@
 Сериализаторы для приложения товаров
 """
 from rest_framework import serializers
-from .models import Category, Product, ProductCategory, ProductImage
+from django.conf import settings
+from .models import Category, Product, ProductCategory, ProductImage, SliderImage
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -25,11 +26,52 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     """Сериализатор для модели изображений товара."""
+    image = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductImage
         fields = ['id', 'image', 'is_main', 'alt_text', 'created_at']
         read_only_fields = ['created_at']
+    
+    def get_image(self, obj):
+        """Получение полного URL изображения."""
+        if not obj.image:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.image.url)
+        base_url = getattr(settings, 'BASE_URL', '')
+        if not base_url and hasattr(settings, 'DEBUG') and settings.DEBUG:
+            base_url = 'http://localhost:8000'
+        return f"{base_url}{obj.image.url}"
+
+
+class SliderImageSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели слайдов."""
+    image_url = serializers.SerializerMethodField()
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = SliderImage
+        fields = [
+            'id', 'title', 'description', 'image', 'image_url',
+            'product', 'product_name', 'product_price', 'price', 'old_price',
+            'link', 'is_active', 'order', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_image_url(self, obj):
+        """Получение полного URL изображения."""
+        if not obj.image:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.image.url)
+        base_url = getattr(settings, 'BASE_URL', '')
+        if not base_url and hasattr(settings, 'DEBUG') and settings.DEBUG:
+            base_url = 'http://localhost:8000'
+        return f"{base_url}{obj.image.url}"
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -47,14 +89,27 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
+    def get_media_url(self, relative_url):
+        """Построение полного URL для медиафайла."""
+        if not relative_url:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(relative_url)
+        # Fallback: использовать BASE_URL из настроек или localhost
+        base_url = getattr(settings, 'BASE_URL', '')
+        if not base_url and hasattr(settings, 'DEBUG') and settings.DEBUG:
+            base_url = 'http://localhost:8000'
+        return f"{base_url}{relative_url}"
+    
     def get_main_image_url(self, obj):
         """Получение URL главного изображения."""
         main_image = obj.images.filter(is_main=True).first()
         if main_image:
-            return main_image.image.url
+            return self.get_media_url(main_image.image.url)
         first_image = obj.images.first()
         if first_image:
-            return first_image.image.url
+            return self.get_media_url(first_image.image.url)
         return None
 
 

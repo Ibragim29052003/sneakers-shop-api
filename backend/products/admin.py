@@ -13,7 +13,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponse
 from django.urls import reverse
-from .models import Category, Product, ProductCategory, ProductImage
+from .models import Category, Product, ProductCategory, ProductImage, SliderImage
 from simple_history.admin import SimpleHistoryAdmin
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -215,8 +215,8 @@ class ProductAdmin(SimpleHistoryAdmin):
     def get_is_active_status(self, obj):
         # отображение статуса активности
         if obj.is_active:
-            return format_html('<span style="color: green;">✓ да</span>')
-        return format_html('<span style="color: red;">✗ нет</span>')
+            return format_html('<span style="color: green;">{} {}</span>', '✓', 'да')
+        return format_html('<span style="color: red;">{} {}</span>', '✗', 'нет')
     
     @display(description=_('категории'))
     def get_category_list(self, obj):
@@ -250,8 +250,8 @@ class ProductImageAdmin(SimpleHistoryAdmin):
     def get_is_main_status(self, obj):
         # отображение статуса основного изображения
         if obj.is_main:
-            return format_html('<span style="color: green;">✓</span>')
-        return format_html('<span style="color: gray;">-</span>')
+            return format_html('<span style="color: green;">{}</span>', '✓')
+        return format_html('<span style="color: gray;">{}</span>', '-')
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('product')
@@ -284,3 +284,60 @@ class ProductCategoryAdmin(SimpleHistoryAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('product', 'category')
+
+
+@admin.register(SliderImage)
+class SliderImageAdmin(SimpleHistoryAdmin):
+    """
+    Настройка админки для модели слайдов слайдера.
+    
+    Слайды заполняются и редактируются отдельно от товаров.
+    Каждый слайд может быть привязан к товару.
+    """
+    list_display = ('title', 'image_preview', 'get_product_name', 'is_active', 'order', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('title', 'description', 'product__name')
+    list_per_page = 25
+    date_hierarchy = 'created_at'
+    list_display_links = ('title',)
+    list_editable = ('is_active', 'order')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'description', 'image', 'is_active', 'order')
+        }),
+        (_('Цена'), {
+            'fields': ('price', 'old_price'),
+            'description': 'Укажите цену для отображения на слайде. Если привязан товар, цена будет взята из товара.'
+        }),
+        (_('Связь с товаром'), {
+            'fields': ('product', 'link'),
+            'classes': ('collapse',)
+        }),
+        (_('даты'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ('created_at', 'updated_at')
+    
+    @display(description=_('товар'))
+    def get_product_name(self, obj):
+        if obj.product:
+            from django.urls import reverse
+            url = reverse('admin:products_product_change', args=[obj.product.id])
+            return format_html('<a href="{}">{}</a>', url, obj.product.name)
+        return '-'
+    
+    @display(description='превью')
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="width: 200px; height: auto;" />',
+                obj.image.url
+            )
+        return '-'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('product')
