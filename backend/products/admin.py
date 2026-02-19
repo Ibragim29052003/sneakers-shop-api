@@ -13,7 +13,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponse
 from django.urls import reverse
-from .models import Category, Product, ProductCategory, ProductImage, SliderImage
+from .models import Category, Product, ProductCategory, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
 from simple_history.admin import SimpleHistoryAdmin
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -23,14 +23,68 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 
 
 class ProductCategoryInline(admin.TabularInline):
-    # inline для отображения связей товар-категория
+    """
+    Inline для отображения связей товар-категория.
+    Позволяет выбрать категорию (women/men/children) при создании товара.
+    """
     model = ProductCategory
     extra = 1
-    raw_id_fields = ('product', 'category')
+    # Используем обычный select для удобства выбора
+
+
+class ProductFilterInline(admin.TabularInline):
+    """
+    Inline для отображения связей товар-фильтры.
+    Позволяет выбирать фильтры при создании товара.
+    
+    При редактировании существующего товара фильтры автоматически
+    фильтруются по выбранным категориям товара.
+    """
+    model = ProductFilter
+    extra = 1
+    # Используем обычный select вместо raw_id_fields для удобства выбора
+    
+    def get_formset(self, request, obj=None, **kwargs):
+        """
+        Динамически фильтруем options на основе выбранной категории.
+        """
+        from django import forms
+        
+        class ProductFilterFormSet(forms.ModelForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+                # Для существующего объекта фильтруем по категориям
+                if obj and obj.pk:
+                    category_ids = list(obj.categories.values_list('id', flat=True))
+                    if category_ids:
+                        # Фильтруем опции по категориям товара
+                        self.fields['filter_option'].queryset = FilterOption.objects.filter(
+                            group__is_active=True,
+                            group__category__in=category_ids,
+                            is_active=True
+                        ).select_related('group').order_by('group__name', 'name')
+                        return
+                
+                # Для нового объекта показываем все активные фильтры
+                # (пользователь сначала выберет категорию, затем пересохранит)
+                self.fields['filter_option'].queryset = FilterOption.objects.filter(
+                    group__is_active=True,
+                    is_active=True
+                ).select_related('group').order_by('group__name', 'name')
+            
+            class Meta:
+                model = ProductFilter
+                fields = ['filter_option']
+        
+        return super().get_formset(request, obj, **kwargs)
 
 
 class ProductImageInline(admin.TabularInline):
-    # inline для отображения изображений товара
+    """
+    Inline для отображения изображений товара.
+    Позволяет добавить фото при создании товара.
+    """
     model = ProductImage
     extra = 0
     readonly_fields = ('created_at', 'image_preview')
@@ -74,19 +128,23 @@ class CategoryAdmin(SimpleHistoryAdmin):
 @admin.register(Product)
 class ProductAdmin(SimpleHistoryAdmin):
     # настройка админки для модели товара
-    list_display = ('name', 'sku', 'get_price_display', 'get_is_active_status', 'created_at', 'get_category_list')
+    list_display = ('name', 'sku', 'get_price_display', 'get_old_price_display', 'get_is_active_status', 'created_at', 'get_category_list')
     list_filter = ('is_active', 'product_categories__category', 'created_at', 'price')
     search_fields = ('name', 'description', 'sku')
     list_per_page = 25
     date_hierarchy = 'created_at'
-    raw_id_fields = ()  # убрали categories из-за связи через ProductCategory
+    raw_id_fields = ()
     list_display_links = ('name', 'sku')
     
-    inlines = (ProductImageInline, ProductCategoryInline)  # добавили inline для связей
+    inlines = (ProductImageInline, ProductCategoryInline, ProductFilterInline)
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'description', 'sku', 'price', 'is_active')
+            'fields': ('name', 'description', 'sku', 'price', 'old_price', 'is_active')
+        }),
+        (_('Категории'), {
+            'fields': (),
+            'description': 'Выберите категорию в разделе "Связи товаров и категорий" ниже. После выбора категории появятся фильтры.'
         }),
         (_('даты'), {
             'fields': ('created_at', 'updated_at'),
@@ -95,6 +153,9 @@ class ProductAdmin(SimpleHistoryAdmin):
     )
     
     readonly_fields = ('created_at', 'updated_at')
+    
+    class Media:
+        js = ('admin/js/product_filters.js',)
     
     # =========================================================================
     # ПРИМЕРЫ АДМИНСКИХ ДЕЙСТВИЙ (ADMIN ACTIONS)
@@ -210,6 +271,13 @@ class ProductAdmin(SimpleHistoryAdmin):
     def get_price_display(self, obj):
         # отображение цены с валютой
         return f'{obj.price} ₽'
+    
+    @display(description=_('старая цена'))
+    def get_old_price_display(self, obj):
+        # отображение старой цены с валютой
+        if obj.old_price:
+            return f'{obj.old_price} ₽'
+        return '-'
     
     @display(description=_('активен'))
     def get_is_active_status(self, obj):
@@ -341,3 +409,44 @@ class SliderImageAdmin(SimpleHistoryAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('product')
+
+
+@admin.register(FilterGroup)
+class FilterGroupAdmin(SimpleHistoryAdmin):
+    """Админ-панель для групп фильтров."""
+    list_display = ('name', 'category', 'is_active', 'order')
+    list_filter = ('category', 'is_active')
+    search_fields = ('name',)
+    list_editable = ('is_active', 'order')
+    list_display_links = ('name',)
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'category', 'is_active', 'order')
+        }),
+    )
+
+
+@admin.register(FilterOption)
+class FilterOptionAdmin(SimpleHistoryAdmin):
+    """Админ-панель для значений фильтров."""
+    list_display = ('name', 'group', 'is_active', 'order')
+    list_filter = ('group', 'is_active')
+    search_fields = ('name',)
+    list_editable = ('is_active', 'order')
+    list_display_links = ('name',)
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('group')
+
+
+@admin.register(ProductFilter)
+class ProductFilterAdmin(SimpleHistoryAdmin):
+    """Админ-панель для связей товаров и фильтров."""
+    list_display = ('product', 'filter_option', 'created_at')
+    list_filter = ('filter_option__group',)
+    search_fields = ('product__name', 'filter_option__name')
+    list_display_links = ('product',)
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('product', 'filter_option__group')

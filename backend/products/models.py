@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.contrib.admin import display
 from django.urls import reverse
+from django.utils.text import slugify
 from simple_history.models import HistoricalRecords
 from datetime import timedelta
 
@@ -270,6 +271,14 @@ class Product(models.Model):
     name = models.CharField('название товара', max_length=200)
     description = models.TextField('описание', blank=True)
     price = models.DecimalField('цена', max_digits=10, decimal_places=2)
+    old_price = models.DecimalField(
+        'старая цена',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Старая цена для отображения скидки'
+    )
     sku = models.CharField('артикул', max_length=50, unique=True)
     status = models.CharField(
         'статус',
@@ -470,3 +479,80 @@ class Product(models.Model):
         """
         days_since_creation = (timezone.now() - self.created_at).days
         return days_since_creation < 7
+
+
+class FilterGroup(models.Model):
+    """
+    Группа фильтров (например: "Цвет", "Размер", "Материал").
+    Привязывается к конкретной категории.
+    """
+    name = models.CharField('название группы', max_length=100)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name='filter_groups',
+        verbose_name='категория'
+    )
+    is_active = models.BooleanField('активна', default=True)
+    order = models.PositiveIntegerField('порядок', default=0)
+    created_at = models.DateTimeField('дата создания', default=timezone.now)
+    
+    class Meta:
+        verbose_name = 'группа фильтров'
+        verbose_name_plural = 'группы фильтров'
+        ordering = ['order', 'name']
+    
+    def __str__(self):
+        return f"{self.category.name} - {self.name}"
+
+
+class FilterOption(models.Model):
+    """
+    Значение фильтра (например: "Красный", "Синий" для группы "Цвет").
+    """
+    group = models.ForeignKey(
+        FilterGroup,
+        on_delete=models.CASCADE,
+        related_name='options',
+        verbose_name='группа фильтров'
+    )
+    name = models.CharField('название', max_length=100)
+    is_active = models.BooleanField('активен', default=True)
+    order = models.PositiveIntegerField('порядок', default=0)
+    created_at = models.DateTimeField('дата создания', default=timezone.now)
+    
+    class Meta:
+        verbose_name = 'значение фильтра'
+        verbose_name_plural = 'значения фильтров'
+        ordering = ['order', 'name']
+    
+    def __str__(self):
+        return f"{self.group.name}: {self.name}"
+
+
+class ProductFilter(models.Model):
+    """
+    Связь товара с фильтрами (M2M).
+    Позволяет назначить товару несколько значений фильтров.
+    """
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='product_filters',
+        verbose_name='товар'
+    )
+    filter_option = models.ForeignKey(
+        FilterOption,
+        on_delete=models.CASCADE,
+        related_name='product_filters',
+        verbose_name='значение фильтра'
+    )
+    created_at = models.DateTimeField('дата добавления', default=timezone.now)
+    
+    class Meta:
+        verbose_name = 'фильтр товара'
+        verbose_name_plural = 'фильтры товаров'
+        unique_together = ('product', 'filter_option')
+    
+    def __str__(self):
+        return f"{self.product.name} - {self.filter_option.name}"

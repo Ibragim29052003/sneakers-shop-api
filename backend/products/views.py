@@ -17,8 +17,8 @@ from django.shortcuts import redirect, Http404
 from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value
 from django.db.models.functions import Concat
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Category, Product, ProductImage, SliderImage
-from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer
+from .models import Category, Product, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
+from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -1118,3 +1118,105 @@ class SliderImageViewSet(viewsets.ModelViewSet):
         slides = self.queryset.filter(is_active=True)
         serializer = self.get_serializer(slides, many=True)
         return Response(serializer.data)
+
+
+class FilterGroupViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления группами фильтров.
+    
+    Позволяет создавать, редактировать и удалять группы фильтров
+    (например: "Цвет", "Размер") для конкретных категорий.
+    """
+    queryset = FilterGroup.objects.all()
+    serializer_class = FilterGroupSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['category', 'is_active']
+    search_fields = ['name']
+    ordering_fields = ['order', 'name', 'created_at']
+    ordering = ['order', 'name']
+    
+    def get_queryset(self):
+        """Получение групп фильтров с предзагрузкой опций."""
+        return super().get_queryset().prefetch_related('options')
+    
+    @action(detail=False, methods=['get'])
+    def by_category(self, request):
+        """
+        Получение групп фильтров для конкретной категории.
+        
+        GET /api/v1/filters/by_category/?category=women
+        или
+        GET /api/v1/filters/by_category/?category_id=1
+        """
+        category_param = request.query_params.get('category')
+        category_id = request.query_params.get('category_id')
+        
+        # Если передан category (women/men/children) - ищем по названию
+        if category_param:
+            # Маппинг фронтенд категорий на названия в базе
+            category_mapping = {
+                'women': ['женщин', 'women', 'woman', 'женская'],
+                'men': ['мужчин', 'men', 'man', 'мужская'],
+                'children': ['детей', 'children', 'child', 'детская'],
+            }
+            
+            search_names = category_mapping.get(category_param, [])
+            if search_names:
+                from django.db.models import Q
+                query = Q()
+                for name in search_names:
+                    query |= Q(name__icontains=name)
+                categories = Category.objects.filter(query)
+                if categories.exists():
+                    # Берём первую подходящую категорию
+                    category_id = categories.first().id
+        
+        if not category_id:
+            return Response(
+                {'error': 'Требуется параметр category или category_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        filter_groups = FilterGroup.objects.filter(
+            category_id=category_id,
+            is_active=True
+        ).prefetch_related('options').order_by('order', 'name')
+        
+        serializer = FilterGroupByCategorySerializer(filter_groups, many=True)
+        return Response(serializer.data)
+
+
+class FilterOptionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления значениями фильтров.
+    
+    Позволяет создавать, редактировать и удалять значения фильтров
+    (например: "Красный", "Синий" для группы "Цвет").
+    """
+    queryset = FilterOption.objects.all()
+    serializer_class = FilterOptionSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['group', 'is_active']
+    search_fields = ['name']
+    ordering_fields = ['order', 'name', 'created_at']
+    ordering = ['order', 'name']
+    
+    def get_queryset(self):
+        """Получение значений фильтров с предзагрузкой группы."""
+        return super().get_queryset().select_related('group')
+
+
+class ProductFilterViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления связями товаров и фильтров.
+    
+    Позволяет назначать фильтры товарам.
+    """
+    queryset = ProductFilter.objects.all()
+    serializer_class = ProductFilterSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['product', 'filter_option']
+    
+    def get_queryset(self):
+        """Получение связей с предзагрузкой данных."""
+        return super().get_queryset().select_related('product', 'filter_option__group')

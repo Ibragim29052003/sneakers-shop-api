@@ -3,7 +3,7 @@
 """
 from rest_framework import serializers
 from django.conf import settings
-from .models import Category, Product, ProductCategory, ProductImage, SliderImage
+from .models import Category, Product, ProductCategory, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -83,7 +83,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'price', 'sku',
+            'id', 'name', 'description', 'price', 'old_price', 'sku',
             'is_active', 'created_at', 'updated_at', 'categories',
             'images', 'main_image_url', 'external_url'
         ]
@@ -122,3 +122,47 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         model = ProductCategory
         fields = ['id', 'product', 'product_name', 'category', 'category_name', 'created_at']
         read_only_fields = ['created_at']
+
+
+class FilterOptionSerializer(serializers.ModelSerializer):
+    """Сериализатор для значений фильтров."""
+    
+    class Meta:
+        model = FilterOption
+        fields = ['id', 'name', 'is_active', 'order']
+        read_only_fields = ['created_at']
+
+
+class FilterGroupSerializer(serializers.ModelSerializer):
+    """Сериализатор для групп фильтров."""
+    options = FilterOptionSerializer(many=True, read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    
+    class Meta:
+        model = FilterGroup
+        fields = ['id', 'name', 'category', 'category_name', 'options', 'is_active', 'order', 'created_at']
+        read_only_fields = ['created_at']
+
+
+class ProductFilterSerializer(serializers.ModelSerializer):
+    """Сериализатор для связи товаров и фильтров."""
+    option_name = serializers.CharField(source='filter_option.name', read_only=True)
+    option_value = serializers.CharField(source='filter_option.value', read_only=True)
+    group_name = serializers.CharField(source='filter_option.group.name', read_only=True)
+    
+    class Meta:
+        model = ProductFilter
+        fields = ['id', 'product', 'filter_option', 'option_name', 'option_value', 'group_name', 'created_at']
+        read_only_fields = ['created_at']
+
+
+class FilterGroupByCategorySerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для получения групп фильтров по категории.
+    Возвращает структуру, удобную для фронтенда.
+    """
+    options = FilterOptionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = FilterGroup
+        fields = ['id', 'name', 'options', 'order']

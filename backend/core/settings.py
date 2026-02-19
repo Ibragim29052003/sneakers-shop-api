@@ -112,6 +112,9 @@ USE_TZ = True
 # статические файлы (css, javascript, изображения)
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'products' / 'static',
+]
 
 # медиа файлы (загрузки)
 MEDIA_URL = 'media/'

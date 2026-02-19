@@ -5,19 +5,13 @@ import { updateFilters, clearFilters } from "@/redux/filter/slice";
 import FilterCheckboxGroup from "./FilterCheckboxGroup/FilterCheckboxGroup";
 import PriceRange from "../PriceRange/PriceRange";
 import useDebounce from "@/hooks/useDebounce";
+import { useGetFiltersByCategoryQuery, type FilterGroup } from "@/services/api/productsApi";
 
 // category определяет, какие именно фильтры будут показаны
 interface FilterPanelProps {
   category: "women" | "men" | "children";
   onApply?: () => void;
 }
-
-// Базовая конфигурация фильтров для Django
-const defaultConfig = {
-  fabrics: ["Хлопок", "Шерсть", "Шёлк", "Лён", "Синтетика"],
-  colors: ["Чёрный", "Белый", "Синий", "Красный", "Зелёный"],
-  sizes: ["XS", "S", "M", "L", "XL", "XXL"],
-};
 
 const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
   const dispatch = useAppDispatch();
@@ -26,8 +20,8 @@ const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
   const filters = useAppSelector(selectFilters);
   const debouncedFilters = useDebounce(filters, 300);
 
-  // Для Django используем статическую конфигурацию
-  const config = defaultConfig;
+  // Получаем фильтры с бэкенда для данной категории
+  const { data: filterGroups, isLoading, error } = useGetFiltersByCategoryQuery(category);
 
   // Диапазон цен - можно получить с бэкенда позже
   const priceRange = { min: 0, max: 30000 };
@@ -52,26 +46,31 @@ const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
           max={priceRange?.max ?? 30000}
         />
 
-        <FilterCheckboxGroup
-          legend="Категории товаров"
-          options={config.fabrics}
-          selected={filters.fabrics}
-          onChange={(values) => updateFilter("fabrics", values)}
-        />
+        {/* Загрузка фильтров */}
+        {isLoading && <p>Загрузка фильтров...</p>}
 
-        <FilterCheckboxGroup
-          legend="Цвета"
-          options={config.colors}
-          selected={filters.colors}
-          onChange={(values) => updateFilter("colors", values)}
-        />
+        {/* Ошибка при загрузке фильтров */}
+        {error && <p>Не удалось загрузить фильтры</p>}
 
-        <FilterCheckboxGroup
-          legend="Размеры"
-          options={config.sizes}
-          selected={filters.sizes}
-          onChange={(values) => updateFilter("sizes", values)}
-        />
+        {/* Отображаем фильтры с бэкенда, только если они есть */}
+        {filterGroups && filterGroups.length > 0 ? (
+          filterGroups.map((group: FilterGroup) => (
+            group.options && group.options.length > 0 && (
+              <FilterCheckboxGroup
+                key={group.id}
+                legend={group.name}
+                options={group.options.map(opt => opt.name)}
+                selected={filters[group.name as keyof typeof filters] as string[] | undefined}
+                onChange={(values) => updateFilter(group.name as keyof typeof filters, values)}
+              />
+            )
+          ))
+        ) : (
+          /* Если фильтры не настроены в админке - показываем пустую панель */
+          !isLoading && <p style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+            Фильтры пока не настроены. Добавьте их в админке.
+          </p>
+        )}
 
         <div className={styles.filterPanel__buttons}>
           <button

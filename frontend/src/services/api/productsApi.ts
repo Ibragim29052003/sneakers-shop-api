@@ -30,6 +30,7 @@ export interface Product {
   name: string;
   description: string;
   price: string;        // Цена в виде строки (decimal в Python)
+  old_price: string | null;  // Старая цена для отображения скидки
   sku: string;          // Артикул
   is_active: boolean;
   created_at: string;
@@ -56,6 +57,22 @@ export interface SliderSlide {
   order: number;
   created_at: string;
   updated_at: string;
+}
+
+// Опция фильтра
+export interface FilterOption {
+  id: number;
+  name: string;
+  is_active: boolean;
+  order: number;
+}
+
+// Группа фильтров
+export interface FilterGroup {
+  id: number;
+  name: string;
+  options: FilterOption[];
+  order: number;
 }
 
 // Ответ с пагинацией от Django REST Framework
@@ -176,6 +193,47 @@ export const productsApi = createApi({
     }),
 
     /**
+     * ПОЛУЧИТЬ ФИЛЬТРЫ ПО КАТЕГОРИИ
+     * 
+     * Использование:
+     * const { data } = useGetFiltersByCategoryQuery('children')
+     */
+    getFiltersByCategory: builder.query<FilterGroup[], string>({
+      query: (category) => `/filter-groups/by_category/?category=${category}`,
+    }),
+
+    // Получить все слайды (для админки)
+    getSliderSlides: builder.query<SliderSlide[], void>({
+      query: () => '/slider/',
+    }),
+
+    // Создать слайд
+    createSliderSlide: builder.mutation<SliderSlide, Partial<SliderSlide>>({
+      query: (slide) => ({
+        url: '/slider/',
+        method: 'POST',
+        body: slide,
+      }),
+    }),
+
+    // Обновить слайд
+    updateSliderSlide: builder.mutation<SliderSlide, { id: number; slide: Partial<SliderSlide> }>({
+      query: ({ id, slide }) => ({
+        url: `/slider/${id}/`,
+        method: 'PATCH',
+        body: slide,
+      }),
+    }),
+
+    // Удалить слайд
+    deleteSliderSlide: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/slider/${id}/`,
+        method: 'DELETE',
+      }),
+    }),
+
+    /**
      * ПОЛУЧИТЬ АКТИВНЫЕ СЛАЙДЫ ДЛЯ СЛАЙДЕРА
      * 
      * Использование:
@@ -245,7 +303,12 @@ export const {
   useGetProductByIdQuery,        // для getProductById
   useGetCategoriesQuery,         // для getCategories
   useGetCategoryByIdQuery,       // для getCategoryById
+  useGetFiltersByCategoryQuery,  // для getFiltersByCategory
+  useGetSliderSlidesQuery,       // для getSliderSlides (все слайды)
   useGetActiveSliderSlidesQuery, // для getActiveSliderSlides
+  useCreateSliderSlideMutation,  // для createSliderSlide
+  useUpdateSliderSlideMutation,  // для updateSliderSlide
+  useDeleteSliderSlideMutation,  // для deleteSliderSlide
   useLoginMutation,              // для login
   useRegisterMutation,           // для register
   useRefreshTokenMutation,       // для refreshToken

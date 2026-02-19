@@ -21,13 +21,16 @@ path('products/<int:pk>/', ProductViewSet.as_view({'get': 'retrieve'}), name='pr
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CategoryViewSet, ProductViewSet, ProductImageViewSet, SliderImageViewSet
+from .views import CategoryViewSet, ProductViewSet, ProductImageViewSet, SliderImageViewSet, FilterGroupViewSet, FilterOptionViewSet, ProductFilterViewSet
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'products', ProductViewSet, basename='product')
 router.register(r'product-images', ProductImageViewSet, basename='product-image')
 router.register(r'slider', SliderImageViewSet, basename='slider')
+router.register(r'filter-groups', FilterGroupViewSet, basename='filter-group')
+router.register(r'filter-options', FilterOptionViewSet, basename='filter-option')
+router.register(r'product-filters', ProductFilterViewSet, basename='product-filter')
 
 urlpatterns = [
     path('', include(router.urls)),

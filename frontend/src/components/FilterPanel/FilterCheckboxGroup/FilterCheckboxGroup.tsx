@@ -3,7 +3,7 @@ import styles from "./FilterCheckboxGroup.module.scss";
 interface FilterCheckboxGroupProps<T extends string> {
   legend: string; // заголовок группы
   options: readonly T[]; // все возможные варианты
-  selected: T[]; // выбранные значения
+  selected?: T[]; // выбранные значения (может быть undefined)
   onChange: (values: T[]) => void; // колбэк при изменении
   counts?: Record<string, number>; // добавляем опциональное поле для подсчетов
 }
@@ -11,16 +11,17 @@ interface FilterCheckboxGroupProps<T extends string> {
 const FilterCheckboxGroup = <T extends string>({
   legend,
   options,
-  selected,
+  selected = [],
   onChange,
   counts = {}, // по умолчанию пустой объект
 }: FilterCheckboxGroupProps<T>) => {
   // если значение есть — удаляем, если значения нет — добавляем (такая логика типична для чекбоксов)
   const toggleValue = (value: T) => {
-    return selected.includes(value)
+    const currentSelected = selected ?? [];
+    return currentSelected.includes(value)
       ? // filter для иммутабельного изменения, то есть наша функция всегда возвращает новый массив не изменяя исходный
-        selected.filter((item) => item !== value)
-      : [...selected, value];
+        currentSelected.filter((item) => item !== value)
+      : [...currentSelected, value];
   };
 
   return (
@@ -34,7 +35,7 @@ const FilterCheckboxGroup = <T extends string>({
                 <input
                   type="checkbox"
                   className={styles.filterCheckbox__checkbox}
-                  checked={selected.includes(option)}
+                  checked={(selected ?? []).includes(option)}
                   onChange={() => onChange(toggleValue(option))}
                 />
                 <div className={styles.filterCheckbox__info}>

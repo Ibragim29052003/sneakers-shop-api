@@ -59,7 +59,7 @@ const transformProductToCatalogProduct = (product: any): CatalogProduct => ({
   imageUrl: product.main_image_url || product.images?.[0]?.image || "",
   title: product.name,
   newPrice: parseFloat(product.price),
-  oldPrice: undefined,
+  oldPrice: product.old_price ? parseFloat(product.old_price) : undefined,
 });
 
 const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
