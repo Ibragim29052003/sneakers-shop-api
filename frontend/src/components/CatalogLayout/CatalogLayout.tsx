@@ -70,7 +70,7 @@ const CatalogLayout: FC<CatalogLayoutProps> = ({
           </button>
           )}
 
-          {!isMobile && isFilterVisible && <FilterPanel category={category} />}
+          {!isMobile && isFilterVisible && <FilterPanel category={category} onApply={() => {}} />}
         </div>
 
         <div className={styles.catalog__content}>

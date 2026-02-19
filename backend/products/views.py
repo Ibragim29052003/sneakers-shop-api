@@ -83,24 +83,73 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Получение списка товаров с предзагрузкой категорий и изображений.
-        
-        ПРИМЕР ИСПОЛЬЗОВАНИЯ prefetch_related():
-        
-        В данном случае используется для:
-        - categories: связь ManyToManyField с through=ProductCategory
-        - images: обратная связь через ForeignKey (Product -> ProductImage)
-        
-        ВАЖНО: prefetch_related() создаёт 2 дополнительных запроса:
-        1. SELECT * FROM products_productcategory WHERE product_id IN (...)
-        2. SELECT * FROM products_category WHERE id IN (...)
-        3. SELECT * FROM products_productimage WHERE product_id IN (...)
-        
-        БЕЗ prefetch_related() был бы N+1 запрос проблемой:
-        - 1 запрос на получение товаров
-        - N запросов на получение категорий для каждого товара
-        - N запросов на получение изображений для каждого товара
+        Также поддерживает фильтрацию по colors, sizes, fabrics.
         """
-        return super().get_queryset().prefetch_related('categories', 'images')
+        queryset = super().get_queryset().prefetch_related('categories', 'images')
+        
+        # Получаем параметры фильтров из query params
+        category_param = self.request.query_params.get('category')
+        colors = self.request.query_params.get('colors')
+        sizes = self.request.query_params.get('sizes')
+        fabrics = self.request.query_params.get('fabrics')
+        
+        # Фильтрация по категории
+        if category_param:
+            # Маппинг фронтенд категорий на названия в базе
+            category_mapping = {
+                'women': ['женщин', 'women', 'woman', 'женская', 'для женщин', 'для девочек', 'жен'],
+                'men': ['мужчин', 'men', 'man', 'мужская', 'для мужчин', 'для мальчиков', 'муж'],
+                'children': ['детей', 'children', 'child', 'детская', 'для детей', 'ребенок', 'kids'],
+            }
+            
+            search_names = category_mapping.get(category_param, [])
+            if search_names:
+                from django.db.models import Q
+                query = Q()
+                for name in search_names:
+                    query |= Q(name__icontains=name)
+                categories = Category.objects.filter(query)
+                if categories.exists():
+                    # Фильтруем товары по найденным категориям
+                    category_ids = list(categories.values_list('id', flat=True))
+                    queryset = queryset.filter(categories__id__in=category_ids).distinct()
+        
+        # Применяем фильтры если они есть
+        from django.db.models import Q
+        filter_query = Q()
+        
+        # Фильтр по цветам (любой из выбранных)
+        if colors:
+            color_list = [c.strip() for c in colors.split(',') if c.strip()]
+            if color_list:
+                color_query = Q()
+                for color in color_list:
+                    color_query |= Q(product_filters__filter_option__name__icontains=color)
+                filter_query &= color_query
+        
+        # Фильтр по размерам (любой из выбранных)
+        if sizes:
+            size_list = [s.strip() for s in sizes.split(',') if s.strip()]
+            if size_list:
+                size_query = Q()
+                for size in size_list:
+                    size_query |= Q(product_filters__filter_option__name__icontains=size)
+                filter_query &= size_query
+        
+        # Фильтр по материалам (любой из выбранных)
+        if fabrics:
+            fabric_list = [f.strip() for f in fabrics.split(',') if f.strip()]
+            if fabric_list:
+                fabric_query = Q()
+                for fabric in fabric_list:
+                    fabric_query |= Q(product_filters__filter_option__name__icontains=fabric)
+                filter_query &= fabric_query
+        
+        # Применяем фильтр если есть
+        if filter_query:
+            queryset = queryset.filter(filter_query).distinct()
+        
+        return queryset
     
     def perform_create(self, serializer):
         serializer.save()
@@ -1184,6 +1233,169 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         
         serializer = FilterGroupByCategorySerializer(filter_groups, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def with_counts(self, request):
+        """
+        Получение фильтров с подсчетом количества товаров для каждой опции.
+        
+        Логика подсчета:
+        - Внутри одной группы - OR (товар соответствует любому из выбранных)
+        - Между группами - AND (товар соответствует всем выбранным группам)
+        
+        GET /api/v1/filter-groups/with_counts/?category=women&colors=Красный,Синий&sizes=XL,XLL
+        
+        Параметры:
+        - category: women/men/children
+        - colors: список цветов через запятую
+        - sizes: список размеров через запятую
+        - fabrics: список материалов через запятую
+        - min_price: минимальная цена
+        - max_price: максимальная цена
+        """
+        from django.db.models import Q, Count
+        
+        category_param = request.query_params.get('category')
+        category_id = request.query_params.get('category_id')
+        
+        # Определяем category_id
+        if category_param:
+            category_mapping = {
+                'women': ['женщин', 'women', 'woman', 'женская'],
+                'men': ['мужчин', 'men', 'man', 'мужская'],
+                'children': ['детей', 'children', 'child', 'детская'],
+            }
+            
+            search_names = category_mapping.get(category_param, [])
+            if search_names:
+                query = Q()
+                for name in search_names:
+                    query |= Q(name__icontains=name)
+                categories = Category.objects.filter(query)
+                if categories.exists():
+                    category_id = categories.first().id
+        
+        if not category_id:
+            return Response(
+                {'error': 'Требуется параметр category или category_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Получаем все выбранные фильтры из разных групп
+        selected_filters = {}
+        for param_name in ['colors', 'sizes', 'fabrics']:
+            value = request.query_params.get(param_name)
+            if value:
+                selected_filters[param_name] = [v.strip() for v in value.split(',') if v.strip()]
+        
+        # Цена
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+        
+        # Базовый queryset товаров для категории
+        products_qs = Product.objects.filter(
+            categories__id=category_id,
+            is_active=True
+        ).distinct()
+        
+        # Применяем ценовой фильтр
+        if min_price:
+            try:
+                products_qs = products_qs.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
+        
+        if max_price:
+            try:
+                products_qs = products_qs.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
+        
+        # Применяем выбранные фильтры других групп
+        # Строим Q-объект для фильтрации товаров
+        filter_query = Q()
+        for filter_type, filter_values in selected_filters.items():
+            if filter_values:
+                # Ищем товары которые имеют любой из выбранных фильтров данной группы
+                type_query = Q()
+                for val in filter_values:
+                    type_query |= Q(filter_option__name__icontains=val)
+                filter_query &= type_query
+        
+        # Применяем фильтр если есть
+        if filter_query:
+            products_with_filters = products_qs.filter(filter_query).values_list('id', flat=True)
+        else:
+            products_with_filters = products_qs.values_list('id', flat=True)
+        
+        # Получаем все группы фильтров для категории
+        filter_groups = FilterGroup.objects.filter(
+            category_id=category_id,
+            is_active=True
+        ).prefetch_related('options').order_by('order', 'name')
+        
+        result = []
+        for group in filter_groups:
+            group_data = {
+                'id': group.id,
+                'name': group.name,
+                'order': group.order,
+                'options': []
+            }
+            
+            # Для каждой опции считаем количество товаров
+            for option in group.options.filter(is_active=True):
+                # Строим запрос для подсчета товаров с этой опцией
+                # Товар должен соответствовать:
+                # 1. Этой опции (в текущей группе - OR)
+                # 2. Всем выбранным опциям из ДРУГИХ групп
+                
+                # Базовый запрос для этой опции
+                option_query = Q(filter_option=option)
+                
+                # Добавляем фильтры из других групп
+                for filter_type, filter_values in selected_filters.items():
+                    # Пропускаем текущую группу
+                    if filter_type == group.name.lower() or (group.name == 'Цвета' and filter_type == 'colors'):
+                        continue
+                    if filter_values:
+                        type_query = Q()
+                        for val in filter_values:
+                            type_query |= Q(filter_option__name__icontains=val)
+                        option_query &= type_query
+                
+                # Применяем ценовой фильтр
+                count_query = Q()
+                if min_price:
+                    try:
+                        count_query &= Q(product__price__gte=float(min_price))
+                    except ValueError:
+                        pass
+                if max_price:
+                    try:
+                        count_query &= Q(product__price__lte=float(max_price))
+                    except ValueError:
+                        pass
+                
+                count_query &= option_query
+                
+                # Считаем товары
+                count = ProductFilter.objects.filter(
+                    count_query,
+                    product__categories__id=category_id,
+                    product__is_active=True
+                ).distinct().count()
+                
+                group_data['options'].append({
+                    'id': option.id,
+                    'name': option.name,
+                    'order': option.order,
+                    'count': count
+                })
+            
+            result.append(group_data)
+        
+        return Response(result)
 
 
 class FilterOptionViewSet(viewsets.ModelViewSet):

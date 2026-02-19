@@ -1,80 +1,80 @@
 /**
- * Dynamic filter loading for product admin
- * Loads filters based on selected category
+ * Динамическая загрузка фильтров для админки товаров
+ * Загружает фильтры на основе выбранной категории
  */
 
 (function($) {
     'use strict';
     
-    // Wait for Django admin to be ready
+    // Ждем готовности Django админки
     $(document).ready(function() {
         
-        // Get the category select element
+        // Получаем элемент выбора категории
         var categorySelect = $('#id_categories');
         
-        // Get the filter inline container
+        // Получаем контейнер для инлайн фильтров
         var filterInline = $('.inline-related[data-inline-model="productfilter"]');
         
-        // If category is already selected (editing existing product)
+        // Если категория уже выбрана (редактирование существующего товара)
         var initialCategories = categorySelect.val();
         if (initialCategories && initialCategories.length > 0) {
             updateFiltersForCategories(initialCategories);
         }
         
-        // Listen for category changes
+        // Слушаем изменения категории
         categorySelect.on('change', function() {
             var selectedCategories = $(this).val() || [];
             updateFiltersForCategories(selectedCategories);
         });
         
         /**
-         * Update filter options based on selected categories
+         * Обновить опции фильтров на основе выбранных категорий
          */
         function updateFiltersForCategories(categoryIds) {
             if (!categoryIds || categoryIds.length === 0) {
-                // Clear filter options if no category selected
+                // Очистить опции фильтров если категория не выбрана
                 clearFilterOptions();
                 return;
             }
             
-            // Show loading indicator
+            // Показать индикатор загрузки
             showLoading();
             
-            // Fetch filters for selected categories via AJAX
+            // Загрузить фильтры для выбранных категорий через AJAX
             $.ajax({
                 url: '/api/v1/filter-groups/by_category/',
                 data: {
-                    category_id: categoryIds[0] // Use first selected category
+                    category_id: categoryIds[0] // Используем первую выбранную категорию
                 },
                 success: function(data) {
                     updateFilterOptions(data);
                 },
                 error: function() {
-                    console.error('Failed to load filters');
+                    console.error('Не удалось загрузить фильтры');
                     hideLoading();
                 }
             });
         }
         
         /**
-         * Update the filter option dropdowns in the inline
+         * Обновить выпадающие списки опций фильтров в инлайне
          */
         function updateFilterOptions(filterGroups) {
-            // Find all filter_option select elements in the inline
+            // Находим все элементы select для filter_option в инлайне
             var filterSelects = filterInline.find('select[name$="-filter_option"]');
             
             filterSelects.each(function() {
                 var select = $(this);
                 var currentValue = select.val();
                 
-                // Clear existing options
+                // Очищаем существующие опции
                 select.empty();
                 
-                // Add new options based on filter groups
+                // Добавляем новые опции на основе групп фильтров
                 if (filterGroups && filterGroups.length > 0) {
                     filterGroups.forEach(function(group) {
                         if (group.options && group.options.length > 0) {
-                            // Create optgroup for each filter group
+                            // Создаем optgroup для каждой группы фильтров
                             var optgroup = $('<optgroup>');
                             optgroup.attr('label', group.name);
                             
@@ -90,7 +90,7 @@
                     });
                 }
                 
-                // Restore selected value if it still exists
+                // Восстанавливаем выбранное значение если оно все еще существует
                 if (currentValue) {
                     select.val(currentValue);
                 }
@@ -98,7 +98,7 @@
             
             hideLoading();
             
-            // Show/hide the entire filter inline based on category selection
+            // Показать/скрыть весь инлайн фильтров на основе выбора категории
             if (filterGroups && filterGroups.length > 0) {
                 filterInline.show();
             } else {
@@ -107,7 +107,7 @@
         }
         
         /**
-         * Clear all filter options
+         * Очистить все опции фильтров
          */
         function clearFilterOptions() {
             var filterSelects = filterInline.find('select[name$="-filter_option"]');
@@ -123,7 +123,7 @@
         }
         
         /**
-         * Show loading indicator
+         * Показать индикатор загрузки
          */
         function showLoading() {
             var addButton = filterInline.find('.add-row a');
@@ -133,7 +133,7 @@
         }
         
         /**
-         * Hide loading indicator
+         * Скрыть индикатор загрузки
          */
         function hideLoading() {
             filterInline.find('.loading-indicator').remove();

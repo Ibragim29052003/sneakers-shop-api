@@ -75,6 +75,33 @@ export interface FilterGroup {
   order: number;
 }
 
+// Группа фильтров с счетчиками (для динамических счетчиков)
+export interface FilterOptionWithCount {
+  id: number;
+  name: string;
+  order: number;
+  count: number;  // Количество товаров с этим фильтром
+}
+
+export interface FilterGroupWithCounts {
+  id: number;
+  name: string;
+  order: number;
+  options: FilterOptionWithCount[];
+}
+
+// Параметры для запроса фильтров с счетчиками
+export interface FilterGroupCountsParams {
+  category: string;
+  filters?: {
+    colors?: string[];
+    sizes?: string[];
+    fabrics?: string[];
+  };
+  minPrice?: number;
+  maxPrice?: number;
+}
+
 // Ответ с пагинацией от Django REST Framework
 export interface ProductsResponse {
   count: number;         // общее количество товаров
@@ -92,6 +119,10 @@ export interface FilterParams {
   ordering?: string;     // сортировка (например: "price" или "-price")
   page?: number;         // номер страницы (пагинация)
   page_size?: number;    // количество элементов на странице
+  // Фильтры
+  colors?: string[];     // массив цветов
+  sizes?: string[];      // массив размеров
+  fabrics?: string[];    // массив материалов
 }
 
 /**
@@ -153,13 +184,37 @@ export const productsApi = createApi({
      * (удобнее для компонентов которые не нуждаются в пагинации)
      */
     getFilteredProducts: builder.query<Product[], FilterParams>({
-      query: (params) => ({
-        url: '/products/',
-        params: {
-          ...params,
+      query: (params) => {
+        // Формируем URL параметры
+        const queryParams: Record<string, string | number | boolean | undefined> = {
           is_active: true,
-        },
-      }),
+        };
+        
+        // Добавляем параметры если они есть
+        if (params.category) queryParams.category = params.category;
+        if (params.min_price) queryParams.min_price = params.min_price;
+        if (params.max_price) queryParams.max_price = params.max_price;
+        if (params.search) queryParams.search = params.search;
+        if (params.ordering) queryParams.ordering = params.ordering;
+        if (params.page) queryParams.page = params.page;
+        if (params.page_size) queryParams.page_size = params.page_size;
+        
+        // Преобразуем массивы фильтров в строку через запятую
+        if (params.colors && params.colors.length > 0) {
+          queryParams.colors = params.colors.join(',');
+        }
+        if (params.sizes && params.sizes.length > 0) {
+          queryParams.sizes = params.sizes.join(',');
+        }
+        if (params.fabrics && params.fabrics.length > 0) {
+          queryParams.fabrics = params.fabrics.join(',');
+        }
+        
+        return {
+          url: '/products/',
+          params: queryParams,
+        };
+      },
       // Трансформируем ответ - берём только results из пагинированного ответа
       transformResponse: (response: ProductsResponse) => response.results,
     }),
@@ -200,6 +255,45 @@ export const productsApi = createApi({
      */
     getFiltersByCategory: builder.query<FilterGroup[], string>({
       query: (category) => `/filter-groups/by_category/?category=${category}`,
+    }),
+
+    /**
+     * ПОЛУЧИТЬ ФИЛЬТРЫ С СЧЕТЧИКАМИ
+     * 
+     * Возвращает фильтры с подсчетом количества товаров для каждой опции.
+     * Счетчики учитывают уже выбранные фильтры.
+     * 
+     * Использование:
+     * const { data } = useGetFiltersWithCountsQuery({ category: 'women', filters: { colors: ['Красный'], sizes: ['XL'] } })
+     */
+    getFiltersWithCounts: builder.query<FilterGroupWithCounts[], FilterGroupCountsParams>({
+      query: (params) => {
+        const urlParams = new URLSearchParams();
+        urlParams.append('category', params.category);
+        
+        // Добавляем выбранные фильтры
+        if (params.filters) {
+          if (params.filters.colors && params.filters.colors.length > 0) {
+            urlParams.append('colors', params.filters.colors.join(','));
+          }
+          if (params.filters.sizes && params.filters.sizes.length > 0) {
+            urlParams.append('sizes', params.filters.sizes.join(','));
+          }
+          if (params.filters.fabrics && params.filters.fabrics.length > 0) {
+            urlParams.append('fabrics', params.filters.fabrics.join(','));
+          }
+        }
+        
+        // Ценовой диапазон
+        if (params.minPrice !== undefined) {
+          urlParams.append('min_price', params.minPrice.toString());
+        }
+        if (params.maxPrice !== undefined) {
+          urlParams.append('max_price', params.maxPrice.toString());
+        }
+        
+        return `/filter-groups/with_counts/?${urlParams.toString()}`;
+      },
     }),
 
     // Получить все слайды (для админки)
@@ -304,6 +398,7 @@ export const {
   useGetCategoriesQuery,         // для getCategories
   useGetCategoryByIdQuery,       // для getCategoryById
   useGetFiltersByCategoryQuery,  // для getFiltersByCategory
+  useGetFiltersWithCountsQuery,   // для getFiltersWithCounts
   useGetSliderSlidesQuery,       // для getSliderSlides (все слайды)
   useGetActiveSliderSlidesQuery, // для getActiveSliderSlides
   useCreateSliderSlideMutation,  // для createSliderSlide
