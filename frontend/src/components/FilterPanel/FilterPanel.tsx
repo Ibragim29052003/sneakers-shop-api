@@ -19,19 +19,47 @@ interface FilterPanelProps {
 
 // Маппинг названий групп фильтров на ключи Redux
 const FILTER_KEY_MAP: Record<string, 'colors' | 'sizes' | 'fabrics'> = {
+  // Цвета
   'цвета': 'colors',
+  'цвет': 'colors',
   'colors': 'colors',
+  'color': 'colors',
+  // Размеры
   'размеры': 'sizes',
+  'размер': 'sizes',
   'sizes': 'sizes',
+  'size': 'sizes',
+  // Материалы
   'материалы': 'fabrics',
-  'fabrics': 'fabrics',
   'материал': 'fabrics',
+  'fabrics': 'fabrics',
+  'fabric': 'fabrics',
 };
 
 // Получение ключа Redux по названию группы
 const getFilterKey = (groupName: string): 'colors' | 'sizes' | 'fabrics' | null => {
   const normalizedName = groupName.toLowerCase().trim();
-  return FILTER_KEY_MAP[normalizedName] || null;
+  
+  // Проверяем точное совпадение
+  if (FILTER_KEY_MAP[normalizedName]) {
+    return FILTER_KEY_MAP[normalizedName];
+  }
+  
+  // Проверяем частичное совпадение (название содержит ключевое слово)
+  // Цвета
+  if (normalizedName.includes('цвет') || normalizedName.includes('color')) {
+    return 'colors';
+  }
+  // Размеры
+  if (normalizedName.includes('размер') || normalizedName.includes('size')) {
+    return 'sizes';
+  }
+  // Материалы
+  if (normalizedName.includes('материал') || normalizedName.includes('fabric')) {
+    return 'fabrics';
+  }
+  
+  return null;
 };
 
 const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
@@ -97,6 +125,7 @@ const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
           filterGroups.map((group: FilterGroupWithCounts) => {
             // Получаем ключ Redux для этой группы фильтров
             const filterKey = getFilterKey(group.name);
+            
             if (!filterKey) return null;
             
             return (
