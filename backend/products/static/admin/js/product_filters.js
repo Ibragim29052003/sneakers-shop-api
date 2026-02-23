@@ -50,7 +50,6 @@
                     updateFilterOptions(data);
                 },
                 error: function() {
-                    console.error('Не удалось загрузить фильтры');
                     hideLoading();
                 }
             });

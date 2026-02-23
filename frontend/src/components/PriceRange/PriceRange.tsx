@@ -54,14 +54,14 @@ const PriceRange: FC<PriceRangeProps> = ({ min, max }) => {
   const minInputRef = useRef<HTMLInputElement>(null);
   const maxInputRef = useRef<HTMLInputElement>(null);
 
-  // Debounced значения для Redux
+  // Debounced значения для Redux - 300ms задержка
   const debouncedMinPrice = useDebounce(
     localMinPrice === '' ? undefined : Number(localMinPrice),
-    500
+    300
   );
   const debouncedMaxPrice = useDebounce(
     localMaxPrice === '' ? undefined : Number(localMaxPrice),
-    500
+    300
   );
 
   // применение значений к Redux - сравниваем с текущим состоянием в Redux, а не с локальным состоянием

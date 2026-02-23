@@ -124,7 +124,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             if color_list:
                 color_query = Q()
                 for color in color_list:
-                    color_query |= Q(product_filters__filter_option__name__icontains=color)
+                    color_query |= Q(product_filters__filter_option__name__iexact=color)
                 filter_query &= color_query
         
         # Фильтр по размерам (любой из выбранных)
@@ -133,7 +133,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             if size_list:
                 size_query = Q()
                 for size in size_list:
-                    size_query |= Q(product_filters__filter_option__name__icontains=size)
+                    size_query |= Q(product_filters__filter_option__name__iexact=size)
                 filter_query &= size_query
         
         # Фильтр по материалам (любой из выбранных)
@@ -142,7 +142,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             if fabric_list:
                 fabric_query = Q()
                 for fabric in fabric_list:
-                    fabric_query |= Q(product_filters__filter_option__name__icontains=fabric)
+                    fabric_query |= Q(product_filters__filter_option__name__iexact=fabric)
                 filter_query &= fabric_query
         
         # Применяем фильтр если есть
@@ -1240,10 +1240,11 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         Получение фильтров с подсчетом количества товаров для каждой опции.
         
         Логика подсчета:
-        - Внутри одной группы - OR (товар соответствует любому из выбранных)
-        - Между группами - AND (товар соответствует всем выбранным группам)
-        
-        GET /api/v1/filter-groups/with_counts/?category=women&colors=Красный,Синий&sizes=XL,XLL
+        - Для каждой опции внутри группы считаем товары, которые:
+          1. Относятся к выбранной категории
+          2. Активны
+          3. Соответствуют ценовому диапазону (если выбран)
+          4. Имеют данную опцию
         
         Параметры:
         - category: women/men/children
@@ -1281,6 +1282,21 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Маппинг названий групп фильтров на ключи параметров
+        GROUP_KEY_MAP = {
+            'colors': ['цвета', 'цвет', 'colors', 'color'],
+            'sizes': ['размеры', 'размер', 'sizes', 'size'],
+            'fabrics': ['материалы', 'материал', 'fabrics', 'fabric'],
+        }
+        
+        # Функция для определения типа фильтра по названию группы
+        def get_filter_key(group_name):
+            normalized = group_name.lower().strip()
+            for key, names in GROUP_KEY_MAP.items():
+                if normalized in names:
+                    return key
+            return None
+        
         # Получаем все выбранные фильтры из разных групп
         selected_filters = {}
         for param_name in ['colors', 'sizes', 'fabrics']:
@@ -1293,40 +1309,23 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         max_price = request.query_params.get('max_price')
         
         # Базовый queryset товаров для категории
-        products_qs = Product.objects.filter(
+        base_products = Product.objects.filter(
             categories__id=category_id,
             is_active=True
         ).distinct()
         
-        # Применяем ценовой фильтр
+        # Применяем ценовой фильтр к базовому набору
         if min_price:
             try:
-                products_qs = products_qs.filter(price__gte=float(min_price))
+                base_products = base_products.filter(price__gte=float(min_price))
             except ValueError:
                 pass
         
         if max_price:
             try:
-                products_qs = products_qs.filter(price__lte=float(max_price))
+                base_products = base_products.filter(price__lte=float(max_price))
             except ValueError:
                 pass
-        
-        # Применяем выбранные фильтры других групп
-        # Строим Q-объект для фильтрации товаров
-        filter_query = Q()
-        for filter_type, filter_values in selected_filters.items():
-            if filter_values:
-                # Ищем товары которые имеют любой из выбранных фильтров данной группы
-                type_query = Q()
-                for val in filter_values:
-                    type_query |= Q(filter_option__name__icontains=val)
-                filter_query &= type_query
-        
-        # Применяем фильтр если есть
-        if filter_query:
-            products_with_filters = products_qs.filter(filter_query).values_list('id', flat=True)
-        else:
-            products_with_filters = products_qs.values_list('id', flat=True)
         
         # Получаем все группы фильтров для категории
         filter_groups = FilterGroup.objects.filter(
@@ -1343,48 +1342,31 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
                 'options': []
             }
             
+            # Определяем ключ текущей группы
+            current_group_key = get_filter_key(group.name)
+            
             # Для каждой опции считаем количество товаров
             for option in group.options.filter(is_active=True):
-                # Строим запрос для подсчета товаров с этой опцией
-                # Товар должен соответствовать:
-                # 1. Этой опции (в текущей группе - OR)
-                # 2. Всем выбранным опциям из ДРУГИХ групп
+                # Начинаем с базового набора товаров
+                products_with_option = base_products.filter(
+                    product_filters__filter_option=option
+                )
                 
-                # Базовый запрос для этой опции
-                option_query = Q(filter_option=option)
-                
-                # Добавляем фильтры из других групп
-                for filter_type, filter_values in selected_filters.items():
+                # Добавляем фильтры из ДРУГИХ групп (не текущей)
+                for filter_key, filter_values in selected_filters.items():
                     # Пропускаем текущую группу
-                    if filter_type == group.name.lower() or (group.name == 'Цвета' and filter_type == 'colors'):
+                    if filter_key == current_group_key:
                         continue
+                    
                     if filter_values:
-                        type_query = Q()
+                        # Создаем OR условие для значений внутри группы
+                        filter_query = Q()
                         for val in filter_values:
-                            type_query |= Q(filter_option__name__icontains=val)
-                        option_query &= type_query
+                            filter_query |= Q(product_filters__filter_option__name__iexact=val)
+                        
+                        products_with_option = products_with_option.filter(filter_query)
                 
-                # Применяем ценовой фильтр
-                count_query = Q()
-                if min_price:
-                    try:
-                        count_query &= Q(product__price__gte=float(min_price))
-                    except ValueError:
-                        pass
-                if max_price:
-                    try:
-                        count_query &= Q(product__price__lte=float(max_price))
-                    except ValueError:
-                        pass
-                
-                count_query &= option_query
-                
-                # Считаем товары
-                count = ProductFilter.objects.filter(
-                    count_query,
-                    product__categories__id=category_id,
-                    product__is_active=True
-                ).distinct().count()
+                count = products_with_option.distinct().count()
                 
                 group_data['options'].append({
                     'id': option.id,

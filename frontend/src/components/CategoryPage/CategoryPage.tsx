@@ -73,6 +73,37 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
   // Это нужно чтобы не отправлять запрос на каждый чих
   const debouncedFilters = useDebounce(filters, 300);
 
+  // Функция преобразования sortBy в ordering для API
+  const getOrderingParam = (sortBy: string | undefined, isNew: boolean | undefined): string | undefined => {
+    if (isNew) {
+      return '-created_at'; // Новинки - по убыванию даты создания
+    }
+    switch (sortBy) {
+      case 'price_asc':
+        return 'price'; // По возрастанию цены
+      case 'price_desc':
+        return '-price'; // По убыванию цены
+      default:
+        return undefined;
+    }
+  };
+
+  // Преобразуем sortBy в ordering для API
+  const ordering = getOrderingParam(filters.sortBy, filters.isNew);
+
+  // Преобразуем camelCase в snake_case для API параметров
+  const apiParams = {
+    ...debouncedFilters,
+    category,
+    ordering,
+    min_price: debouncedFilters.minPrice,
+    max_price: debouncedFilters.maxPrice,
+  };
+
+  // Удаляем дублирующие поля (minPrice/maxPrice теперь в min_price/max_price)
+  delete (apiParams as any).minPrice;
+  delete (apiParams as any).maxPrice;
+
   /**
    * ЗАПРОС 1: Получение товаров для каталога
    * 
@@ -85,10 +116,7 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
     data: products,           // массив товаров
     isLoading: productsLoading, // true пока грузится
     error: productsError,      // объект ошибки если есть
-  } = useGetFilteredProductsQuery({ 
-    ...debouncedFilters,  // распыляем фильтры (category, min_price, max_price...)
-    category              // добавляем категорию
-  });
+  } = useGetFilteredProductsQuery(apiParams);
 
   /**
    * ЗАПРОС 2: Получение слайдов для слайдера

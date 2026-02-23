@@ -117,8 +117,6 @@ const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
         {/* Загрузка фильтров */}
         {isLoading && <p>Загрузка фильтров...</p>}
 
-        {/* Ошибка при загрузке фильтров */}
-        {error && <p>Не удалось загрузить фильтры</p>}
 
         {/* Отображаем фильтры с счетчиками с бэкенда */}
         {filterGroups && filterGroups.length > 0 ? (
