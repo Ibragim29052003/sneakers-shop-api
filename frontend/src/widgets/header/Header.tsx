@@ -6,11 +6,13 @@ import TransitionWB from "@/shared/assets/icons/header/transition-wb.svg?react";
 import Logo from "@/shared/assets/icons/Logo.svg?react";
 import { Link, useLocation } from "react-router-dom";
 import DropdownMenu from "./DropdownMenu";
+import { LoginModal } from "@/components/LoginModal/LoginModal";
 
 const Header: FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const location = useLocation();
   const currentPath = location.pathname;
@@ -103,6 +105,7 @@ const Header: FC = () => {
   }, []);
 
   return (
+    <>
     <header className={styles.header}>
       <div
         className={`${styles.header__fixed} ${
@@ -179,18 +182,16 @@ const Header: FC = () => {
               ))}
               {menuOpen && (
                 <li className={styles.header__list_item}>
-                  <a
-                    href="https://www.wildberries.ru/brands/310895408-tasaha"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
                     className={`${styles.header__wb} ${styles.header__wb_menu}`}
+                    // onClick={() => setIsAuthModalOpen((prev) => !prev)}
                   >
                     <TransitionWB
                       className={styles.header__wb_icon}
-                      aria-label="Иконка перехода на Wildberries"
+                      aria-label="Иконка входа"
                     />
-                    <p className={styles.header__wb_text}>Перейти на WB</p>
-                  </a>
+                    <p className={styles.header__wb_text}>Войти</p>
+                  </button>
                 </li>
               )}
             </ul>
@@ -200,18 +201,16 @@ const Header: FC = () => {
                 aria-label="Иконка поиска"
               />
               {!menuOpen && (
-                <a
-                  href="https://www.wildberries.ru/brands/310895408-tasaha"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
                   className={styles.header__wb}
+                  onClick={() => setIsAuthModalOpen((prev) => !prev)}
                 >
                   <TransitionWB
                     className={styles.header__wb_icon}
-                    aria-label="Иконка перехода на Wildberries"
+                    aria-label="Иконка входа"
                   />
-                  <p className={styles.header__wb_text}>Перейти на WB</p>
-                </a>
+                  <p className={styles.header__wb_text}>Войти</p>
+                </button>
               )}
             </div>
 
@@ -232,6 +231,11 @@ const Header: FC = () => {
         </div>
       </div>
     </header>
+    <LoginModal
+      openModal={isAuthModalOpen}
+      onOpenChange={setIsAuthModalOpen}
+    />
+    </>
   );
 };
 

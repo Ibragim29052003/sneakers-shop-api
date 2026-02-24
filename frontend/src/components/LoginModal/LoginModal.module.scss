@@ -1,0 +1,257 @@
+@use "../../shared/scss/helpers/" as *;
+
+.loginModal {
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.2s ease;
+    @include flex-center;
+    z-index: 1000;
+
+    &[data-state="closed"] {
+      animation: fadeOut 0.2s ease;
+    }
+  }
+
+  &__content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: rem(400);
+    padding: rem(32);
+    border-radius: rem(16);
+    background: var(--color-white);
+    box-shadow: 0 rem(20) rem(40) rgba(102, 90, 181, 0.3);
+    animation: scaleIn 0.3s ease;
+    z-index: 1001;
+
+    &[data-state="closed"] {
+      animation: scaleOut 0.2s ease;
+    }
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: rem(24);
+  }
+
+  &__title {
+    font-size: rem(24);
+    color: var(--color-black);
+    font-weight: 600;
+  }
+
+  &__tabs {
+    display: flex;
+    gap: rem(8);
+    margin-bottom: rem(24);
+    border-bottom: rem(1) solid var(--color-dark-el-gray);
+    padding-bottom: rem(12);
+  }
+
+  &__tab {
+    padding: rem(8) rem(16);
+    border: none;
+    background: transparent;
+    font-size: rem(14);
+    font-weight: 500;
+    color: var(--color-medium-gray);
+    cursor: pointer;
+    border-radius: rem(8);
+    transition: all 0.2s ease;
+    position: relative;
+
+    &:hover {
+      color: var(--color-purple);
+    }
+
+    &_active {
+      color: var(--color-purple);
+      background: var(--color-extra-light-purple);
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: rem(-13);
+        left: 0;
+        width: 100%;
+        height: rem(2);
+        background: var(--color-purple);
+        border-radius: rem(2);
+      }
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: rem(16);
+  }
+
+  &__label {
+    display: flex;
+    flex-direction: column;
+    font-size: rem(14);
+    gap: rem(6);
+    color: var(--color-dark-gray);
+    font-weight: 500;
+  }
+
+  &__input {
+    padding: rem(12) rem(16);
+    border-radius: rem(8);
+    border: rem(1) solid var(--color-light-gray);
+    font-size: rem(14);
+    transition: all 0.2s ease;
+    background: var(--color-white);
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 rem(3) rgba(102, 90, 181, 0.15);
+    }
+
+    &::placeholder {
+      color: var(--color-light-gray);
+    }
+
+    &_error {
+      border-color: var(--color-red);
+
+      &:focus {
+        border-color: var(--color-red);
+        box-shadow: 0 0 0 rem(3) rgba(235, 63, 94, 0.15);
+      }
+    }
+  }
+
+  &__errorText {
+    font-size: rem(12);
+    color: var(--color-red);
+    margin-top: rem(4);
+    font-weight: 500;
+  }
+
+  &__submit {
+    padding: rem(14) rem(24);
+    border-radius: rem(8);
+    border: none;
+    background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-lavender) 100%);
+    color: var(--color-white);
+    cursor: pointer;
+    font-size: rem(15);
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-top: rem(8);
+    box-shadow: 0 rem(4) rem(15) rgba(102, 90, 181, 0.3);
+
+    &:hover {
+      transform: translateY(rem(-2));
+      box-shadow: 0 rem(8) rem(20) rgba(102, 90, 181, 0.4);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &__close {
+    position: absolute;
+    top: rem(16);
+    right: rem(16);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-medium-gray);
+    padding: rem(4);
+    transition: color 0.2s ease;
+    width: rem(24);
+    height: rem(24);
+    @include flex-center;
+
+    &:hover {
+      color: var(--color-purple);
+    }
+  }
+
+  &__closeIcon {
+    position: relative;
+    width: rem(16);
+    height: rem(16);
+
+    span {
+      position: absolute;
+      width: 100%;
+      height: rem(2);
+      background: currentColor;
+      border-radius: rem(1);
+      transition: all 0.2s ease;
+
+      &:first-child {
+        transform: rotate(45deg);
+      }
+
+      &:last-child {
+        transform: rotate(-45deg);
+      }
+    }
+  }
+
+  &__switch {
+    text-align: center;
+    margin-top: rem(16);
+    font-size: rem(14);
+    color: var(--color-medium-gray);
+
+    button {
+      background: transparent;
+      border: none;
+      color: var(--color-purple);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      margin-left: rem(4);
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: var(--color-lavender);
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.9);
+  }
+}
