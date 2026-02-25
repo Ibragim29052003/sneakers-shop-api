@@ -4,23 +4,43 @@ import Arrow from "@/shared/assets/icons/header/arrow-down.svg?react";
 import Search from "@/shared/assets/icons/header/search.svg?react";
 import TransitionWB from "@/shared/assets/icons/header/transition-wb.svg?react";
 import Logo from "@/shared/assets/icons/Logo.svg?react";
+import Basket from "@/shared/assets/icons/header/basket.svg?react";
 import { Link, useLocation } from "react-router-dom";
 import DropdownMenu from "./DropdownMenu";
 import { LoginModal } from "@/components/LoginModal/LoginModal";
+import { useAppSelector } from "@/redux/store";
 
 const Header: FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const location = useLocation();
   const currentPath = location.pathname;
   const isMainActive = ["/women", "/men", "/children"].includes(currentPath);
 
+  // Получаем общее количество товаров в корзине из Redux
+  const cartTotalCount = useAppSelector((state) => state.cart.totalCount);
+
   const burgerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Проверка авторизации при загрузке
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    setIsAuthenticated(!!token);
+  }, []);
+
+  // Обработчик выхода
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    setIsAuthenticated(false);
+    window.location.reload();
+  };
 
   type NavItem = {
     link?: string;
@@ -50,27 +70,26 @@ const Header: FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         listRef.current &&
-        !listRef.current.contains(event.target as Node) && // если был клик вне списка
+        !listRef.current.contains(event.target as Node) &&
         buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node) && // если был клик вне кнопки
+        !buttonRef.current.contains(event.target as Node) &&
         burgerRef.current &&
-        !burgerRef.current.contains(event.target as Node) // если был клик вне бургера
+        !burgerRef.current.contains(event.target as Node)
       ) {
         setIsCategoriesOpen(false);
         setMenuOpen(false);
       }
     };
-    document.addEventListener("click", handleClickOutside); // слушаем клики по всему документу
+    document.addEventListener("click", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("click", handleClickOutside); // функция очистки, выполнится при размонтировании или изменении isCategoriesOpen
+      document.removeEventListener("click", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isCategoriesOpen, menuOpen]);
 
   useEffect(() => {
     if (isCategoriesOpen) {
-      // когда dropdown открывается, фокусируемся на активной категории или первой
       const activeLink = listRef.current?.querySelector(
         `a[href="${currentPath}"]`
       ) as HTMLAnchorElement;
@@ -85,17 +104,14 @@ const Header: FC = () => {
     }
   }, [isCategoriesOpen, currentPath]);
 
-  // для умного скрывания шапки
   useEffect(() => {
     let lastScrollY = window.scrollY;
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // скроллим вниз
         setIsHidden(true);
       } else {
-        // скроллим вверх
         setIsHidden(false);
       }
       lastScrollY = currentScrollY;
@@ -106,135 +122,175 @@ const Header: FC = () => {
 
   return (
     <>
-    <header className={styles.header}>
-      <div
-        className={`${styles.header__fixed} ${
-          isHidden ? styles.header__fixed_hidden : ""
-        }`}
-      >
-        <div className="container">
-          <nav className={styles.header__nav} role="navigation">
-            <Link
-              to="/"
-              aria-label="Вернуться на главную страницу"
-              className={styles.header__logo}
-            >
-              <Logo className={styles.header__logo_logo} />
-              <p className={styles.header__logo_text}>TaSaHa</p>
-            </Link>
+      <header className={styles.header}>
+        <div
+          className={`${styles.header__fixed} ${
+            isHidden ? styles.header__fixed_hidden : ""
+          }`}
+        >
+          <div className="container">
+            <nav className={styles.header__nav} role="navigation">
+              <Link
+                to="/"
+                aria-label="Вернуться на главную страницу"
+                className={styles.header__logo}
+              >
+                <Logo className={styles.header__logo_logo} />
+                <p className={styles.header__logo_text}>TaSaHa</p>
+              </Link>
 
-            <ul
-              className={`${styles.header__list} ${
-                menuOpen ? styles.header__list_open : ""
-              }`}
-              role={menuOpen ? "menu" : undefined}
-              aria-hidden={!menuOpen}
-            >
-              {navItems.map((item, itemId) => (
-                <li key={itemId} className={styles.header__list_item}>
-                  {item.text === "Главная" ? (
-                    <button
-                      className={`${styles.header__expandable} ${
-                        isMainActive ? styles.header__expandable_active : ""
-                      }`}
-                      onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                      aria-expanded={isCategoriesOpen}
-                      aria-controls="categories-list"
-                      aria-haspopup="menu" // указывает, что кнопка открывает меню
-                      ref={buttonRef}
-                    >
-                      {item.text}
-                      <Arrow
-                        className={`${styles.header__expandable_icon} ${
-                          isCategoriesOpen
-                            ? styles.header__expandable_icon_open
+              <ul
+                className={`${styles.header__list} ${
+                  menuOpen ? styles.header__list_open : ""
+                }`}
+                role={menuOpen ? "menu" : undefined}
+                aria-hidden={!menuOpen}
+              >
+                {navItems.map((item, itemId) => (
+                  <li key={itemId} className={styles.header__list_item}>
+                    {item.text === "Главная" ? (
+                      <button
+                        className={`${styles.header__expandable} ${
+                          isMainActive ? styles.header__expandable_active : ""
+                        }`}
+                        onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                        aria-expanded={isCategoriesOpen}
+                        aria-controls="categories-list"
+                        aria-haspopup="menu"
+                        ref={buttonRef}
+                      >
+                        {item.text}
+                        <Arrow
+                          className={`${styles.header__expandable_icon} ${
+                            isCategoriesOpen
+                              ? styles.header__expandable_icon_open
+                              : ""
+                          } `}
+                        />
+                      </button>
+                    ) : (
+                      <Link
+                        to={item.link || "#"}
+                        className={`${styles.header__list_link} ${
+                          currentPath === item.link
+                            ? styles.header__list_link_active
                             : ""
-                        } `}
+                        }`}
+                        aria-label={`Перейти к странице ${item.text}`}
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        {item.text}
+                      </Link>
+                    )}
+                    {item.text === "Главная" && (
+                      <DropdownMenu
+                        ref={listRef}
+                        isOpen={isCategoriesOpen}
+                        categories={categories}
+                        currentPath={currentPath}
+                        onClose={() => {
+                          setIsCategoriesOpen(false);
+                          setMenuOpen(false);
+                        }}
                       />
-                    </button>
-                  ) : (
-                    <Link
-                      to={item.link || "#"}
-                      className={`${styles.header__list_link} ${
-                        currentPath === item.link
-                          ? styles.header__list_link_active
-                          : ""
-                      }`}
-                      aria-label={`Перейти к странице ${item.text}`}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      {item.text}
+                    )}
+                  </li>
+                ))}
+                {menuOpen && (
+                  <li className={styles.header__list_item}>
+                    {isAuthenticated ? (
+                      <button
+                        className={`${styles.header__wb} ${styles.header__wb_menu}`}
+                        onClick={handleLogout}
+                      >
+                        <TransitionWB
+                          className={styles.header__wb_icon}
+                          aria-label="Иконка выхода"
+                        />
+                        <p className={styles.header__wb_text}>Выйти</p>
+                      </button>
+                    ) : (
+                      <button
+                        className={`${styles.header__wb} ${styles.header__wb_menu}`}
+                        onClick={() => setIsAuthModalOpen(true)}
+                      >
+                        <TransitionWB
+                          className={styles.header__wb_icon}
+                          aria-label="Иконка входа"
+                        />
+                        <p className={styles.header__wb_text}>Войти</p>
+                      </button>
+                    )}
+                  </li>
+                )}
+              </ul>
+              <div className={styles.header__wb_search_wrapper}>
+                <Search
+                  className={styles.header__search}
+                  aria-label="Иконка поиска"
+                />
+                {!menuOpen && (
+                  <>
+                    <Link to="/cart" className={styles.header__cart} aria-label={`Корзина, ${cartTotalCount} товаров`}>
+                      <Basket
+                        className={styles.header__wb_cart}
+                        aria-hidden="true"
+                      />
+                      {cartTotalCount > 0 && (
+                        <span className={styles.header__cart_count} aria-live="polite">
+                          {cartTotalCount}
+                        </span>
+                      )}
                     </Link>
-                  )}
-                  {item.text === "Главная" && (
-                    <DropdownMenu
-                      ref={listRef}
-                      isOpen={isCategoriesOpen}
-                      categories={categories}
-                      currentPath={currentPath}
-                      onClose={() => {
-                        setIsCategoriesOpen(false);
-                        setMenuOpen(false);
-                      }}
-                    />
-                  )}
-                </li>
-              ))}
-              {menuOpen && (
-                <li className={styles.header__list_item}>
-                  <button
-                    className={`${styles.header__wb} ${styles.header__wb_menu}`}
-                    // onClick={() => setIsAuthModalOpen((prev) => !prev)}
-                  >
-                    <TransitionWB
-                      className={styles.header__wb_icon}
-                      aria-label="Иконка входа"
-                    />
-                    <p className={styles.header__wb_text}>Войти</p>
-                  </button>
-                </li>
-              )}
-            </ul>
-            <div className={styles.header__wb_search_wrapper}>
-              <Search
-                className={styles.header__search}
-                aria-label="Иконка поиска"
-              />
-              {!menuOpen && (
-                <button
-                  className={styles.header__wb}
-                  onClick={() => setIsAuthModalOpen((prev) => !prev)}
-                >
-                  <TransitionWB
-                    className={styles.header__wb_icon}
-                    aria-label="Иконка входа"
-                  />
-                  <p className={styles.header__wb_text}>Войти</p>
-                </button>
-              )}
-            </div>
+                    {isAuthenticated ? (
+                      <button
+                        className={styles.header__wb}
+                        onClick={handleLogout}
+                      >
+                        <TransitionWB
+                          className={styles.header__wb_icon}
+                          aria-label="Иконка выхода"
+                        />
+                        <p className={styles.header__wb_text}>Выйти</p>
+                      </button>
+                    ) : (
+                      <button
+                        className={styles.header__wb}
+                        onClick={() => setIsAuthModalOpen(true)}
+                      >
+                        <TransitionWB
+                          className={styles.header__wb_icon}
+                          aria-label="Иконка входа"
+                        />
+                        <p className={styles.header__wb_text}>Войти</p>
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
 
-            <button
-              className={`${styles.header__burger} ${
-                menuOpen ? styles.header__burger_open : ""
-              }`}
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
-              aria-expanded={menuOpen}
-              ref={burgerRef}
-            >
-              <span className={styles.header__burger_line}></span>
-              <span className={styles.header__burger_line}></span>
-              <span className={styles.header__burger_line}></span>
-            </button>
-          </nav>
+              <button
+                className={`${styles.header__burger} ${
+                  menuOpen ? styles.header__burger_open : ""
+                }`}
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+                aria-expanded={menuOpen}
+                ref={burgerRef}
+              >
+                <span className={styles.header__burger_line}></span>
+                <span className={styles.header__burger_line}></span>
+                <span className={styles.header__burger_line}></span>
+              </button>
+            </nav>
+          </div>
         </div>
-      </div>
-    </header>
-    <LoginModal
-      openModal={isAuthModalOpen}
-      onOpenChange={setIsAuthModalOpen}
-    />
+      </header>
+      <LoginModal
+        openModal={isAuthModalOpen}
+        onOpenChange={setIsAuthModalOpen}
+        onLoginSuccess={() => setIsAuthenticated(true)}
+      />
     </>
   );
 };

@@ -1,5 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState, type FC } from "react";
+import { useLoginMutation, useRegisterMutation } from "@/services/api/productsApi";
 import styles from "./LoginModal.module.scss";
 
 type FormData = {
@@ -15,9 +16,10 @@ type TouchedFields = Partial<Record<keyof FormData, boolean>>;
 type LoginModalProps = {
   openModal: boolean;
   onOpenChange: (open: boolean) => void;
+  onLoginSuccess?: () => void;
 };
 
-export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => {
+export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange, onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -27,6 +29,12 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<TouchedFields>({});
+  const [apiError, setApiError] = useState("");
+
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
+  const [register, { isLoading: isRegisterLoading }] = useRegisterMutation();
+
+  const isLoading = isLoginLoading || isRegisterLoading;
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,10 +109,48 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      console.log("Form submitted:", formData);
+    setApiError("");
+
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      if (isRegister) {
+        const result = await register({
+          email: formData.email,
+          password: formData.password,
+          password_confirm: formData.confirmPassword,
+          first_name: formData.name,
+        }).unwrap();
+
+        console.log("Registration successful:", result);
+        handleClose();
+        alert("Регистрация успешна! Теперь вы можете войти.");
+        setIsRegister(false);
+      } else {
+        const result = await login({
+          email: formData.email,
+          password: formData.password,
+        }).unwrap();
+
+        console.log("Login successful:", result);
+        localStorage.setItem("access_token", result.access);
+        localStorage.setItem("refresh_token", result.refresh);
+        handleClose();
+        onLoginSuccess?.();
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error("Auth error:", error);
+      if (error.data) {
+        const errorMessages = Object.values(error.data).flat().join(", ");
+        setApiError(errorMessages);
+      } else {
+        setApiError("Произошла ошибка. Попробуйте позже.");
+      }
     }
   };
 
@@ -121,12 +167,14 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
     setFormData({ name: "", email: "", password: "", confirmPassword: "" });
     setErrors({});
     setTouched({});
+    setApiError("");
   };
 
   const handleClose = () => {
     setFormData({ name: "", email: "", password: "", confirmPassword: "" });
     setErrors({});
     setTouched({});
+    setApiError("");
     onOpenChange(false);
   };
 
@@ -172,6 +220,12 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
             </button>
           </div>
 
+          {apiError && (
+            <div className={styles.loginModal__errorText} style={{ marginBottom: 16, textAlign: "center" }}>
+              {apiError}
+            </div>
+          )}
+
           <form className={styles.loginModal__form} onSubmit={handleSubmit}>
             {isRegister && (
               <label className={styles.loginModal__label}>
@@ -183,6 +237,7 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   onBlur={() => handleBlur("name")}
+                  disabled={isLoading}
                 />
                 {touched.name && errors.name && (
                   <span className={styles.loginModal__errorText}>{errors.name}</span>
@@ -199,6 +254,7 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 onBlur={() => handleBlur("email")}
+                disabled={isLoading}
               />
               {touched.email && errors.email && (
                 <span className={styles.loginModal__errorText}>{errors.email}</span>
@@ -214,6 +270,7 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
                 onBlur={() => handleBlur("password")}
+                disabled={isLoading}
               />
               {touched.password && errors.password && (
                 <span className={styles.loginModal__errorText}>{errors.password}</span>
@@ -230,6 +287,7 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                   onBlur={() => handleBlur("confirmPassword")}
+                  disabled={isLoading}
                 />
                 {touched.confirmPassword && errors.confirmPassword && (
                   <span className={styles.loginModal__errorText}>{errors.confirmPassword}</span>
@@ -237,8 +295,8 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange }) => 
               </label>
             )}
 
-            <button type="submit" className={styles.loginModal__submit}>
-              {isRegister ? "Зарегистрироваться" : "Войти"}
+            <button type="submit" className={styles.loginModal__submit} disabled={isLoading}>
+              {isLoading ? "Загрузка..." : isRegister ? "Зарегистрироваться" : "Войти"}
             </button>
           </form>
 

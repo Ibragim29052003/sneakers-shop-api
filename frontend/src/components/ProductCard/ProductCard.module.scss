@@ -80,6 +80,46 @@
     }
   }
 
+  &__cart {
+    position: absolute;
+    bottom: rem(12);
+    right: rem(12);
+    z-index: 10;
+    @include square(rem(40));
+    border-radius: 50%;
+    background: var(--color-white);
+    @include flex-center;
+    box-shadow: var(--box-shadow);
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+    border: none;
+    padding: 0;
+
+    &:hover {
+      transform: scale(1.08);
+      background: var(--color-black);
+
+      .card__cart_icon path {
+        fill: var(--color-white);
+      }
+    }
+
+    &:focus {
+      outline: 2px solid var(--color-blue);
+      outline-offset: 2px;
+    }
+
+    &_icon {
+      width: rem(20);
+      height: rem(20);
+
+      path {
+        fill: var(--color-dark-gray);
+        transition: fill 0.2s;
+      }
+    }
+  }
+
   &__content {
     padding: rem(16) rem(16) rem(18);
     display: flex;

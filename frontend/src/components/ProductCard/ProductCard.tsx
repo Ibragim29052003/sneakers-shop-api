@@ -1,14 +1,34 @@
 import type { Slide } from "@/redux/slider/types";
 import styles from "./ProductCard.module.scss";
-import type { FC } from "react";
+import type { FC, MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import Price from "../Price/Price";
+import Basket from "@/shared/assets/icons/header/basket.svg?react";
+import { useAppDispatch } from "@/redux/store";
+import { addToCart } from "@/redux/cart/slice";
 
 interface ProductCardProps {
   product: Omit<Slide, "description" | "link">; // берем все поля кроме описания и ссылки (она будет на детальной странице)
 }
 
 const ProductCard: FC<ProductCardProps> = ({ product }) => {
+  const dispatch = useAppDispatch();
+
+  const handleAddToCart = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dispatch(
+      addToCart({
+        id: Number(product.id),
+        title: product.title,
+        imageUrl: product.imageUrl,
+        price: product.newPrice,
+        oldPrice: product.oldPrice,
+      })
+    );
+  };
+
   return (
     <article className={styles.card} role="article">
       <Link
@@ -26,9 +46,17 @@ const ProductCard: FC<ProductCardProps> = ({ product }) => {
         </div>
         <div className={styles.card__content}>
           <h3 className={styles.card__title}>{product.title}</h3>
-          <Price oldPrice={product.oldPrice} newPrice={product.newPrice}/>
+          <Price oldPrice={product.oldPrice} newPrice={product.newPrice} />
         </div>
       </Link>
+      <button
+        className={styles.card__cart}
+        onClick={handleAddToCart}
+        aria-label={`Добавить ${product.title} в корзину`}
+        type="button"
+      >
+        <Basket className={styles.card__cart_icon} />
+      </button>
     </article>
   );
 };

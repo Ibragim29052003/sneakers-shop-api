@@ -344,11 +344,11 @@ export const productsApi = createApi({
      * 
      * Использование:
      * const [login] = useLoginMutation()
-     * login({ username: 'user', password: 'pass' })
+     * login({ email: 'user@test.com', password: 'pass' })
      */
     login: builder.mutation<
-      { access: string; refresh: string },  // тип успешного ответа
-      { username: string; password: string } // тип аргументов
+      { access: string; refresh: string; user: any },
+      { email: string; password: string }
     >({
       query: (credentials) => ({
         url: '/auth/login/',
@@ -361,8 +361,8 @@ export const productsApi = createApi({
      * РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ
      */
     register: builder.mutation<
-      { id: number; email: string; username: string },
-      { email: string; username: string; password: string }
+      { id: number; email: string; first_name: string },
+      { email: string; password: string; password_confirm: string; first_name?: string }
     >({
       query: (userData) => ({
         url: '/auth/register/',

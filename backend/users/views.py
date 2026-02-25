@@ -25,11 +25,13 @@ User = get_user_model()
 class CustomTokenObtainPairView(TokenObtainPairView):
     """Пользовательское представление получения токена с информацией о пользователе."""
     serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = []  # Разрешаем публичный вход
 
 
 class UserCreateAPIView(generics.CreateAPIView):
     """API представление для регистрации пользователя."""
     serializer_class = UserCreateSerializer
+    permission_classes = []  # Разрешаем публичную регистрацию
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
