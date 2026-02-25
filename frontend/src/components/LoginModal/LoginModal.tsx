@@ -1,6 +1,8 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState, type FC } from "react";
 import { useLoginMutation, useRegisterMutation } from "@/services/api/productsApi";
+import { useAppDispatch } from "@/redux/store";
+import { setCart } from "@/redux/cart/slice";
 import styles from "./LoginModal.module.scss";
 
 type FormData = {
@@ -33,6 +35,7 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange, onLog
 
   const [login, { isLoading: isLoginLoading }] = useLoginMutation();
   const [register, { isLoading: isRegisterLoading }] = useRegisterMutation();
+  const dispatch = useAppDispatch();
 
   const isLoading = isLoginLoading || isRegisterLoading;
 
@@ -139,6 +142,24 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange, onLog
         console.log("Login successful:", result);
         localStorage.setItem("access_token", result.access);
         localStorage.setItem("refresh_token", result.refresh);
+        
+        // Загружаем корзину пользователя после успешного входа
+        try {
+          const cartResponse = await fetch('/api/v1/cart/', {
+            headers: {
+              'Authorization': `Bearer ${result.access}`,
+            },
+          });
+          
+          if (cartResponse.ok) {
+            const cartData = await cartResponse.json();
+            // Используем force: true чтобы перезаписать корзину данными с сервера
+            dispatch(setCart({ items: cartData.items || [], force: true }));
+          }
+        } catch (cartError) {
+          console.error("Failed to load cart:", cartError);
+        }
+        
         handleClose();
         onLoginSuccess?.();
         window.location.reload();

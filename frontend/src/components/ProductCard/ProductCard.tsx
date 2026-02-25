@@ -17,7 +17,7 @@ const ProductCard: FC<ProductCardProps> = ({ product }) => {
   const handleAddToCart = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     dispatch(
       addToCart({
         id: Number(product.id),
@@ -31,6 +31,14 @@ const ProductCard: FC<ProductCardProps> = ({ product }) => {
 
   return (
     <article className={styles.card} role="article">
+      <button
+        className={styles.card__cart}
+        onClick={handleAddToCart}
+        aria-label={`Добавить ${product.title} в корзину`}
+        type="button"
+      >
+        <Basket className={styles.card__cart_icon} />
+      </button>
       <Link
         to={`/product/${product.id}`}
         className={styles.card__link}
@@ -49,14 +57,6 @@ const ProductCard: FC<ProductCardProps> = ({ product }) => {
           <Price oldPrice={product.oldPrice} newPrice={product.newPrice} />
         </div>
       </Link>
-      <button
-        className={styles.card__cart}
-        onClick={handleAddToCart}
-        aria-label={`Добавить ${product.title} в корзину`}
-        type="button"
-      >
-        <Basket className={styles.card__cart_icon} />
-      </button>
     </article>
   );
 };

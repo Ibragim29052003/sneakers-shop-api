@@ -81,9 +81,9 @@
   }
 
   &__cart {
-    position: absolute;
-    bottom: rem(12);
-    right: rem(12);
+    position: absolute !important;
+    top: rem(5);
+    right: rem(5);
     z-index: 10;
     @include square(rem(40));
     border-radius: 50%;
@@ -110,8 +110,7 @@
     }
 
     &_icon {
-      width: rem(20);
-      height: rem(20);
+      @include square(rem(20));
 
       path {
         fill: var(--color-dark-gray);

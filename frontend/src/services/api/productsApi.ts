@@ -386,6 +386,34 @@ export const productsApi = createApi({
         body: refreshData,
       }),
     }),
+
+    /**
+     * ПОЛУЧИТЬ КОРЗИНУ ПОЛЬЗОВАТЕЛЯ
+     * 
+     * Возвращает корзину авторизованного пользователя с сервера
+     * 
+     * Использование:
+     * const { data } = useGetUserCartQuery()
+     */
+    getUserCart: builder.query<{
+      id: number;
+      items: Array<{
+        id: number;
+        product: {
+          id: number;
+          name: string;
+          price: string;
+          old_price: string | null;
+          main_image_url: string | null;
+        };
+        quantity: number;
+        total_price: string;
+      }>;
+      total_items: number;
+      total_price: string;
+    }, void>({
+      query: () => '/cart/',
+    }),
   }),
 });
 
@@ -407,4 +435,5 @@ export const {
   useLoginMutation,              // для login
   useRegisterMutation,           // для register
   useRefreshTokenMutation,       // для refreshToken
+  useGetUserCartQuery,           // для getUserCart
 } = productsApi;

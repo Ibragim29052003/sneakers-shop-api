@@ -8,7 +8,8 @@ import Basket from "@/shared/assets/icons/header/basket.svg?react";
 import { Link, useLocation } from "react-router-dom";
 import DropdownMenu from "./DropdownMenu";
 import { LoginModal } from "@/components/LoginModal/LoginModal";
-import { useAppSelector } from "@/redux/store";
+import { useAppSelector, useAppDispatch } from "@/redux/store";
+import { clearCart, setCart } from "@/redux/cart/slice";
 
 const Header: FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -23,6 +24,7 @@ const Header: FC = () => {
 
   // Получаем общее количество товаров в корзине из Redux
   const cartTotalCount = useAppSelector((state) => state.cart.totalCount);
+  const dispatch = useAppDispatch();
 
   const burgerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -31,13 +33,48 @@ const Header: FC = () => {
   // Проверка авторизации при загрузке
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    setIsAuthenticated(!!token);
-  }, []);
+    const isAuth = !!token;
+    setIsAuthenticated(isAuth);
+    
+    console.log('Header mount, token exists:', !!token);
+    
+    // Если пользователь авторизован - загружаем его корзину с сервера
+    if (isAuth) {
+      const loadUserCart = async () => {
+        try {
+          console.log('Fetching user cart from server...');
+          const response = await fetch('/api/v1/cart/', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          console.log('Cart response status:', response.status);
+          
+          if (response.ok) {
+            const cartData = await response.json();
+            console.log('Server cart data:', cartData);
+            dispatch(setCart({ items: cartData.items || [] }));
+          } else if (response.status === 401) {
+            console.log('Unauthorized - token might be invalid');
+          } else {
+            console.log('Failed to load cart, status:', response.status);
+          }
+        } catch (error) {
+          console.error('Failed to load user cart:', error);
+        }
+      };
+      
+      loadUserCart();
+    }
+  }, [dispatch]);
 
   // Обработчик выхода
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
+    dispatch(clearCart());
     setIsAuthenticated(false);
     window.location.reload();
   };

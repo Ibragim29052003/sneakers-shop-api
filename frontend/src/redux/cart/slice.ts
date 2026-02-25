@@ -121,6 +121,52 @@ const cartSlice = createSlice({
       state.items = stored.items;
       state.totalCount = stored.totalCount;
     },
+
+    // Установить корзину из сервера (при входе пользователя)
+    // Преобразует данные с сервера в формат фронтенда
+    // force: принудительно перезаписать корзину (для случая когда пользователь вошёл заново)
+    setCart: (state, action: PayloadAction<{
+      items: Array<{
+        id: number;
+        product: {
+          id: number;
+          name: string;
+          price: string;
+          old_price: string | null;
+          main_image_url: string | null;
+        };
+        quantity: number;
+      }>;
+      force?: boolean;
+    }>) => {
+      const { items, force } = action.payload;
+      
+      // Если сервер вернул пустую корзину и это не принудительное обновление - не перезаписываем localStorage
+      // Это нужно чтобы не потерять данные если сервер ещё не успел их сохранить
+      if ((!items || items.length === 0) && !force) {
+        console.log('Server returned empty cart, keeping local data');
+        return;
+      }
+      
+      // Преобразуем данные с сервера в формат фронтенда
+      state.items = items.map((item) => ({
+        id: item.product.id,
+        title: item.product.name,
+        imageUrl: item.product.main_image_url || '',
+        price: parseFloat(item.product.price) || 0,
+        oldPrice: item.product.old_price ? parseFloat(item.product.old_price) : undefined,
+        quantity: item.quantity,
+      }));
+
+      // Пересчитываем общее количество товаров
+      state.totalCount = state.items.reduce(
+        (total, item) => total + item.quantity,
+        0
+      );
+
+      // Сохраняем в localStorage
+      saveCartToStorage(state);
+    },
   },
 });
 
@@ -130,6 +176,7 @@ export const {
   removeItemCompletely,
   clearCart,
   syncCartFromStorage,
+  setCart,
 } = cartSlice.actions;
 
 export default cartSlice.reducer;
