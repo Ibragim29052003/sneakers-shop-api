@@ -1,0 +1,820 @@
+@use "../../shared/scss/helpers/" as *;
+
+.productDetail {
+  max-width: calc(var(--container-width) + var(--container-padding-x) * 2);
+  margin-inline: auto;
+  padding-inline: var(--container-padding-x);
+  padding-block: rem(60) rem(80);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: rem(60);
+
+  @include tablet {
+    grid-template-columns: 1fr;
+    gap: rem(40);
+    padding-block: rem(40);
+  }
+
+  @include mobile {
+    gap: rem(30);
+    padding-block: rem(30);
+  }
+
+  // Галерея изображений
+  &__gallery {
+    display: flex;
+    flex-direction: column;
+    gap: rem(16);
+  }
+
+  &__slider {
+    position: relative;
+    border-radius: rem(16);
+    overflow: hidden;
+    background: var(--color-extra-light-gray);
+    box-shadow: 0 rem(8) rem(24) rgba(0, 0, 0, 0.08);
+
+    @include mobile {
+      border-radius: rem(12);
+    }
+  }
+
+  &__container {
+    padding-top: 8rem;
+  }
+
+  &__sliderContainer {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+
+    @include tablet {
+      aspect-ratio: 4 / 3;
+    }
+
+    @include mobile {
+      aspect-ratio: 1 / 1;
+    }
+  }
+
+  &__slides {
+    display: flex;
+    height: 100%;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &__slide {
+    flex: 0 0 100%;
+    height: 100%;
+  }
+
+  &__slideImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: scale(1.02);
+    }
+
+    &:focus {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+  }
+
+  // Кнопки навигации
+  &__navButton {
+    position: absolute !important;
+    top: 50%;
+    transform: translateY(-50%);
+    width: rem(48);
+    height: rem(48);
+    border-radius: 50%;
+    background: var(--color-white);
+    border: none;
+    cursor: pointer;
+    @include flex-center;
+    box-shadow: 0 rem(4) rem(12) rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    z-index: 10;
+
+    &:hover {
+      background: var(--color-purple);
+      transform: translateY(-50%) scale(1.1);
+      box-shadow: 0 rem(6) rem(16) rgba(102, 90, 181, 0.3);
+
+      svg path {
+        fill: var(--color-white);
+      }
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+
+    &:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+
+    svg {
+      width: rem(24);
+      height: rem(24);
+      transition: fill 0.2s ease;
+    }
+
+    svg path {
+      fill: var(--color-dark-gray);
+    }
+
+    &_prev {
+      left: rem(16);
+    }
+
+    &_next {
+      right: rem(16);
+    }
+
+    @include mobile {
+      width: rem(40);
+      height: rem(40);
+
+      &_prev {
+        left: rem(8);
+      }
+
+      &_next {
+        right: rem(8);
+      }
+    }
+  }
+
+  // Точечная навигация
+  &__dots {
+    position: absolute;
+    bottom: rem(16);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: rem(8);
+    padding: rem(8) rem(12);
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: rem(20);
+    z-index: 10;
+
+    @include mobile {
+      bottom: rem(12);
+      gap: rem(6);
+      padding: rem(6) rem(10);
+    }
+  }
+
+  &__dot {
+    width: rem(10);
+    height: rem(10);
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.8);
+      transform: scale(1.2);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-white);
+      outline-offset: rem(2);
+    }
+
+    &_active {
+      background: var(--color-white);
+      transform: scale(1.3);
+      box-shadow: 0 0 rem(8) rgba(255, 255, 255, 0.5);
+    }
+
+    @include mobile {
+      width: rem(8);
+      height: rem(8);
+    }
+  }
+
+  // Счетчик изображений
+  &__counter {
+    position: absolute;
+    top: rem(16);
+    right: rem(16);
+    padding: rem(6) rem(12);
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--color-white);
+    border-radius: rem(20);
+    font-size: rem(14);
+    font-weight: 500;
+    z-index: 10;
+
+    @include mobile {
+      top: rem(12);
+      right: rem(12);
+      font-size: rem(12);
+      padding: rem(4) rem(10);
+    }
+  }
+
+  // Миниатюры (оставляем для альтернативного вида)
+  &__thumbnails {
+    display: flex;
+    gap: rem(12);
+    overflow-x: auto;
+    padding-block: rem(4);
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    @include mobile {
+      gap: rem(8);
+    }
+  }
+
+  &__thumbnail {
+    flex-shrink: 0;
+    width: rem(80);
+    height: rem(100);
+    border-radius: rem(10);
+    overflow: hidden;
+    cursor: pointer;
+    border: rem(2) solid transparent;
+    transition: all 0.2s ease;
+    background: var(--color-extra-light-gray);
+
+    @include mobile {
+      width: rem(60);
+      height: rem(80);
+      border-radius: rem(8);
+    }
+
+    &:hover {
+      border-color: var(--color-purple);
+    }
+
+    &_active {
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 rem(2) var(--color-extra-light-purple);
+    }
+
+    &:focus {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+  }
+
+  &__thumbnailImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  // Информация о товаре
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: rem(24);
+
+    @include mobile {
+      gap: rem(20);
+    }
+  }
+
+  &__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: rem(8);
+    font-size: rem(14);
+    color: var(--color-gray);
+
+    @include mobile {
+      font-size: rem(12);
+      flex-wrap: wrap;
+    }
+  }
+
+  &__breadcrumbLink {
+    color: var(--color-gray);
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: var(--color-purple);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+  }
+
+  &__breadcrumbSeparator {
+    color: var(--color-light-gray);
+  }
+
+  &__breadcrumbCurrent {
+    color: var(--color-dark-gray);
+    font-weight: 500;
+  }
+
+  &__title {
+    margin: 0;
+    font-family: var(--font-family-CeraPro-Bold);
+    font-size: fluid(36, 24);
+    line-height: 1.2;
+    color: var(--color-dark-gray);
+
+    @include mobile {
+      font-size: fluid(24, 20);
+    }
+  }
+
+  &__sku {
+    font-size: rem(14);
+    color: var(--color-gray);
+    font-family: var(--font-family-CeraPro-Regular);
+  }
+
+  &__priceBlock {
+    display: flex;
+    align-items: center;
+    gap: rem(16);
+    flex-wrap: wrap;
+  }
+
+  &__price {
+    font-family: var(--font-family-CeraPro-Bold);
+    font-size: fluid(32, 24);
+    color: var(--color-purple);
+  }
+
+  &__oldPrice {
+    font-size: fluid(20, 16);
+    color: var(--color-gray);
+    text-decoration: line-through;
+  }
+
+  &__discount {
+    padding: rem(4) rem(10);
+    background: var(--color-red);
+    color: var(--color-white);
+    border-radius: rem(6);
+    font-size: rem(12);
+    font-weight: 600;
+  }
+
+  &__description {
+    font-size: fluid(16, 14);
+    line-height: 1.7;
+    color: var(--color-gray);
+    margin: 0;
+
+    @include mobile {
+      line-height: 1.6;
+    }
+  }
+
+  &__options {
+    display: flex;
+    flex-direction: column;
+    gap: rem(20);
+    padding: rem(24);
+    background: var(--color-el-gray);
+    border-radius: rem(12);
+
+    @include mobile {
+      padding: rem(16);
+      border-radius: rem(10);
+    }
+  }
+
+  &__optionGroup {
+    display: flex;
+    flex-direction: column;
+    gap: rem(10);
+  }
+
+  &__optionLabel {
+    font-size: rem(14);
+    font-weight: 600;
+    color: var(--color-dark-gray);
+    text-transform: uppercase;
+    letter-spacing: rem(0.5);
+  }
+
+  &__colorOptions {
+    display: flex;
+    gap: rem(10);
+    flex-wrap: wrap;
+  }
+
+  &__colorOption {
+    width: rem(36);
+    height: rem(36);
+    border-radius: 50%;
+    border: rem(2) solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: rem(-4);
+      border-radius: 50%;
+      border: rem(2) solid transparent;
+      transition: border-color 0.2s ease;
+    }
+
+    &:hover::after,
+    &_active::after {
+      border-color: var(--color-purple);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+
+    @include mobile {
+      width: rem(32);
+      height: rem(32);
+    }
+  }
+
+  &__sizeOptions {
+    display: flex;
+    gap: rem(8);
+    flex-wrap: wrap;
+  }
+
+  &__sizeOption {
+    min-width: rem(48);
+    height: rem(44);
+    padding: rem(8) rem(16);
+    border: rem(1) solid var(--color-light-gray);
+    border-radius: rem(8);
+    background: var(--color-white);
+    font-size: rem(14);
+    font-weight: 500;
+    color: var(--color-dark-gray);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--color-purple);
+      background: var(--color-extra-light-purple);
+    }
+
+    &_active {
+      border-color: var(--color-purple);
+      background: var(--color-purple);
+      color: var(--color-white);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+
+    @include mobile {
+      min-width: rem(44);
+      height: rem(40);
+      padding: rem(6) rem(12);
+      font-size: rem(13);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: rem(16);
+    margin-top: rem(8);
+
+    @include mobile {
+      flex-direction: column;
+      gap: rem(12);
+    }
+  }
+
+  &__addToCart {
+    @include wb-button;
+    flex: 1;
+    padding: rem(16) rem(32);
+    font-size: fluid(16, 14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: rem(10);
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+
+    @include mobile {
+      padding: rem(14) rem(24);
+    }
+  }
+
+  &__addToCartIcon {
+    width: rem(20);
+    height: rem(20);
+
+    path {
+      fill: currentColor;
+    }
+  }
+
+  &__favorite {
+    @include square(rem(52));
+    border-radius: rem(12);
+    border: rem(1) solid var(--color-light-gray);
+    background: var(--color-white);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    @include flex-center;
+
+    &:hover {
+      border-color: var(--color-red);
+      background: var(--color-light-red);
+      color: var(--color-white);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+
+    &_active {
+      background: var(--color-red);
+      border-color: var(--color-red);
+      color: var(--color-white);
+
+      path {
+        fill: var(--color-white);
+      }
+    }
+
+    @include mobile {
+      @include square(rem(48));
+      border-radius: rem(10);
+    }
+  }
+
+  &__favoriteIcon {
+    width: rem(24);
+    height: rem(24);
+
+    path {
+      fill: var(--color-dark-gray);
+      transition: fill 0.2s ease;
+    }
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: rem(16);
+    padding-top: rem(24);
+    border-top: var(--border-light);
+
+    @include mobile {
+      padding-top: rem(20);
+    }
+  }
+
+  &__detailItem {
+    display: flex;
+    gap: rem(12);
+    font-size: rem(14);
+    color: var(--color-gray);
+
+    @include mobile {
+      font-size: rem(13);
+    }
+  }
+
+  &__detailLabel {
+    flex-shrink: 0;
+    min-width: rem(100);
+    font-weight: 500;
+    color: var(--color-dark-gray);
+  }
+
+  &__detailValue {
+    color: var(--color-gray);
+  }
+
+  // Состояния загрузки и ошибки
+  &__loading {
+    @include flex-center;
+    min-height: rem(400);
+    grid-column: 1 / -1;
+  }
+
+  &__loadingSpinner {
+    width: rem(48);
+    height: rem(48);
+    border: rem(4) solid var(--color-light-gray);
+    border-top-color: var(--color-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  &__error {
+    @include flex-center;
+    flex-direction: column;
+    gap: rem(16);
+    min-height: rem(400);
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  &__errorTitle {
+    font-size: rem(20);
+    color: var(--color-dark-gray);
+    margin: 0;
+  }
+
+  &__errorMessage {
+    font-size: rem(14);
+    color: var(--color-gray);
+    margin: 0;
+  }
+
+  &__errorButton {
+    @include wb-button;
+    padding: rem(12) rem(24);
+  }
+
+  &__notFound {
+    @include flex-center;
+    flex-direction: column;
+    gap: rem(20);
+    min-height: rem(400);
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  &__notFoundTitle {
+    font-size: fluid(28, 22);
+    color: var(--color-dark-gray);
+    margin: 0;
+  }
+
+  &__notFoundText {
+    font-size: rem(16);
+    color: var(--color-gray);
+    margin: 0;
+  }
+
+  &__notFoundLink {
+    @include wb-button;
+    padding: rem(14) rem(32);
+    text-decoration: none;
+  }
+}
+
+// Уведомление (Toast)
+.notification {
+  position: fixed;
+  bottom: rem(24);
+  right: rem(24);
+  padding: rem(16) rem(24);
+  background: var(--color-white);
+  border-radius: rem(12);
+  box-shadow: 0 rem(8) rem(32) rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: rem(12);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+  max-width: rem(400);
+
+  @include mobile {
+    left: rem(16);
+    right: rem(16);
+    bottom: rem(16);
+    max-width: none;
+  }
+
+  &__icon {
+    width: rem(40);
+    height: rem(40);
+    border-radius: 50%;
+    background: var(--color-green);
+    @include flex-center;
+    flex-shrink: 0;
+
+    svg {
+      width: rem(20);
+      height: rem(20);
+    }
+
+    svg path {
+      fill: var(--color-white);
+    }
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__title {
+    font-size: rem(16);
+    font-weight: 600;
+    color: var(--color-dark-gray);
+    margin: 0 0 rem(4);
+  }
+
+  &__message {
+    font-size: rem(14);
+    color: var(--color-gray);
+    margin: 0;
+  }
+
+  &__close {
+    width: rem(32);
+    height: rem(32);
+    border-radius: 50%;
+    border: none;
+    background: var(--color-el-gray);
+    cursor: pointer;
+    @include flex-center;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: var(--color-light-gray);
+    }
+
+    svg {
+      width: rem(16);
+      height: rem(16);
+    }
+
+    svg path {
+      fill: var(--color-gray);
+    }
+  }
+
+  &_success {
+    border-left: rem(4) solid var(--color-green);
+  }
+
+  &_error {
+    border-left: rem(4) solid var(--color-red);
+
+    .notification__icon {
+      background: var(--color-red);
+    }
+  }
+
+  &.hiding {
+    animation: slideOut 0.3s ease forwards;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Утилиты для доступности
+.visuallyHidden {
+  @include visually-hidden;
+}
