@@ -7,6 +7,18 @@ from django.conf import settings
 from simple_history.models import HistoricalRecords
 
 
+def get_default_contract_status():
+    """Получить статус договора по умолчанию"""
+    from .models import ContractStatus
+    return ContractStatus.objects.get(name=ContractStatus.DRAFT)
+
+
+def get_default_request_status():
+    """Получить статус заявки по умолчанию"""
+    from .models import RequestStatus
+    return RequestStatus.objects.get(name=RequestStatus.PENDING)
+
+
 class ContractStatus(models.Model):
     """
     Статусы договоров с поставщиками
@@ -241,7 +253,7 @@ class SupplierContract(models.Model):
         on_delete=models.PROTECT,
         related_name='Contracts',
         verbose_name='статус',
-        default=ContractStatus.DRAFT
+        default=get_default_contract_status
     )
     contract_number = models.CharField('номер договора', max_length=50)
     title = models.CharField('название договора', max_length=200)
@@ -359,7 +371,7 @@ class SupplierProductRequest(models.Model):
         on_delete=models.PROTECT,
         related_name='requests',
         verbose_name='статус',
-        default=RequestStatus.PENDING
+        default=get_default_request_status
     )
     product_name = models.CharField('название товара', max_length=200)
     product_sku = models.CharField('артикул', max_length=50, blank=True)

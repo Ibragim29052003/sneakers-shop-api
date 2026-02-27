@@ -1,0 +1,311 @@
+@use "../../shared/scss/helpers/" as *;
+
+// Основной контейнер формы
+.form {
+  background: var(--color-white);
+  border: var(--border);
+  border-radius: rem(12);
+  padding: rem(24);
+  max-width: rem(700);
+  width: 100%;
+
+  @include tablet {
+    padding: rem(20);
+  }
+
+  @include mobile {
+    padding: rem(16);
+  }
+
+  &__title {
+    @include fluid-text(24, 20);
+    font-family: var(--font-family-CeraPro-Bold);
+    color: var(--color-dark-gray);
+    margin-bottom: rem(24);
+  }
+
+  &__actions {
+    display: flex;
+    gap: rem(12);
+    margin-top: rem(24);
+    flex-wrap: wrap;
+
+    @include mobile {
+      flex-direction: column;
+    }
+  }
+
+  &__requiredNote {
+    margin-top: rem(16);
+    font-size: rem(13);
+    color: var(--color-medium-gray);
+  }
+}
+
+// Поле формы
+.formField {
+  margin-bottom: rem(20);
+
+  &__label {
+    display: block;
+    font-size: rem(14);
+    font-weight: 500;
+    color: var(--color-dark-gray);
+    margin-bottom: rem(8);
+  }
+
+  &__input,
+  &__select,
+  &__textarea {
+    width: 100%;
+    padding: rem(12) rem(14);
+    border: var(--border);
+    border-radius: rem(8);
+    font-size: rem(14);
+    font-family: inherit;
+    transition: border-color var(--transition-duration), box-shadow var(--transition-duration);
+    background: var(--color-white);
+    color: var(--color-dark-gray);
+
+    &::placeholder {
+      color: var(--color-light-gray);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 rem(3) rgba(102, 90, 181, 0.15);
+    }
+
+    &:focus-visible {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(2);
+    }
+
+    &--error {
+      border-color: var(--color-red);
+      background: var(--color-extra-light-red);
+
+      &:focus {
+        border-color: var(--color-red);
+        box-shadow: 0 0 0 rem(3) rgba(235, 63, 94, 0.15);
+      }
+    }
+
+    &--valid {
+      border-color: var(--color-green);
+    }
+
+    &--withSuffix {
+      padding-right: rem(50);
+    }
+
+    &:disabled {
+      background: var(--color-el-gray);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+  }
+
+  &__select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right rem(14) center;
+    padding-right: rem(40);
+    cursor: pointer;
+
+    &--error {
+      border-color: var(--color-red);
+      background-color: var(--color-extra-light-red);
+    }
+  }
+
+  &__textarea {
+    min-height: rem(100);
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: rem(6);
+    margin-top: rem(6);
+    font-size: rem(13);
+    color: var(--color-red);
+    
+    svg {
+      width: rem(16);
+      height: rem(16);
+      flex-shrink: 0;
+    }
+  }
+
+  &__hint {
+    margin-top: rem(6);
+    font-size: rem(12);
+    color: var(--color-medium-gray);
+  }
+}
+
+// Обертка для инпута с суффиксом
+.inputWithSuffix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputSuffix {
+  position: absolute;
+  right: rem(14);
+  color: var(--color-medium-gray);
+  font-size: rem(14);
+  pointer-events: none;
+}
+
+// Ряд полей (для компоновки)
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: rem(16);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Обязательное поле
+.required {
+  color: var(--color-red);
+}
+
+// Кнопки
+.button {
+  @include wb-button;
+  padding: rem(12) rem(24);
+  font-size: rem(14);
+  min-width: rem(140);
+
+  &--primary {
+    background: linear-gradient(
+      135deg,
+      var(--color-purple) 0%,
+      var(--color-lavender) 100%
+    );
+  }
+
+  &--secondary {
+    background: var(--color-el-gray);
+    color: var(--color-gray);
+    box-shadow: none;
+    border: rem(1) solid var(--color-light-gray);
+
+    &:hover {
+      color: var(--color-white);
+      background: linear-gradient(
+        135deg,
+        var(--color-purple) 0%,
+        var(--color-lavender) 100%
+      );
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+// Сообщение об ошибке формы
+.formError {
+  display: flex;
+  align-items: center;
+  gap: rem(10);
+  padding: rem(14) rem(16);
+  background: var(--color-extra-light-red);
+  border: rem(1) solid var(--color-red);
+  border-radius: rem(8);
+  margin-bottom: rem(20);
+  color: var(--color-red);
+  font-size: rem(14);
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+    flex-shrink: 0;
+  }
+}
+
+// Сообщение об успехе
+.successMessage {
+  text-align: center;
+  padding: rem(40) rem(24);
+  background: var(--color-white);
+  border: var(--border);
+  border-radius: rem(12);
+  max-width: rem(500);
+  width: 100%;
+
+  &__icon {
+    @include square(80);
+    @include flex-center;
+    margin: 0 auto rem(20);
+    background: var(--color-el-green);
+    border-radius: 50%;
+
+    svg {
+      width: rem(40);
+      height: rem(40);
+      color: var(--color-green);
+    }
+  }
+
+  &__title {
+    font-family: var(--font-family-CeraPro-Bold);
+    font-size: rem(22);
+    color: var(--color-dark-gray);
+    margin-bottom: rem(12);
+  }
+
+  &__text {
+    color: var(--color-medium-gray);
+    font-size: rem(15);
+    margin-bottom: rem(24);
+    line-height: 1.5;
+  }
+}
+
+// Загрузка
+.loading {
+  @include flex-center;
+  padding: rem(60);
+  font-size: rem(16);
+  color: var(--color-medium-gray);
+  background: var(--color-white);
+  border: var(--border);
+  border-radius: rem(12);
+}
+
+// Спиннер загрузки
+.spinner {
+  display: inline-block;
+  width: rem(16);
+  height: rem(16);
+  border: rem(2) solid var(--color-white);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: rem(8);
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

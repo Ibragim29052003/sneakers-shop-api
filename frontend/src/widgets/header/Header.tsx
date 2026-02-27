@@ -93,6 +93,7 @@ const Header: FC = () => {
   const navItems: NavItem[] = [
     { text: "Главная" },
     { link: "/about", text: "О нас" },
+    { link: "/supplier-requests", text: "Заявки" },
   ];
 
   useEffect(() => {

@@ -9,6 +9,7 @@ import {
   useSelector as useReduxSelector,
 } from "react-redux";
 import { productsApi } from "@/services/api/productsApi";
+import { suppliersApi } from "@/services/api/suppliersApi";
 
 export const store = configureStore({
   reducer: {
@@ -19,10 +20,11 @@ export const store = configureStore({
 
     // добавляем RTK Query reducer
     [productsApi.reducerPath]: productsApi.reducer,
+    [suppliersApi.reducerPath]: suppliersApi.reducer,
   },
   // мидлверка нужна для кеширования и подписок
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(productsApi.middleware),
+    getDefaultMiddleware().concat(productsApi.middleware, suppliersApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

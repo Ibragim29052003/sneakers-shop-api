@@ -21,6 +21,7 @@ from .views import (
     # Пользовательские представления
     AssignManagerView,
     UserAlertsView,
+    CreateProductFromRequestView,
 )
 
 router = DefaultRouter()
@@ -48,6 +49,9 @@ urlpatterns = [
     path('supplier-requests/<int:request_id>/assign-manager/', 
          AssignManagerView.as_view(), 
          name='assign-manager'),
+    path('supplier-requests/<int:request_id>/create-product/', 
+         CreateProductFromRequestView.as_view(), 
+         name='create-product-from-request'),
     path('my-alerts/', 
          UserAlertsView.as_view(), 
          name='user-alerts'),

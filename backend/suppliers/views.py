@@ -248,18 +248,81 @@ class AssignManagerView(APIView):
         supplier_request.save()
         
         # Создание уведомления для менеджера
-        SystemAlert.objects.create(
-            alert_type=AlertType.objects.get(name='request_waiting_review'),
-            user=manager,
-            title='Назначен менеджером заявки',
-            message=f'Вы назначены менеджером заявки #{supplier_request.id} на товар "{supplier_request.product_name}"',
-            request=supplier_request
-        )
+        try:
+            alert_type = AlertType.objects.get(name='request_waiting_review')
+            SystemAlert.objects.create(
+                alert_type=alert_type,
+                user=manager,
+                title='Назначен менеджером заявки',
+                message=f'Вы назначены менеджером заявки #{supplier_request.id} на товар "{supplier_request.product_name}"',
+                request=supplier_request
+            )
+        except AlertType.DoesNotExist:
+            pass  # Игнорируем если тип уведомления не существует
         
         return Response(
             {'detail': f'Менеджер {manager.email} назначен для заявки #{supplier_request.id}'},
             status=status.HTTP_200_OK
         )
+
+
+class CreateProductFromRequestView(APIView):
+    """API view для создания товара поставщика из одобренной заявки."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, request_id):
+        """Создание товара поставщика из заявки."""
+        supplier_request = get_object_or_404(SupplierProductRequest, id=request_id)
+        
+        # Проверяем, что заявка одобрена
+        if supplier_request.status.name != 'approved':
+            return Response(
+                {'detail': 'Можно создавать товар только из одобренной заявки.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, что товар ещё не создан
+        if hasattr(supplier_request, '_product_created') and supplier_request._product_created:
+            return Response(
+                {'detail': 'Товар уже был создан из этой заявки.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Получаем данные из запроса
+        product_id = request.data.get('product')
+        
+        if not product_id:
+            return Response(
+                {'detail': 'product обязателен.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from products.models import Product
+        product = get_object_or_404(Product, id=product_id)
+        
+        # Проверяем, не существует ли уже такая связь
+        existing = SupplierProduct.objects.filter(supplier=supplier_request.supplier, product=product).first()
+        if existing:
+            return Response(
+                {'detail': 'Связь между этим поставщиком и товаром уже существует.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Создаём товар поставщика
+        supplier_product = SupplierProduct.objects.create(
+            supplier=supplier_request.supplier,
+            product=product,
+            supplier_sku=supplier_request.product_sku or '',
+            supplier_price=supplier_request.suggested_price,
+            notes=supplier_request.notes or ''
+        )
+        
+        # Помечаем заявку как обработанную
+        supplier_request._product_created = True
+        supplier_request.save(update_fields=['updated_at'])
+        
+        serializer = SupplierProductSerializer(supplier_product)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class RequestDocumentViewSet(viewsets.ModelViewSet):
