@@ -94,6 +94,7 @@ const Header: FC = () => {
     { text: "Главная" },
     { link: "/about", text: "О нас" },
     { link: "/supplier-requests", text: "Заявки" },
+    { link: "/register-supplier", text: "Стать поставщиком" },
   ];
 
   useEffect(() => {

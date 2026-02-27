@@ -1,0 +1,1 @@
+export { SupplierRegisterPage } from './SupplierRegisterPage';

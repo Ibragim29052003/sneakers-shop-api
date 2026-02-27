@@ -18,10 +18,76 @@ export interface Supplier {
   contact_phone: string;
   notes: string;
   is_active: boolean;
+  user: number | null;
+  user_email: string | null;
   created_at: string;
   updated_at: string;
   contracts_count?: number;
   products_count?: number;
+}
+
+// Регистрация поставщика (создание нового пользователя и поставщика)
+export interface RegisterSupplierData {
+  name: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  legal_address?: string;
+  actual_address?: string;
+  phone?: string;
+  email: string;
+  website?: string;
+  contact_person?: string;
+  contact_phone?: string;
+  password: string;
+  notes?: string;
+}
+
+// Упрощённая регистрация: компания + товар в одной форме
+export interface RegisterSupplierWithRequestData {
+  // Данные компании
+  name: string;
+  email: string;
+  password: string;
+  contact_person?: string;
+  phone?: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  legal_address?: string;
+  actual_address?: string;
+  website?: string;
+  notes?: string;
+  // Данные товара
+  product_name: string;
+  product_sku?: string;
+  product_description?: string;
+  quantity?: number;
+  suggested_price?: number;
+  product_notes?: string;
+}
+
+// Ответ после регистрации с заявкой
+export interface RegisterSupplierWithRequestResponse {
+  supplier: Supplier;
+  product_request: SupplierProductRequest;
+  message: string;
+}
+
+// Заявка на регистрацию поставщика (от существующего пользователя)
+export interface ApplySupplierData {
+  name: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  legal_address?: string;
+  actual_address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  contact_person?: string;
+  contact_phone?: string;
+  notes?: string;
 }
 
 // Статус заявки
@@ -227,6 +293,38 @@ export const suppliersApi = createApi({
       query: (id) => `/suppliers/${id}/`,
     }),
     
+    // Получить профиль поставщика текущего пользователя
+    getMySupplierProfile: builder.query<Supplier, void>({
+      query: () => '/my-supplier-profile/',
+    }),
+    
+    // Зарегистрировать нового поставщика (публичный эндпоинт)
+    registerSupplier: builder.mutation<Supplier, RegisterSupplierData>({
+      query: (data) => ({
+        url: '/register-supplier/',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    
+    // Упрощённая регистрация: компания + заявка на товар
+    registerSupplierWithRequest: builder.mutation<RegisterSupplierWithRequestResponse, RegisterSupplierWithRequestData>({
+      query: (data) => ({
+        url: '/register-supplier-with-request/',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    
+    // Подать заявку на регистрацию поставщика (от существующего пользователя)
+    applySupplier: builder.mutation<Supplier, ApplySupplierData>({
+      query: (data) => ({
+        url: '/apply-supplier/',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    
     // ==================== ЗАЯВКИ НА ПОСТАВКУ ====================
     
     // Получить все заявки на поставку
@@ -364,6 +462,10 @@ export const {
   // Поставщики
   useGetSuppliersQuery,
   useGetSupplierByIdQuery,
+  useGetMySupplierProfileQuery,
+  useRegisterSupplierMutation,
+  useRegisterSupplierWithRequestMutation,
+  useApplySupplierMutation,
   
   // Заявки
   useGetSupplierRequestsQuery,
