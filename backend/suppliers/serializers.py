@@ -65,6 +65,7 @@ class ProductSupplierSourceSerializer(serializers.ModelSerializer):
 
 class SupplierSerializer(serializers.ModelSerializer):
     """Сериализатор для модели поставщиков."""
+    user_email = serializers.CharField(source='user.email', read_only=True, allow_null=True)
     contracts_count = serializers.SerializerMethodField()
     products_count = serializers.SerializerMethodField()
     
@@ -73,7 +74,7 @@ class SupplierSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'inn', 'kpp', 'ogrn', 'legal_address', 'actual_address',
             'phone', 'email', 'website', 'contact_person', 'contact_phone',
-            'notes', 'is_active', 'created_at', 'updated_at',
+            'notes', 'is_active', 'user', 'user_email', 'created_at', 'updated_at',
             'contracts_count', 'products_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -83,6 +84,59 @@ class SupplierSerializer(serializers.ModelSerializer):
     
     def get_products_count(self, obj):
         return obj.products.count()
+
+
+class SupplierRegisterSerializer(serializers.ModelSerializer):
+    """Сериализатор для регистрации поставщика (создание от имени пользователя)."""
+    password = serializers.CharField(write_only=True, required=False)
+    
+    class Meta:
+        model = Supplier
+        fields = [
+            'name', 'inn', 'kpp', 'ogrn', 'legal_address', 'actual_address',
+            'phone', 'email', 'website', 'contact_person', 'contact_phone',
+            'password', 'notes'
+        ]
+    
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # Создаём пользователя если передан пароль
+        user = None
+        if password:
+            email = validated_data.get('email')
+            user = User.objects.create_user(
+                email=email,
+                password=password,
+                first_name=validated_data.get('contact_person', '').split()[0] if validated_data.get('contact_person') else '',
+                last_name=' '.join(validated_data.get('contact_person', '').split()[1:]) if validated_data.get('contact_person') else ''
+            )
+            # Назначаем роль поставщика
+            from users.models import Role, UserRole
+            supplier_role, _ = Role.objects.get_or_create(
+                name='supplier',
+                defaults={'description': 'Поставщик товаров'}
+            )
+            UserRole.objects.get_or_create(user=user, role=supplier_role)
+        
+        supplier = Supplier.objects.create(
+            user=user,
+            **validated_data
+        )
+        return supplier
+
+
+class SupplierApplySerializer(serializers.ModelSerializer):
+    """Сериализатор для заявки на регистрацию поставщика от существующего пользователя."""
+    
+    class Meta:
+        model = Supplier
+        fields = [
+            'name', 'inn', 'kpp', 'ogrn', 'legal_address', 'actual_address',
+            'phone', 'email', 'website', 'contact_person', 'contact_phone', 'notes'
+        ]
 
 
 class SupplierContractSerializer(serializers.ModelSerializer):
@@ -233,3 +287,89 @@ class SystemAlertCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SystemAlert
         fields = ['alert_type', 'user', 'title', 'message', 'contract', 'request']
+
+
+class SupplierWithRequestSerializer(serializers.Serializer):
+    """
+    Сериализатор для регистрации поставщика с заявкой на товар.
+    Упрощённый workflow: одна форма = регистрация компании + предложение товара.
+    """
+    # Данные компании
+    name = serializers.CharField(max_length=200)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    contact_person = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    inn = serializers.CharField(max_length=12, required=False, allow_blank=True)
+    kpp = serializers.CharField(max_length=9, required=False, allow_blank=True)
+    ogrn = serializers.CharField(max_length=15, required=False, allow_blank=True)
+    legal_address = serializers.CharField(required=False, allow_blank=True)
+    actual_address = serializers.CharField(required=False, allow_blank=True)
+    website = serializers.URLField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    
+    # Данные товара
+    product_name = serializers.CharField(max_length=200)
+    product_sku = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    product_description = serializers.CharField(required=False, allow_blank=True)
+    quantity = serializers.IntegerField(default=1, min_value=1)
+    suggested_price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    product_notes = serializers.CharField(required=False, allow_blank=True)
+    
+    def create(self, validated_data):
+        from django.contrib.auth import get_user_model
+        from users.models import Role, UserRole
+        
+        User = get_user_model()
+        
+        # Извлекаем данные товара
+        product_name = validated_data.pop('product_name')
+        product_sku = validated_data.pop('product_sku', '')
+        product_description = validated_data.pop('product_description', '')
+        quantity = validated_data.pop('quantity', 1)
+        suggested_price = validated_data.pop('suggested_price', None)
+        product_notes = validated_data.pop('product_notes', '')
+        
+        # Создаём пользователя
+        email = validated_data.pop('email')
+        password = validated_data.pop('password')
+        
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            first_name=validated_data.get('contact_person', '').split()[0] if validated_data.get('contact_person') else '',
+            last_name=' '.join(validated_data.get('contact_person', '').split()[1:]) if validated_data.get('contact_person') else ''
+        )
+        
+        # Назначаем роль поставщика
+        supplier_role, _ = Role.objects.get_or_create(
+            name='supplier',
+            defaults={'description': 'Поставщик товаров'}
+        )
+        UserRole.objects.get_or_create(user=user, role=supplier_role)
+        
+        # Создаём поставщика
+        supplier = Supplier.objects.create(
+            user=user,
+            **validated_data
+        )
+        
+        # Создаём заявку на товар
+        from .models import SupplierProductRequest, RequestStatus
+        pending_status = RequestStatus.objects.get(name=RequestStatus.PENDING)
+        
+        product_request = SupplierProductRequest.objects.create(
+            supplier=supplier,
+            status=pending_status,
+            product_name=product_name,
+            product_sku=product_sku,
+            product_description=product_description,
+            quantity=quantity,
+            suggested_price=suggested_price,
+            notes=product_notes
+        )
+        
+        return {
+            'supplier': supplier,
+            'product_request': product_request
+        }

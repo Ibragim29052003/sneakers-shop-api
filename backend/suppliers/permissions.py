@@ -153,3 +153,18 @@ class IsAuthenticatedOrReadOnlyForPublic(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         return request.user and request.user.is_authenticated
+
+
+class IsSupplierOrReadOnly(permissions.BasePermission):
+    """
+    Поставщик может подавать заявки, но не может управлять справочниками.
+    """
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        # Проверка, является ли пользователь поставщиком
+        return request.user.user_roles.filter(role__name='supplier').exists() or \
+               request.user.user_roles.filter(role__name='admin').exists() or \
+               request.user.is_staff

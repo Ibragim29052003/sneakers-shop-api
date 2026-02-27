@@ -1,1 +1,1 @@
-# Core Django settings module
+# Основной модуль настроек Django

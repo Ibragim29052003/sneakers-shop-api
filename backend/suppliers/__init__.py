@@ -1,2 +1,2 @@
-# suppliers app initialization
+# Приложение поставщиков
 default_app_config = 'suppliers.apps.SuppliersConfig'

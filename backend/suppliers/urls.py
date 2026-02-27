@@ -22,6 +22,11 @@ from .views import (
     AssignManagerView,
     UserAlertsView,
     CreateProductFromRequestView,
+    # Регистрация поставщиков
+    SupplierRegisterView,
+    SupplierApplyView,
+    MySupplierProfileView,
+    RegisterSupplierWithRequestView,
 )
 
 router = DefaultRouter()
@@ -55,4 +60,18 @@ urlpatterns = [
     path('my-alerts/', 
          UserAlertsView.as_view(), 
          name='user-alerts'),
+    
+    # Регистрация поставщиков
+    path('register-supplier/', 
+         SupplierRegisterView.as_view(), 
+         name='register-supplier'),
+    path('apply-supplier/', 
+         SupplierApplyView.as_view(), 
+         name='apply-supplier'),
+    path('my-supplier-profile/', 
+         MySupplierProfileView.as_view(), 
+         name='my-supplier-profile'),
+    path('register-supplier-with-request/', 
+         RegisterSupplierWithRequestView.as_view(), 
+         name='register-supplier-with-request'),
 ]

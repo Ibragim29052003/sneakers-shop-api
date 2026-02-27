@@ -1,1 +1,1 @@
-# Suppliers migrations
+# Миграции поставщиков

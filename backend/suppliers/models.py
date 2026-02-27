@@ -218,6 +218,17 @@ class Supplier(models.Model):
     contact_phone = models.CharField('контактный телефон', max_length=20, blank=True)
     notes = models.TextField('заметки', blank=True)
     is_active = models.BooleanField('активен', default=True)
+    
+    # Связь с пользователем системы (если поставщик имеет аккаунт)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_profile',
+        verbose_name='аккаунт пользователя'
+    )
+    
     created_at = models.DateTimeField('дата создания', default=timezone.now)
     updated_at = models.DateTimeField('дата обновления', auto_now=True)
 

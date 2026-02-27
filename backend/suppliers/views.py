@@ -25,6 +25,9 @@ from .models import (
 )
 from .serializers import (
     SupplierSerializer,
+    SupplierRegisterSerializer,
+    SupplierApplySerializer,
+    SupplierWithRequestSerializer,
     SupplierContractSerializer,
     ContractDocumentSerializer,
     SupplierProductRequestSerializer,
@@ -50,6 +53,7 @@ from .permissions import (
     CanManageSupplierRequests,
     CanAssignManager,
     IsAuthenticatedOrReadOnlyForPublic,
+    IsSupplierOrReadOnly,
 )
 
 
@@ -446,3 +450,116 @@ class UserAlertsView(APIView):
             read_at=timezone.now()
         )
         return Response({'detail': 'Все уведомления помечены как прочитанные.'})
+
+
+# ==================== Регистрация поставщиков ====================
+
+class SupplierRegisterView(APIView):
+    """
+    API view для регистрации нового поставщика.
+    Публичный эндпоинт - регистрация нового пользователя и поставщика.
+    """
+    permission_classes = []  # Публичный доступ
+    
+    def post(self, request):
+        """Регистрация нового поставщика с созданием пользователя."""
+        serializer = SupplierRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        supplier = serializer.save()
+        
+        return Response(
+            SupplierSerializer(supplier).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class SupplierApplyView(APIView):
+    """
+    API view для подачи заявки на регистрацию поставщика от существующего пользователя.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Подача заявки на регистрацию поставщика."""
+        # Проверяем, не является ли пользователь уже поставщиком
+        if hasattr(request.user, 'supplier_profile') and request.user.supplier_profile:
+            return Response(
+                {'detail': 'Вы уже являетесь поставщиком.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = SupplierApplySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Создаём поставщика с привязкой к текущему пользователю
+        supplier = Supplier.objects.create(
+            user=request.user,
+            **serializer.validated_data
+        )
+        
+        # Назначаем роль поставщика
+        from users.models import Role, UserRole
+        supplier_role, _ = Role.objects.get_or_create(
+            name='supplier',
+            defaults={'description': 'Поставщик товаров'}
+        )
+        UserRole.objects.get_or_create(user=request.user, role=supplier_role)
+        
+        return Response(
+            SupplierSerializer(supplier).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class MySupplierProfileView(APIView):
+    """
+    API view для получения профиля поставщика текущего пользователя.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Получение профиля поставщика текущего пользователя."""
+        try:
+            supplier = Supplier.objects.get(user=request.user)
+            serializer = SupplierSerializer(supplier)
+            return Response(serializer.data)
+        except Supplier.DoesNotExist:
+            return Response(
+                {'detail': 'Вы не являетесь поставщиком.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class RegisterSupplierWithRequestView(APIView):
+    """
+    Упрощённая регистрация поставщика с заявкой на товар.
+    
+    Пользователь заполняет одну форму:
+    - Данные компании
+    - Предлагаемый товар
+    
+    Система создаёт:
+    1. User с ролью supplier
+    2. Supplier
+    3. SupplierProductRequest со статусом PENDING
+    
+    Админ потом рассматривает заявку и одобряет/отклоняет.
+    """
+    permission_classes = []  # Публичный эндпоинт
+    
+    def post(self, request):
+        """Регистрация поставщика с заявкой на товар."""
+        serializer = SupplierWithRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        result = serializer.save()
+        
+        # Сериализуем результат
+        supplier_serializer = SupplierSerializer(result['supplier'])
+        request_serializer = SupplierProductRequestSerializer(result['product_request'])
+        
+        return Response({
+            'supplier': supplier_serializer.data,
+            'product_request': request_serializer.data,
+            'message': 'Заявка отправлена на рассмотрение. Ожидайте одобрения от администратора.'
+        }, status=status.HTTP_201_CREATED)
