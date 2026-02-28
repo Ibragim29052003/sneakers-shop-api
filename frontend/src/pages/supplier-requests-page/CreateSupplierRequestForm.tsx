@@ -17,23 +17,31 @@ interface FormErrors {
 interface CreateSupplierRequestFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  isSupplierMode?: boolean;
+  supplierId?: number;
 }
 
 const CreateSupplierRequestForm: React.FC<CreateSupplierRequestFormProps> = ({
   onSuccess,
   onCancel,
+  isSupplierMode = false,
+  supplierId,
 }) => {
   const [createRequest, { isLoading: isSubmitting }] = useCreateSupplierRequestMutation();
   const { data: suppliers, isLoading: isSuppliersLoading } = useGetSuppliersQuery();
 
-  const [formData, setFormData] = useState<CreateSupplierRequest>({
-    supplier: 0,
-    product_name: '',
-    product_sku: '',
-    product_description: '',
-    quantity: 1,
-    suggested_price: undefined,
-    notes: '',
+  // Автоматический выбор поставщика для режима поставщика
+  const [formData, setFormData] = useState<CreateSupplierRequest>(() => {
+    const initialData = {
+      supplier: supplierId || 0,
+      product_name: '',
+      product_sku: '',
+      product_description: '',
+      quantity: 1,
+      suggested_price: undefined,
+      notes: '',
+    };
+    return initialData;
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -149,10 +157,13 @@ const CreateSupplierRequestForm: React.FC<CreateSupplierRequestFormProps> = ({
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    const supplierError = validateField('supplier', formData.supplier);
-    if (supplierError) {
-      newErrors.supplier = supplierError;
-      isValid = false;
+    // Для поставщиков поставщик уже выбран автоматически
+    if (!isSupplierMode) {
+      const supplierError = validateField('supplier', formData.supplier);
+      if (supplierError) {
+        newErrors.supplier = supplierError;
+        isValid = false;
+      }
     }
 
     const productNameError = validateField('product_name', formData.product_name);
@@ -181,15 +192,15 @@ const CreateSupplierRequestForm: React.FC<CreateSupplierRequestFormProps> = ({
 
     setErrors(newErrors);
     setTouched({
-      supplier: true,
       product_name: true,
       quantity: true,
       suggested_price: true,
       product_sku: true,
+      ...(isSupplierMode ? {} : { supplier: true }),
     });
 
     return isValid;
-  }, [formData, validateField]);
+  }, [formData, validateField, isSupplierMode]);
 
   // Отправка формы
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -297,7 +308,9 @@ const CreateSupplierRequestForm: React.FC<CreateSupplierRequestFormProps> = ({
       noValidate
       aria-labelledby="form-title"
     >
-      <h2 id="form-title" className={styles.form__title}>Создание заявки на поставку</h2>
+      <h2 id="form-title" className={styles.form__title}>
+        {isSupplierMode ? 'Предложение товара' : 'Создание заявки на поставку'}
+      </h2>
 
       {submitError && (
         <div className={styles.formError} role="alert">
@@ -310,43 +323,55 @@ const CreateSupplierRequestForm: React.FC<CreateSupplierRequestFormProps> = ({
         </div>
       )}
 
-      {/* Выбор поставщика */}
-      <div className={styles.formField}>
-        <label 
-          htmlFor="supplier" 
-          className={styles.formField__label}
-        >
-          Поставщик <span className={styles.required}>*</span>
-        </label>
-        <select
-          id="supplier"
-          name="supplier"
-          className={`${styles.formField__select} ${touched.supplier && errors.supplier ? styles['formField__select--error'] : ''}`}
-          value={formData.supplier || ''}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          aria-required="true"
-          aria-invalid={touched.supplier && !!errors.supplier}
-          aria-describedby={errors.supplier ? 'supplier-error' : undefined}
-        >
-          <option value="" disabled>Выберите поставщика</option>
-          {suppliers?.map((supplier) => (
-            <option key={supplier.id} value={supplier.id}>
-              {supplier.name}
-            </option>
-          ))}
-        </select>
-        {touched.supplier && errors.supplier && (
-          <p id="supplier-error" className={styles.formField__error} role="alert">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            {errors.supplier}
-          </p>
-        )}
-      </div>
+      {/* Выбор поставщика - скрыт для режима поставщика */}
+      {!isSupplierMode && (
+        <div className={styles.formField}>
+          <label 
+            htmlFor="supplier" 
+            className={styles.formField__label}
+          >
+            Поставщик <span className={styles.required}>*</span>
+          </label>
+          <select
+            id="supplier"
+            name="supplier"
+            className={`${styles.formField__select} ${touched.supplier && errors.supplier ? styles['formField__select--error'] : ''}`}
+            value={formData.supplier || ''}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            aria-required="true"
+            aria-invalid={touched.supplier && !!errors.supplier}
+            aria-describedby={errors.supplier ? 'supplier-error' : undefined}
+          >
+            <option value="" disabled>Выберите поставщика</option>
+            {suppliers?.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </select>
+          {touched.supplier && errors.supplier && (
+            <p id="supplier-error" className={styles.formField__error} role="alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {errors.supplier}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Для поставщиков показываем выбранного поставщика */}
+      {isSupplierMode && supplierId && (
+        <div className={styles.formField}>
+          <label className={styles.formField__label}>Поставщик</label>
+          <div className={styles.formField__value}>
+            {suppliers?.find(s => s.id === supplierId)?.name || 'Ваша компания'}
+          </div>
+        </div>
+      )}
 
       {/* Название товара */}
       <div className={styles.formField}>
@@ -573,7 +598,7 @@ const CreateSupplierRequestForm: React.FC<CreateSupplierRequestFormProps> = ({
               Создание...
             </>
           ) : (
-            'Создать заявку'
+            isSupplierMode ? 'Отправить предложение' : 'Создать заявку'
           )}
         </button>
       </div>

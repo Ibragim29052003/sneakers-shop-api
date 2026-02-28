@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   useGetSupplierRequestsQuery,
   useGetRequestStatusesQuery,
@@ -21,6 +21,54 @@ const SupplierRequestsPage = () => {
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  
+  // Проверка роли пользователя
+  const [isSupplier, setIsSupplier] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoadingRole, setIsLoadingRole] = useState(true);
+  const [supplierId, setSupplierId] = useState<number | null>(null);
+  
+  // Проверка авторизации и роли при загрузке
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setIsLoadingRole(false);
+        return;
+      }
+      
+      try {
+        // Сначала проверяем права админа из JWT токена
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            const isUserAdmin = payload.is_staff || false;
+            setIsAdmin(isUserAdmin);
+          }
+        } catch (e) {
+          console.error('Failed to parse token:', e);
+        }
+        
+        // Проверяем статус поставщика и получаем ID
+        const supplierResponse = await fetch('/api/v1/my-supplier-profile/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (supplierResponse.ok) {
+          const supplierData = await supplierResponse.json();
+          setIsSupplier(true);
+          setSupplierId(supplierData.id);
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
+      } finally {
+        setIsLoadingRole(false);
+      }
+    };
+    
+    checkUserRole();
+  }, []);
 
   // Получаем статусы заявок для маппинга ID в name
   const { data: statuses } = useGetRequestStatusesQuery();
@@ -29,17 +77,25 @@ const SupplierRequestsPage = () => {
     page_size: 100,
   });
 
-  // Фильтрация на фронтенде по статусу
+  // Фильтрация на фронтенде по статусу и поставщику
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
-    if (activeTab === 'all') return requests;
+    
+    let filtered = requests;
+    
+    // Поставщики видят только свои заявки
+    if (isSupplier && supplierId) {
+      filtered = filtered.filter(request => request.supplier === supplierId);
+    }
+    
+    if (activeTab === 'all') return filtered;
     
     // Логи для отладки
     console.log('Filtering by:', activeTab);
     console.log('Available statuses:', requests.map(r => r.status_name));
     
-    return requests.filter(request => request.status_name === activeTab);
-  }, [requests, activeTab]);
+    return filtered.filter(request => request.status_name === activeTab);
+  }, [requests, activeTab, isSupplier, supplierId]);
 
   const [updateRequest] = useUpdateSupplierRequestMutation();
   const [assignManager] = useAssignManagerMutation();
@@ -161,11 +217,24 @@ const SupplierRequestsPage = () => {
     { key: 'rejected', label: 'Отклоненные' },
   ];
 
-  if (isLoading) {
+  if (isLoading || isLoadingRole) {
     return (
       <main className={styles.supplierRequestsPage}>
         <div className={styles.loading} role="status" aria-live="polite">
           Загрузка...
+        </div>
+      </main>
+    );
+  }
+
+  // Проверка доступа - только поставщики и админы могут видеть эту страницу
+  if (!isSupplier && !isAdmin) {
+    return (
+      <main className={styles.supplierRequestsPage}>
+        <div className={styles.error} role="alert">
+          <h2>Доступ запрещён</h2>
+          <p>Эта страница доступна только для поставщиков и администраторов.</p>
+          <p>Если вы хотите стать поставщиком, нажмите "Стать поставщиком" в меню.</p>
         </div>
       </main>
     );
@@ -183,39 +252,52 @@ const SupplierRequestsPage = () => {
 
   return (
     <main className={styles.supplierRequestsPage}>
+      {/* Заголовок страницы - разный для админа и поставщика */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageHeader__title}>Заявки поставщиков</h1>
-        <p className={styles.pageHeader__subtitle}>Управление заявками на поставку товаров</p>
+        {isAdmin ? (
+          <>
+            <h1 className={styles.pageHeader__title}>Заявки поставщиков</h1>
+            <p className={styles.pageHeader__subtitle}>Управление заявками на поставку товаров</p>
+          </>
+        ) : (
+          <>
+            <h1 className={styles.pageHeader__title}>Предложить товар</h1>
+            <p className={styles.pageHeader__subtitle}>Предложите свой товар для продажи на маркетплейсе</p>
+          </>
+        )}
         <button
           type="button"
           className={`${styles.createButton}`}
           onClick={() => setShowCreateForm(true)}
-          aria-label="Создать новую заявку"
+          aria-label={isAdmin ? "Создать новую заявку" : "Предложить товар"}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Создать заявку
+          {isAdmin ? 'Создать заявку' : 'Предложить товар'}
         </button>
       </div>
 
-      <nav className={styles.tabs} aria-label="Фильтр заявок по статусу">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`${styles.tabs__tab} ${activeTab === tab.key ? styles['tabs__tab--active'] : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              setActiveTab(tab.key);
-            }}
-            aria-pressed={activeTab === tab.key}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {/* Вкладки - только для админов */}
+      {isAdmin && (
+        <nav className={styles.tabs} aria-label="Фильтр заявок по статусу">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`${styles.tabs__tab} ${activeTab === tab.key ? styles['tabs__tab--active'] : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveTab(tab.key);
+              }}
+              aria-pressed={activeTab === tab.key}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {!filteredRequests || filteredRequests.length === 0 ? (
         <section className={styles.emptyState} aria-label="Нет заявок">
@@ -273,17 +355,20 @@ const SupplierRequestsPage = () => {
                     {request.manager_name || <span className={styles.manager__noManager}>Не назначен</span>}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className={`${styles.actionBtn} ${styles['actionBtn--assign']}`}
-                  onClick={() => openAssignModal(request.id)}
-                  aria-label={`Назначить менеджера для заявки ${request.product_name}`}
-                >
-                  Назначить
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className={`${styles.actionBtn} ${styles['actionBtn--assign']}`}
+                    onClick={() => openAssignModal(request.id)}
+                    aria-label={`Назначить менеджера для заявки ${request.product_name}`}
+                  >
+                    Назначить
+                  </button>
+                )}
               </div>
 
-              {(request.status_name === 'pending' || request.status_name === 'under_review') && (
+              {/* Кнопки одобрения/отклонения - только для админов */}
+              {isAdmin && (request.status_name === 'pending' || request.status_name === 'under_review') && (
                 <div className={styles.requestCard__actions}>
                   <button
                     type="button"
@@ -304,8 +389,8 @@ const SupplierRequestsPage = () => {
                 </div>
               )}
 
-              {/* Кнопка создания товара для одобренных заявок */}
-              {request.status_name === 'approved' && (
+              {/* Кнопка создания товара для одобренных заявок - только для админов */}
+              {isAdmin && request.status_name === 'approved' && (
                 <div className={styles.requestCard__actions}>
                   <button
                     type="button"
@@ -403,6 +488,8 @@ const SupplierRequestsPage = () => {
                 setShowCreateForm(false);
               }}
               onCancel={() => setShowCreateForm(false)}
+              isSupplierMode={isSupplier}
+              supplierId={supplierId || undefined}
             />
           </div>
         </div>

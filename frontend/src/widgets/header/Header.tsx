@@ -1,3 +1,4 @@
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState, type FC } from "react";
 import styles from "./Header.module.scss";
 import Arrow from "@/shared/assets/icons/header/arrow-down.svg?react";
@@ -5,7 +6,6 @@ import Search from "@/shared/assets/icons/header/search.svg?react";
 import TransitionWB from "@/shared/assets/icons/header/transition-wb.svg?react";
 import Logo from "@/shared/assets/icons/Logo.svg?react";
 import Basket from "@/shared/assets/icons/header/basket.svg?react";
-import { Link, useLocation } from "react-router-dom";
 import DropdownMenu from "./DropdownMenu";
 import { LoginModal } from "@/components/LoginModal/LoginModal";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
@@ -17,6 +17,8 @@ const Header: FC = () => {
   const [isHidden, setIsHidden] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isSupplier, setIsSupplier] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const location = useLocation();
   const currentPath = location.pathname;
@@ -30,7 +32,7 @@ const Header: FC = () => {
   const listRef = useRef<HTMLUListElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Проверка авторизации при загрузке
+  // Проверка авторизации и статуса поставщика при загрузке
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     const isAuth = !!token;
@@ -38,7 +40,7 @@ const Header: FC = () => {
     
     console.log('Header mount, token exists:', !!token);
     
-    // Если пользователь авторизован - загружаем его корзину с сервера
+    // Если пользователь авторизован - загружаем его корзину и проверяем статус поставщика
     if (isAuth) {
       const loadUserCart = async () => {
         try {
@@ -66,9 +68,66 @@ const Header: FC = () => {
         }
       };
       
+      // Проверка статуса поставщика и прав админа
+      const checkSupplierStatus = async () => {
+        try {
+          const currentToken = localStorage.getItem("access_token");
+          if (!currentToken) return;
+          
+          let isUserAdmin = false;
+          
+          // Сначала проверяем права админа из JWT токена
+          try {
+            const tokenParts = currentToken.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              isUserAdmin = payload.is_staff || false;
+              setIsAdmin(isUserAdmin);
+              if (isUserAdmin) {
+                setIsSupplier(true);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to parse token:', e);
+          }
+          
+          // Проверяем статус поставщика
+          const supplierResponse = await fetch('/api/v1/my-supplier-profile/', {
+            headers: {
+              'Authorization': `Bearer ${currentToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          // 200 - пользователь поставщик, 404 - не поставщик
+          if (supplierResponse.ok) {
+            setIsSupplier(true);
+          } else if (!isUserAdmin) {
+            // Если не админ и не поставщик - сбрасываем флаг
+            setIsSupplier(false);
+          }
+        } catch (error) {
+          console.error('Failed to check supplier status:', error);
+          setIsSupplier(false);
+        }
+      };
+      
       loadUserCart();
+      checkSupplierStatus();
+    } else {
+      setIsSupplier(false);
     }
   }, [dispatch]);
+
+  // Открыть модальное окно логина если передан state
+  useEffect(() => {
+    const locationState = location.state as { openLoginModal?: boolean } | null;
+    if (locationState?.openLoginModal) {
+      setIsAuthModalOpen(true);
+      // Очищаем state чтобы не открывать модалку при обновлении страницы
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   // Обработчик выхода
   const handleLogout = () => {
@@ -93,8 +152,12 @@ const Header: FC = () => {
   const navItems: NavItem[] = [
     { text: "Главная" },
     { link: "/about", text: "О нас" },
-    { link: "/supplier-requests", text: "Заявки" },
-    { link: "/register-supplier", text: "Стать поставщиком" },
+    // Админ видит "Управление заявками", поставщик - "Предложить товар", обычный пользователь - "Стать поставщиком"
+    isAdmin 
+      ? { link: "/supplier-requests", text: "Управление заявками" }
+      : isSupplier 
+        ? { link: "/supplier-requests", text: "Предложить товар" }
+        : { link: "/register-supplier", text: "Стать поставщиком" },
   ];
 
   useEffect(() => {

@@ -316,6 +316,14 @@ class SupplierWithRequestSerializer(serializers.Serializer):
     suggested_price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     product_notes = serializers.CharField(required=False, allow_blank=True)
     
+    def validate_email(self, value):
+        """Проверка, что email ещё не используется."""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Пользователь с таким email уже существует. Используйте другой email или войдите в систему.")
+        return value
+    
     def create(self, validated_data):
         from django.contrib.auth import get_user_model
         from users.models import Role, UserRole

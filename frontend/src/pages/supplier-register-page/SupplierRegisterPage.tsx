@@ -107,7 +107,7 @@ export const SupplierRegisterPage = () => {
     
     // Company validation
     if (!formData.name.trim()) {
-      newErrors.name = 'Название компании обязателен';
+      newErrors.name = 'Название компании обязательно';
     }
     
     if (!formData.email.trim()) {
@@ -182,9 +182,9 @@ export const SupplierRegisterPage = () => {
       setSuccess(true);
       setSuccessMessage(result.message);
       
-      // Redirect to login after 3 seconds
+      // Redirect to home after 3 seconds - user can login via modal in header
       setTimeout(() => {
-        navigate('/login', { state: { message: result.message } });
+        navigate('/', { state: { openLoginModal: true, message: result.message } });
       }, 3000);
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'data' in error) {
@@ -527,7 +527,7 @@ export const SupplierRegisterPage = () => {
         </form>
 
         <div className={styles.registerPage__footer}>
-          <p>Уже есть аккаунт? <Link to="/login">Войти</Link></p>
+          <p>Уже есть аккаунт? <Link to="/" onClick={(e) => { e.preventDefault(); navigate('/', { state: { openLoginModal: true } }); }}>Войти</Link></p>
         </div>
       </div>
     </div>

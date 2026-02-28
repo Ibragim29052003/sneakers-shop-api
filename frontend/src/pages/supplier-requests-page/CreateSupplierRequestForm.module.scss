@@ -147,6 +147,15 @@
     font-size: rem(12);
     color: var(--color-medium-gray);
   }
+
+  &__value {
+    padding: rem(10) rem(12);
+    background-color: var(--color-el-gray);
+    border: rem(1) solid var(--color-light-gray);
+    border-radius: rem(4);
+    color: var(--color-dark-gray);
+    font-size: rem(14);
+  }
 }
 
 // Обертка для инпута с суффиксом
