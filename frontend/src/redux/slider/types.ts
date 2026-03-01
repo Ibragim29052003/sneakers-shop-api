@@ -6,6 +6,8 @@ export type Slide = {
   newPrice: number;
   oldPrice?: number;
   link: string;
+  supplierId?: number | null;
+  supplierName?: string | null;
 };
 
 export interface SliderState {

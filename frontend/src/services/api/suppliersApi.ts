@@ -162,11 +162,14 @@ export interface SupplierProductRequest {
   supplier_name: string;
   status: number;
   status_name: string;
+  category: string;
   product_name: string;
   product_sku: string;
   product_description: string;
+  product_images: string[];
   quantity: number;
   suggested_price: string | null;
+  suggested_old_price: string | null;
   notes: string;
   reviewed_by: number | null;
   reviewed_by_name: string | null;
@@ -182,11 +185,14 @@ export interface SupplierProductRequest {
 // Создание заявки
 export interface CreateSupplierRequest {
   supplier: number;
+  category?: string;
   product_name: string;
   product_sku?: string;
   product_description?: string;
+  product_images?: string[];
   quantity: number;
   suggested_price?: number;
+  suggested_old_price?: number;
   notes?: string;
 }
 
@@ -258,6 +264,31 @@ export interface RequestFilterParams {
   search?: string;
   page?: number;
   page_size?: number;
+}
+
+// Коммуникация по заявке
+export interface RequestCommunication {
+  id: number;
+  request: number;
+  request_info: {
+    id: number;
+    product_name: string;
+    supplier_name: string;
+    status: string;
+  };
+  sender: number | null;
+  sender_email: string | null;
+  direction: 'manager' | 'supplier';
+  message: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+// Создание сообщения
+export interface CreateCommunication {
+  request: number;
+  message: string;
 }
 
 // ==================== API СЕРВИС ====================
@@ -454,6 +485,64 @@ export const suppliersApi = createApi({
       },
       transformResponse: (response: { results: SupplierProduct[] }) => response.results,
     }),
+    
+    // ==================== КОММУНИКАЦИИ ====================
+    
+    // Получить все коммуникации
+    getCommunications: builder.query<RequestCommunication[], { request?: number; direction?: string }>({
+      query: (params) => {
+        const queryParams: Record<string, string | number | undefined> = {};
+        if (params.request) queryParams.request = params.request;
+        if (params.direction) queryParams.direction = params.direction;
+        return {
+          url: '/request-communications/',
+          params: queryParams,
+        };
+      },
+      transformResponse: (response: { results: RequestCommunication[] }) => response.results,
+    }),
+    
+    // Получить коммуникации по заявке
+    getCommunicationsByRequest: builder.query<RequestCommunication[], number>({
+      query: (requestId) => `/supplier-requests/${requestId}/communications/`,
+    }),
+    
+    // Отправить сообщение
+    createCommunication: builder.mutation<RequestCommunication, CreateCommunication>({
+      query: (data) => ({
+        url: '/request-communications/',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    
+    // Отметить сообщение как прочитанное
+    markCommunicationAsRead: builder.mutation<{ detail: string }, number>({
+      query: (id) => ({
+        url: `/communications/${id}/mark-read/`,
+        method: 'POST',
+      }),
+    }),
+    
+    // Загрузить изображение товара
+    uploadProductImage: builder.mutation<{ url: string; file_name: string }, FormData>({
+      query: (formData) => ({
+        url: '/upload-product-image/',
+        method: 'POST',
+        body: formData,
+      }),
+    }),
+    
+    // Получить список менеджеров
+    getManagers: builder.query<{
+      id: number;
+      email: string;
+      first_name: string;
+      last_name: string;
+      is_active: boolean;
+    }[], void>({
+      query: () => '/managers/',
+    }),
   }),
 });
 
@@ -488,4 +577,16 @@ export const {
   
   // Товары поставщиков
   useGetSupplierProductsQuery,
+  
+  // Коммуникации
+  useGetCommunicationsQuery,
+  useGetCommunicationsByRequestQuery,
+  useCreateCommunicationMutation,
+  useMarkCommunicationAsReadMutation,
+  
+  // Загрузка изображений
+  useUploadProductImageMutation,
+  
+  // Менеджеры
+  useGetManagersQuery,
 } = suppliersApi;

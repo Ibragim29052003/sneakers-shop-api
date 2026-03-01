@@ -105,3 +105,39 @@ class UserRoleViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         return super().get_queryset().filter(user_id=self.kwargs.get('user_pk'))
+
+
+class ManagersListView(APIView):
+    """API view для получения списка менеджеров."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Получение всех пользователей с ролью менеджера или админа."""
+        from .models import Role
+        
+        # Получаем роли менеджера и админа
+        try:
+            manager_role = Role.objects.get(name='manager')
+            admin_role = Role.objects.get(name='admin')
+            
+            # Получаем пользователей с этими ролями
+            manager_user_ids = UserRole.objects.filter(
+                role__in=[manager_role, admin_role]
+            ).values_list('user_id', flat=True)
+            
+            managers = User.objects.filter(id__in=manager_user_ids).select_related('profile')
+            
+            # Сериализуем данные
+            result = []
+            for manager in managers:
+                result.append({
+                    'id': manager.id,
+                    'email': manager.email,
+                    'first_name': manager.first_name,
+                    'last_name': manager.last_name,
+                    'is_active': manager.is_active,
+                })
+            
+            return Response(result)
+        except Role.DoesNotExist:
+            return Response([])

@@ -318,3 +318,88 @@
     transform: rotate(360deg);
   }
 }
+
+// Загрузка изображений
+.imageUpload {
+  &__input {
+    display: none;
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: rem(8);
+    padding: rem(16) rem(24);
+    border: rem(2) dashed var(--color-light-gray);
+    border-radius: rem(8);
+    cursor: pointer;
+    transition: all var(--transition-duration);
+    color: var(--color-medium-gray);
+    font-size: rem(14);
+
+    svg {
+      width: rem(24);
+      height: rem(24);
+    }
+
+    &:hover {
+      border-color: var(--color-purple);
+      color: var(--color-purple);
+      background: rgba(102, 90, 181, 0.05);
+    }
+  }
+}
+
+// Превью изображений
+.imagePreview {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: rem(12);
+  margin-top: rem(16);
+
+  @include tablet {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include mobile {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  &__item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: rem(8);
+    overflow: hidden;
+    border: var(--border);
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__remove {
+    position: absolute;
+    top: rem(4);
+    right: rem(4);
+    @include square(rem(24));
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--color-white);
+    border: none;
+    cursor: pointer;
+    @include flex-center;
+    transition: background var(--transition-duration);
+
+    svg {
+      width: rem(14);
+      height: rem(14);
+    }
+
+    &:hover {
+      background: var(--color-red);
+    }
+  }
+}

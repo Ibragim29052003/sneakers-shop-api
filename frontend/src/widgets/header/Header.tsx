@@ -19,6 +19,7 @@ const Header: FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isSupplier, setIsSupplier] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isManager, setIsManager] = useState(false);
 
   const location = useLocation();
   const currentPath = location.pathname;
@@ -106,6 +107,29 @@ const Header: FC = () => {
             // Если не админ и не поставщик - сбрасываем флаг
             setIsSupplier(false);
           }
+          
+          // Проверяем, является ли пользователь менеджером (есть ли заявки с его manager_id)
+          if (!isUserAdmin) {
+            try {
+              const requestsResponse = await fetch('/api/v1/supplier-requests/?page_size=1', {
+                headers: {
+                  'Authorization': `Bearer ${currentToken}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+              
+              if (requestsResponse.ok) {
+                const requestsData = await requestsResponse.json();
+                // Если есть заявки, где user является менеджером
+                const hasManagedRequests = requestsData.results?.some(
+                  (r: { manager: number | null }) => r.manager !== null
+                );
+                setIsManager(hasManagedRequests);
+              }
+            } catch (e) {
+              console.error('Failed to check manager status:', e);
+            }
+          }
         } catch (error) {
           console.error('Failed to check supplier status:', error);
           setIsSupplier(false);
@@ -152,12 +176,14 @@ const Header: FC = () => {
   const navItems: NavItem[] = [
     { text: "Главная" },
     { link: "/about", text: "О нас" },
-    // Админ видит "Управление заявками", поставщик - "Предложить товар", обычный пользователь - "Стать поставщиком"
+    // Админ видит "Управление заявками", менеджер - "Панель менеджера", поставщик - "Предложить товар", обычный пользователь - "Стать поставщиком"
     isAdmin 
       ? { link: "/supplier-requests", text: "Управление заявками" }
-      : isSupplier 
-        ? { link: "/supplier-requests", text: "Предложить товар" }
-        : { link: "/register-supplier", text: "Стать поставщиком" },
+      : isManager
+        ? { link: "/manager", text: "Панель менеджера" }
+        : isSupplier 
+          ? { link: "/supplier-requests", text: "Предложить товар" }
+          : { link: "/register-supplier", text: "Стать поставщиком" },
   ];
 
   useEffect(() => {

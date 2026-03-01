@@ -3,7 +3,7 @@
 // Основной контейнер страницы
 .registerPage {
   min-height: calc(100vh - var(--header-height) - var(--footer-height));
-  padding: rem(40) rem(20);
+  padding: rem(112) rem(20) rem(40);
   background: var(--color-el-gray);
 
   &__container {

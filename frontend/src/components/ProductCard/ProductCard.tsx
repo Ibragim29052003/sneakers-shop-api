@@ -51,6 +51,12 @@ const ProductCard: FC<ProductCardProps> = ({ product }) => {
             className={styles.card__image}
             loading="lazy"
           />
+          {/* Бейдж "От поставщика" - показывается если есть supplierName */}
+          {(product.supplierId || product.supplierName) && (
+            <span className={`${styles.card__badge} ${styles.card__badge_supplier}`}>
+              От поставщика
+            </span>
+          )}
         </div>
         <div className={styles.card__content}>
           <h3 className={styles.card__title}>{product.title}</h3>

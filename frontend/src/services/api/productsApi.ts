@@ -39,6 +39,9 @@ export interface Product {
   images: ProductImage[];
   main_image_url: string | null;  // URL главного изображения
   external_url: string | null;
+  supplier: number | null;  // ID поставщика
+  supplier_name: string | null;  // Имя поставщика
+  published_pages: string[];  // Страницы для публикации (women, men, children)
 }
 
 // Модель слайда для слайдера
@@ -227,6 +230,31 @@ export const productsApi = createApi({
      */
     getProductById: builder.query<Product, number>({
       query: (id) => `/products/${id}/`,
+    }),
+
+    /**
+     * СОЗДАТЬ ТОВАР
+     * 
+     * Использование:
+     * const [createProduct] = useCreateProductMutation()
+     * createProduct({ name: 'Товар', price: '1000', published_pages: ['women', 'men'], categories_ids: [1, 2] })
+     */
+    createProduct: builder.mutation<Product, {
+      name: string;
+      description?: string;
+      price: string;
+      old_price?: string | null;
+      sku?: string;
+      is_active?: boolean;
+      published_pages?: string[];
+      categories_ids?: number[];
+      image_urls?: string[];  // Добавлено поле для URL изображений
+    }>({
+      query: (product) => ({
+        url: '/products/',
+        method: 'POST',
+        body: product,
+      }),
     }),
 
     /**
@@ -423,6 +451,7 @@ export const {
   useGetProductsQuery,           // для getProducts
   useGetFilteredProductsQuery,    // для getFilteredProducts
   useGetProductByIdQuery,        // для getProductById
+  useCreateProductMutation,      // для createProduct
   useGetCategoriesQuery,         // для getCategories
   useGetCategoryByIdQuery,       // для getCategoryById
   useGetFiltersByCategoryQuery,  // для getFiltersByCategory

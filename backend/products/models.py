@@ -372,6 +372,14 @@ class Product(models.Model):
         help_text='Ссылка на товар на внешнем сайте'
     )
     
+    # Страницы публикации товара (women, men, children)
+    published_pages = models.JSONField(
+        'страницы публикации',
+        default=list,
+        blank=True,
+        help_text='Список страниц для публикации товара: ["women", "men", "children"]'
+    )
+    
     # отслеживание истории изменений через simple_history
     history = HistoricalRecords()
     

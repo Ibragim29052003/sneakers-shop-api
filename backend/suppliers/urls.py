@@ -22,11 +22,16 @@ from .views import (
     AssignManagerView,
     UserAlertsView,
     CreateProductFromRequestView,
+    UploadProductImageView,
     # Регистрация поставщиков
     SupplierRegisterView,
     SupplierApplyView,
     MySupplierProfileView,
     RegisterSupplierWithRequestView,
+    # Коммуникации
+    RequestCommunicationViewSet,
+    RequestCommunicationByRequestView,
+    MarkCommunicationAsReadView,
 )
 
 router = DefaultRouter()
@@ -47,6 +52,9 @@ router.register(r'request-documents', RequestDocumentViewSet, basename='request-
 router.register(r'supplier-products', SupplierProductViewSet, basename='supplier-product')
 router.register(r'system-alerts', SystemAlertViewSet, basename='system-alert')
 
+# Коммуникации
+router.register(r'request-communications', RequestCommunicationViewSet, basename='request-communication')
+
 urlpatterns = [
     path('', include(router.urls)),
     
@@ -60,6 +68,17 @@ urlpatterns = [
     path('my-alerts/', 
          UserAlertsView.as_view(), 
          name='user-alerts'),
+    path('upload-product-image/', 
+         UploadProductImageView.as_view(), 
+         name='upload-product-image'),
+    
+    # Коммуникации по заявкам
+    path('supplier-requests/<int:request_id>/communications/', 
+         RequestCommunicationByRequestView.as_view(), 
+         name='request-communications-by-request'),
+    path('communications/<int:communication_id>/mark-read/', 
+         MarkCommunicationAsReadView.as_view(), 
+         name='mark-communication-read'),
     
     # Регистрация поставщиков
     path('register-supplier/', 

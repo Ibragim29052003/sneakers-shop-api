@@ -10,6 +10,7 @@ from .views import (
     UserProfileView,
     UserViewSet,
     RoleViewSet,
+    ManagersListView,
 )
 
 router = DefaultRouter()
@@ -21,5 +22,6 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/register/', UserCreateAPIView.as_view(), name='user_register'),
     path('auth/profile/', UserProfileView.as_view(), name='user_profile'),
+    path('managers/', ManagersListView.as_view(), name='managers-list'),
     path('', include(router.urls)),
 ]

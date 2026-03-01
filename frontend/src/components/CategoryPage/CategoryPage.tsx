@@ -60,6 +60,8 @@ const transformProductToCatalogProduct = (product: any): CatalogProduct => ({
   title: product.name,
   newPrice: parseFloat(product.price),
   oldPrice: product.old_price ? parseFloat(product.old_price) : undefined,
+  supplierId: product.supplier || null,
+  supplierName: product.supplier_name || null,
 });
 
 const CategoryPage: FC<CategoryPageProps> = ({ category }) => {

@@ -22,6 +22,7 @@ from .models import (
     DocumentType,
     AlertType,
     ProductSupplierSource,
+    RequestCommunication,
 )
 from .serializers import (
     SupplierSerializer,
@@ -42,6 +43,8 @@ from .serializers import (
     DocumentTypeSerializer,
     AlertTypeSerializer,
     ProductSupplierSourceSerializer,
+    RequestCommunicationSerializer,
+    RequestCommunicationCreateSerializer,
 )
 from .permissions import (
     IsAdminUser,
@@ -267,6 +270,57 @@ class AssignManagerView(APIView):
         return Response(
             {'detail': f'Менеджер {manager.email} назначен для заявки #{supplier_request.id}'},
             status=status.HTTP_200_OK
+        )
+
+
+class UploadProductImageView(APIView):
+    """API view для загрузки изображений товара поставщика."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Загрузка изображения товара."""
+        image_file = request.FILES.get('image')
+        
+        if not image_file:
+            return Response(
+                {'detail': 'Изображение обязательно.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверка типа файла
+        allowed_types = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'detail': 'Недопустимый тип файла. Разрешены: JPEG, PNG, WebP, GIF.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверка размера файла (максимум 10MB)
+        if image_file.size > 10 * 1024 * 1024:
+            return Response(
+                {'detail': 'Размер файла не должен превышать 10MB.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Сохраняем файл
+        from django.core.files.storage import default_storage
+        from django.utils import timezone
+        import os
+        
+        # Создаём директорию с датой
+        now = timezone.now()
+        upload_dir = f'supplier_products/{now.year}/{now.month:02d}/{now.day:02d}'
+        file_path = os.path.join(upload_dir, image_file.name)
+        
+        # Сохраняем файл
+        saved_path = default_storage.save(file_path, image_file)
+        
+        # Получаем URL файла
+        file_url = default_storage.url(saved_path)
+        
+        return Response(
+            {'url': file_url, 'file_name': image_file.name},
+            status=status.HTTP_201_CREATED
         )
 
 
@@ -563,3 +617,115 @@ class RegisterSupplierWithRequestView(APIView):
             'product_request': request_serializer.data,
             'message': 'Заявка отправлена на рассмотрение. Ожидайте одобрения от администратора.'
         }, status=status.HTTP_201_CREATED)
+
+
+# ==================== Коммуникации по заявкам ====================
+
+class RequestCommunicationViewSet(viewsets.ModelViewSet):
+    """ViewSet для коммуникаций по заявкам поставщиков."""
+    queryset = RequestCommunication.objects.all()
+    serializer_class = RequestCommunicationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['request', 'direction']
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
+    
+    def get_queryset(self):
+        user = self.request.user
+        # Админ видит все коммуникации
+        if user.is_staff or user.user_roles.filter(role__name='admin').exists():
+            return RequestCommunication.objects.all()
+        # Менеджер видит коммуникации по своим заявкам
+        if hasattr(user, 'managed_requests'):
+            return RequestCommunication.objects.filter(
+                request__manager_id=user.id
+            )
+        # Поставщик видит коммуникации по своим заявкам
+        if hasattr(user, 'supplier_profile') and user.supplier_profile:
+            return RequestCommunication.objects.filter(
+                request__supplier=user.supplier_profile
+            )
+        return RequestCommunication.objects.none()
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return RequestCommunicationCreateSerializer
+        return RequestCommunicationSerializer
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        request_obj = serializer.validated_data['request']
+        
+        # Определяем направление сообщения
+        direction = RequestCommunication.FROM_MANAGER
+        
+        # Если пользователь - поставщик этой заявки
+        if hasattr(user, 'supplier_profile') and user.supplier_profile:
+            if request_obj.supplier_id == user.supplier_profile.id:
+                direction = RequestCommunication.FROM_SUPPLIER
+        # Если пользователь - менеджер этой заявки
+        elif request_obj.manager_id == user.id:
+            direction = RequestCommunication.FROM_MANAGER
+        # Если админ - тоже от менеджера
+        elif user.is_staff or user.user_roles.filter(role__name='admin').exists():
+            direction = RequestCommunication.FROM_MANAGER
+        
+        serializer.save(sender=user, direction=direction)
+
+
+class RequestCommunicationByRequestView(APIView):
+    """API view для получения коммуникаций по конкретной заявке."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, request_id):
+        """Получение всех сообщений по заявке."""
+        supplier_request = get_object_or_404(SupplierProductRequest, id=request_id)
+        user = request.user
+        
+        # Проверка доступа
+        is_admin = user.is_staff or user.user_roles.filter(role__name='admin').exists()
+        is_manager = supplier_request.manager_id == user.id
+        is_supplier = hasattr(user, 'supplier_profile') and user.supplier_profile and \
+                       user.supplier_profile.id == supplier_request.supplier_id
+        
+        if not (is_admin or is_manager or is_supplier):
+            return Response(
+                {'detail': 'У вас нет доступа к этой заявке.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        communications = RequestCommunication.objects.filter(request_id=request_id)
+        serializer = RequestCommunicationSerializer(communications, many=True)
+        return Response(serializer.data)
+
+
+class MarkCommunicationAsReadView(APIView):
+    """API view для отметки сообщения как прочитанного."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, communication_id):
+        """Отметка сообщения как прочитанного."""
+        communication = get_object_or_404(RequestCommunication, id=communication_id)
+        user = request.user
+        
+        # Проверка доступа
+        is_admin = user.is_staff or user.user_roles.filter(role__name='admin').exists()
+        is_manager = communication.request.manager_id == user.id
+        is_supplier = hasattr(user, 'supplier_profile') and user.supplier_profile and \
+                       user.supplier_profile.id == communication.request.supplier_id
+        
+        if not (is_admin or is_manager or is_supplier):
+            return Response(
+                {'detail': 'У вас нет доступа к этому сообщению.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        communication.is_read = True
+        communication.read_at = timezone.now()
+        communication.save()
+        
+        return Response(
+            {'detail': 'Сообщение помечено как прочитанное.'},
+            status=status.HTTP_200_OK
+        )

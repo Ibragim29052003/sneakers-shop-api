@@ -15,6 +15,7 @@ from .models import (
     DocumentType,
     AlertType,
     ProductSupplierSource,
+    RequestCommunication,
 )
 
 
@@ -192,10 +193,10 @@ class SupplierProductRequestSerializer(serializers.ModelSerializer):
         model = SupplierProductRequest
         fields = [
             'id', 'supplier', 'supplier_name', 'status', 'status_name',
-            'product_name', 'product_sku', 'product_description', 'quantity',
-            'suggested_price', 'notes', 'reviewed_by', 'reviewed_by_name',
-            'reviewed_at', 'review_comment', 'manager', 'manager_name',
-            'created_at', 'updated_at', 'documents_count'
+            'category', 'product_name', 'product_sku', 'product_description',
+            'product_images', 'quantity', 'suggested_price', 'suggested_old_price', 'notes',
+            'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'review_comment',
+            'manager', 'manager_name', 'created_at', 'updated_at', 'documents_count'
         ]
         read_only_fields = ['created_at', 'updated_at', 'reviewed_at']
     
@@ -209,8 +210,8 @@ class SupplierProductRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupplierProductRequest
         fields = [
-            'supplier', 'product_name', 'product_sku', 'product_description',
-            'quantity', 'suggested_price', 'notes'
+            'supplier', 'category', 'product_name', 'product_sku', 'product_description',
+            'product_images', 'quantity', 'suggested_price', 'suggested_old_price', 'notes'
         ]
 
 
@@ -219,7 +220,7 @@ class SupplierProductRequestManageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = SupplierProductRequest
-        fields = ['status', 'review_comment']
+        fields = ['status', 'review_comment', 'manager']
 
 
 class RequestDocumentSerializer(serializers.ModelSerializer):
@@ -381,3 +382,33 @@ class SupplierWithRequestSerializer(serializers.Serializer):
             'supplier': supplier,
             'product_request': product_request
         }
+
+
+class RequestCommunicationSerializer(serializers.ModelSerializer):
+    """Сериализатор для коммуникации по заявке."""
+    sender_email = serializers.CharField(source='sender.email', read_only=True)
+    request_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = RequestCommunication
+        fields = [
+            'id', 'request', 'request_info', 'sender', 'sender_email',
+            'direction', 'message', 'is_read', 'read_at', 'created_at'
+        ]
+        read_only_fields = ['created_at', 'read_at']
+    
+    def get_request_info(self, obj):
+        return {
+            'id': obj.request.id,
+            'product_name': obj.request.product_name,
+            'supplier_name': obj.request.supplier.name,
+            'status': obj.request.status.name
+        }
+
+
+class RequestCommunicationCreateSerializer(serializers.ModelSerializer):
+    """Сериализатор для создания сообщения в коммуникации."""
+    
+    class Meta:
+        model = RequestCommunication
+        fields = ['request', 'message']

@@ -363,6 +363,13 @@ class SupplierProductRequest(models.Model):
     """
     Заявка на поставку товара от поставщика
     """
+    # Категории для отображения товара
+    CATEGORY_CHOICES = [
+        ('women', 'Женщинам'),
+        ('men', 'Мужчинам'),
+        ('children', 'Детям'),
+    ]
+    
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.CASCADE,
@@ -384,9 +391,23 @@ class SupplierProductRequest(models.Model):
         verbose_name='статус',
         default=get_default_request_status
     )
+    # Категория для отображения товара (women/men/children)
+    category = models.CharField(
+        'категория',
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        blank=True,
+        help_text='Категория, на странице которой будет отображаться товар'
+    )
     product_name = models.CharField('название товара', max_length=200)
     product_sku = models.CharField('артикул', max_length=50, blank=True)
     product_description = models.TextField('описание товара', blank=True)
+    product_images = models.JSONField(
+        'изображения товара',
+        default=list,
+        blank=True,
+        help_text='Список URL загруженных изображений товара'
+    )
     quantity = models.PositiveIntegerField('количество', default=1)
     suggested_price = models.DecimalField(
         'предложенная цена',
@@ -394,6 +415,14 @@ class SupplierProductRequest(models.Model):
         decimal_places=2,
         null=True,
         blank=True
+    )
+    suggested_old_price = models.DecimalField(
+        'предложенная старая цена',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Старая цена товара, которую указывает поставщик'
     )
     notes = models.TextField('заметки', blank=True)
     reviewed_by = models.ForeignKey(
@@ -580,3 +609,53 @@ class SystemAlert(models.Model):
 
     def __str__(self):
         return f'{self.alert_type.name} - {self.title}'
+
+
+class RequestCommunication(models.Model):
+    """
+    Сообщения/коммуникация между менеджером и поставщиком по заявке.
+    Позволяет обсуждать детали заявки, согласовывать цены, условия и т.д.
+    """
+    FROM_MANAGER = 'manager'
+    FROM_SUPPLIER = 'supplier'
+    
+    DIRECTION_CHOICES = [
+        (FROM_MANAGER, 'От менеджера'),
+        (FROM_SUPPLIER, 'От поставщика'),
+    ]
+    
+    request = models.ForeignKey(
+        SupplierProductRequest,
+        on_delete=models.CASCADE,
+        related_name='communications',
+        verbose_name='заявка'
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='sent_communications',
+        verbose_name='отправитель'
+    )
+    direction = models.CharField(
+        'направление',
+        max_length=20,
+        choices=DIRECTION_CHOICES,
+        default=FROM_MANAGER
+    )
+    message = models.TextField('сообщение')
+    is_read = models.BooleanField('прочитано', default=False)
+    read_at = models.DateTimeField('дата прочтения', null=True, blank=True)
+    created_at = models.DateTimeField('дата создания', default=timezone.now)
+
+    class Meta:
+        verbose_name = 'коммуникация по заявке'
+        verbose_name_plural = 'коммуникации по заявкам'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['request', 'created_at']),
+            models.Index(fields=['direction']),
+        ]
+
+    def __str__(self):
+        return f'Сообщение #{self.id} по заявке #{self.request_id}'

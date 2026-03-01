@@ -5,6 +5,8 @@ import {
   useUpdateSupplierRequestMutation,
   useAssignManagerMutation,
   useCreateProductFromRequestMutation,
+  useGetCommunicationsByRequestQuery,
+  useCreateCommunicationMutation,
 } from '@/services/api/suppliersApi';
 import { useGetProductsQuery } from '@/services/api/productsApi';
 import type { SupplierProductRequest } from '@/services/api/suppliersApi';
@@ -21,6 +23,8 @@ const SupplierRequestsPage = () => {
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [showChatModal, setShowChatModal] = useState<boolean>(false);
+  const [chatMessage, setChatMessage] = useState<string>('');
   
   // Проверка роли пользователя
   const [isSupplier, setIsSupplier] = useState(false);
@@ -100,7 +104,14 @@ const SupplierRequestsPage = () => {
   const [updateRequest] = useUpdateSupplierRequestMutation();
   const [assignManager] = useAssignManagerMutation();
   const [createProductFromRequest] = useCreateProductFromRequestMutation();
+  const [sendMessage] = useCreateCommunicationMutation();
   const { data: products } = useGetProductsQuery({ page_size: 100 });
+  
+  // Получаем коммуникации для чата
+  const { data: communications = [] } = useGetCommunicationsByRequestQuery(
+    selectedRequestId ?? 0,
+    { skip: !selectedRequestId || !showChatModal }
+  );
 
   // Получить статус заявки для отображения
   const getStatusClass = (statusName: string): string => {
@@ -179,6 +190,27 @@ const SupplierRequestsPage = () => {
         setSelectedProductId(null);
       } catch (err) {
         console.error('Ошибка при создании товара:', err);
+      }
+    }
+  };
+  
+  // Открыть чат с менеджером
+  const openChat = (requestId: number) => {
+    setSelectedRequestId(requestId);
+    setShowChatModal(true);
+  };
+  
+  // Отправить сообщение менеджеру
+  const handleSendChatMessage = async () => {
+    if (selectedRequestId && chatMessage.trim()) {
+      try {
+        await sendMessage({
+          request: selectedRequestId,
+          message: chatMessage.trim(),
+        }).unwrap();
+        setChatMessage('');
+      } catch (err) {
+        console.error('Ошибка при отправке сообщения:', err);
       }
     }
   };
@@ -365,6 +397,17 @@ const SupplierRequestsPage = () => {
                     Назначить
                   </button>
                 )}
+                {/* Кнопка чата для поставщиков, когда менеджер назначен */}
+                {isSupplier && request.manager_name && (
+                  <button
+                    type="button"
+                    className={`${styles.actionBtn} ${styles['actionBtn--createProduct']}`}
+                    onClick={() => openChat(request.id)}
+                    aria-label={`Отправить сообщение менеджеру по заявке ${request.product_name}`}
+                  >
+                    Написать менеджеру
+                  </button>
+                )}
               </div>
 
               {/* Кнопки одобрения/отклонения - только для админов */}
@@ -546,6 +589,68 @@ const SupplierRequestsPage = () => {
                 disabled={!selectedProductId}
               >
                 Создать товар поставщика
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Модальное окно чата с менеджером */}
+      {showChatModal && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowChatModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="chat-modal-title"
+        >
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 id="chat-modal-title" className={styles.modal__title}>Переписка с менеджером</h2>
+            
+            <div className={styles.communicationList}>
+              {communications.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#666' }}>Сообщений пока нет</p>
+              ) : (
+                communications.map((msg) => (
+                  <div 
+                    key={msg.id} 
+                    className={`${styles.message} ${msg.direction === 'supplier' ? styles.fromSupplier : styles.fromManager}`}
+                  >
+                    <div className={styles.messageHeader}>
+                      <span>{msg.sender_email}</span>
+                      <span>{new Date(msg.created_at).toLocaleString('ru-RU')}</span>
+                    </div>
+                    <div className={styles.messageText}>{msg.message}</div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className={styles.messageForm}>
+              <textarea
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                placeholder="Введите сообщение..."
+                rows={3}
+                className={styles.formGroup__textarea}
+              />
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles['actionBtn--createProduct']}`}
+                onClick={handleSendChatMessage}
+                disabled={!chatMessage.trim()}
+              >
+                Отправить
+              </button>
+            </div>
+
+            <div className={styles.modal__actions}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles['actionBtn--assign']}`}
+                onClick={() => setShowChatModal(false)}
+              >
+                Закрыть
               </button>
             </div>
           </div>

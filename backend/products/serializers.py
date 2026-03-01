@@ -79,13 +79,28 @@ class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
     main_image_url = serializers.SerializerMethodField()
+    supplier_name = serializers.SerializerMethodField()
+    # Поле для создания товара с категориями - поддерживает categories_ids и categories
+    categories_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+    )
+    # Поле для создания товара с изображениями - принимает список URL изображений
+    # Использует CharField для поддержки относительных URL
+    image_urls = serializers.ListField(
+        child=serializers.CharField(),
+        write_only=True,
+        required=False,
+    )
     
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'description', 'price', 'old_price', 'sku',
-            'is_active', 'created_at', 'updated_at', 'categories',
-            'images', 'main_image_url', 'external_url'
+            'is_active', 'created_at', 'updated_at', 'categories', 'categories_ids',
+            'images', 'main_image_url', 'external_url', 'supplier', 'supplier_name',
+            'published_pages', 'image_urls'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
@@ -111,6 +126,89 @@ class ProductSerializer(serializers.ModelSerializer):
         if first_image:
             return self.get_media_url(first_image.image.url)
         return None
+    
+    def get_supplier_name(self, obj):
+        """Получение имени поставщика."""
+        if obj.supplier:
+            return obj.supplier.name
+        return None
+
+    def create(self, validated_data):
+        """Создание товара с категориями через through модель."""
+        # Получаем категории из validated_data
+        category_ids = validated_data.pop('categories_ids', [])
+        # Получаем URL изображений
+        image_urls = validated_data.pop('image_urls', [])
+        
+        product = Product.objects.create(**validated_data)
+        
+        # Создаём связи через промежуточную таблицу
+        for cat_id in category_ids:
+            try:
+                category = Category.objects.get(id=cat_id)
+                ProductCategory.objects.create(product=product, category=category)
+            except Category.DoesNotExist:
+                pass
+        
+        # Создаём изображения товара
+        for index, image_url in enumerate(image_urls):
+            # Очищаем URL от двойного кодирования
+            import urllib.parse
+            
+            # Декодируем URL (убираем двойное кодирование типа %2520 -> %20)
+            decoded_url = urllib.parse.unquote(image_url)
+            
+            # Убираем префикс /media/ если есть (Django добавит его сам)
+            # и убираем двойные /media/ если есть
+            clean_path = decoded_url
+            
+            # Убираем любые повторения /media/
+            while '/media/media/' in clean_path:
+                clean_path = clean_path.replace('/media/media/', '/media/', 1)
+            
+            # Убираем /media/ в начале
+            if clean_path.startswith('/media/'):
+                clean_path = clean_path[7:]  # убираем /media/
+            elif clean_path.startswith('media/'):
+                clean_path = clean_path[6:]  # убираем media/
+            
+            # Убираем начальный слэш если есть
+            if clean_path.startswith('/'):
+                clean_path = clean_path[1:]
+            
+            # Создаём объект изображения
+            ProductImage.objects.create(
+                product=product,
+                image=clean_path,  # Сохраняем путь без /media/
+                is_main=(index == 0),  # Первое изображение - главное
+                alt_text=product.name
+            )
+        
+        return product
+
+    def update(self, instance, validated_data):
+        """Обновление товара с категориями."""
+        category_ids = validated_data.pop('categories_ids', None)
+        
+        # Обновляем остальные поля
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # Обновляем категории если они переданы
+        if category_ids is not None:
+            # Удаляем старые связи
+            ProductCategory.objects.filter(product=instance).delete()
+            
+            # Создаём новые связи
+            for cat_id in category_ids:
+                try:
+                    category = Category.objects.get(id=cat_id)
+                    ProductCategory.objects.create(product=instance, category=category)
+                except Category.DoesNotExist:
+                    pass
+        
+        return instance
 
 
 class ProductCategorySerializer(serializers.ModelSerializer):

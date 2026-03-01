@@ -2,6 +2,7 @@
 
 // БЭМ блок
 .supplierRequestsPage {
+  padding-top: rem(112);
   padding: rem(20) rem(10);
   max-width: var(--container-width);
   margin: 0 auto;
@@ -540,4 +541,63 @@
     outline: rem(2) solid var(--color-purple);
     outline-offset: rem(2);
   }
+}
+
+// Коммуникации (чат)
+.communicationList {
+  max-height: rem(300);
+  overflow-y: auto;
+  margin-bottom: rem(16);
+  padding: rem(12);
+  background: var(--color-el-gray);
+  border-radius: rem(8);
+
+  &::-webkit-scrollbar {
+    width: rem(4);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-light-gray);
+    border-radius: rem(2);
+  }
+}
+
+.message {
+  padding: rem(12);
+  margin-bottom: rem(12);
+  border-radius: rem(8);
+  max-width: 80%;
+
+  &--fromManager {
+    background: var(--color-extra-light-blue);
+    margin-left: auto;
+  }
+
+  &--fromSupplier {
+    background: var(--color-white);
+    margin-right: auto;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.messageHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: rem(4);
+  font-size: rem(12);
+  color: var(--color-medium-gray);
+}
+
+.messageText {
+  font-size: rem(14);
+  color: var(--color-dark-gray);
+}
+
+.messageForm {
+  display: flex;
+  gap: rem(8);
+  align-items: flex-end;
 }
