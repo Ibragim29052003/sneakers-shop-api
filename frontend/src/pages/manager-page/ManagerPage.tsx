@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useGetSupplierRequestsQuery, useUpdateSupplierRequestMutation, useGetSupplierProductsQuery, useAssignManagerMutation, useGetManagersQuery, useGetSupplierContractsQuery, useGetSuppliersQuery } from '@/services/api/suppliersApi';
+import { useGetSupplierRequestsQuery, useUpdateSupplierRequestMutation, useGetSupplierProductsQuery, useAssignManagerMutation, useGetManagersQuery, useGetSupplierContractsQuery, useGetSuppliersQuery, useCreateContractMutation } from '@/services/api/suppliersApi';
 import { useCreateProductMutation, useGetCategoriesQuery } from '@/services/api/productsApi';
 import { useGetManagerOrdersQuery } from '@/services/api/ordersApi';
 import type { SupplierProductRequest, SupplierContract, Supplier, SupplierProduct } from '@/services/api/suppliersApi';
@@ -14,6 +14,18 @@ const PUBLISH_PAGES = [
   { value: 'men', label: 'Мужчинам', categoryNames: ['мужчин', 'men', 'man', 'мужская', 'для мужчин'] },
   { value: 'children', label: 'Детям', categoryNames: ['детей', 'children', 'child', 'детская', 'для детей'] },
 ];
+
+interface ContractFormData {
+  supplier: number | '';
+  contract_number: string;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  total_amount: string;
+  notes: string;
+  is_auto_renew: boolean;
+}
 
 interface ProductFormData {
   name: string;
@@ -34,9 +46,10 @@ interface DashboardTabProps {
   requests: SupplierProductRequest[];
   suppliers: Supplier[];
   orders: Order[];
+  onCreateContract: () => void;
 }
 
-const DashboardTab = ({ contracts, expiringContracts, supplierProducts, requests, suppliers, orders }: DashboardTabProps) => {
+const DashboardTab = ({ contracts, expiringContracts, supplierProducts, requests, suppliers, orders, onCreateContract }: DashboardTabProps) => {
   // Подсчёт статистики
   const activeContracts = contracts.filter(c => c.status_name === 'active');
   const pendingRequests = requests.filter(r => r.status_name === 'pending' || r.status_name === 'under_review');
@@ -187,7 +200,15 @@ const DashboardTab = ({ contracts, expiringContracts, supplierProducts, requests
       
       {/* Секция всех договоров */}
       <div className={styles.dashboardSection}>
-        <h2 className={styles.dashboardSectionTitle}>Все договоры с поставщиками</h2>
+        <div className={styles.dashboardSectionHeader}>
+          <h2 className={styles.dashboardSectionTitle}>Все договоры с поставщиками</h2>
+          <button 
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            onClick={onCreateContract}
+          >
+            Создать договор
+          </button>
+        </div>
         {contracts.length === 0 ? (
           <div className={styles.emptyState}>
             <p>Договоров не найдено</p>
@@ -388,6 +409,18 @@ const ManagerPage = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [showAssignManager, setShowAssignManager] = useState<number | null>(null);
   const [selectedManagerId, setSelectedManagerId] = useState<number | null>(null);
+  const [showContractForm, setShowContractForm] = useState(false);
+  const [contractFormData, setContractFormData] = useState<ContractFormData>({
+    supplier: '',
+    contract_number: '',
+    title: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    total_amount: '',
+    notes: '',
+    is_auto_renew: false,
+  });
   const [productFormData, setProductFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -418,6 +451,7 @@ const ManagerPage = () => {
   const [updateRequest] = useUpdateSupplierRequestMutation();
   const [createProduct] = useCreateProductMutation();
   const [assignManager] = useAssignManagerMutation();
+  const [createContract] = useCreateContractMutation();
   
   // Получаем список менеджеров
   const { data: managers = [] } = useGetManagersQuery();
@@ -551,6 +585,7 @@ const ManagerPage = () => {
           requests={requests}
           suppliers={suppliers}
           orders={orders}
+          onCreateContract={() => setShowContractForm(true)}
         />
       )}
       
@@ -850,6 +885,185 @@ const ManagerPage = () => {
                 disabled={!selectedManagerId}
               >
                 Назначить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Модальное окно создания договора */}
+      {showContractForm && (
+        <div className={styles.modalOverlay} onClick={() => setShowContractForm(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Создание договора с поставщиком</h2>
+            
+            <div className={styles.formSection}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Поставщик *</label>
+                <select
+                  className={styles.formInput}
+                  value={contractFormData.supplier}
+                  onChange={(e) => setContractFormData({ ...contractFormData, supplier: Number(e.target.value) })}
+                >
+                  <option value="">Выберите поставщика</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Номер договора *</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={contractFormData.contract_number}
+                  onChange={(e) => setContractFormData({ ...contractFormData, contract_number: e.target.value })}
+                  placeholder="ДГ-2026-001"
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Название договора *</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={contractFormData.title}
+                  onChange={(e) => setContractFormData({ ...contractFormData, title: e.target.value })}
+                  placeholder="Договор поставки №..."
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Описание</label>
+                <textarea
+                  className={styles.formTextarea}
+                  value={contractFormData.description}
+                  onChange={(e) => setContractFormData({ ...contractFormData, description: e.target.value })}
+                  rows={3}
+                  placeholder="Условия договора..."
+                />
+              </div>
+              
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Дата начала *</label>
+                  <input
+                    type="date"
+                    className={styles.formInput}
+                    value={contractFormData.start_date}
+                    onChange={(e) => setContractFormData({ ...contractFormData, start_date: e.target.value })}
+                  />
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Дата окончания *</label>
+                  <input
+                    type="date"
+                    className={styles.formInput}
+                    value={contractFormData.end_date}
+                    onChange={(e) => setContractFormData({ ...contractFormData, end_date: e.target.value })}
+                  />
+                </div>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Сумма договора (₽)</label>
+                <input
+                  type="number"
+                  className={styles.formInput}
+                  value={contractFormData.total_amount}
+                  onChange={(e) => setContractFormData({ ...contractFormData, total_amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Notes</label>
+                <textarea
+                  className={styles.formTextarea}
+                  value={contractFormData.notes}
+                  onChange={(e) => setContractFormData({ ...contractFormData, notes: e.target.value })}
+                  rows={2}
+                  placeholder="Дополнительные условия..."
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={contractFormData.is_auto_renew}
+                    onChange={(e) => setContractFormData({ ...contractFormData, is_auto_renew: e.target.checked })}
+                  />
+                  Автоматически продлевать договор
+                </label>
+              </div>
+            </div>
+            
+            <div className={styles.modalActions}>
+              <button 
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                onClick={() => {
+                  setShowContractForm(false);
+                  setContractFormData({
+                    supplier: '',
+                    contract_number: '',
+                    title: '',
+                    description: '',
+                    start_date: '',
+                    end_date: '',
+                    total_amount: '',
+                    notes: '',
+                    is_auto_renew: false,
+                  });
+                }}
+              >
+                Отмена
+              </button>
+              <button 
+                className={`${styles.button} ${styles.buttonSuccess}`}
+                onClick={async () => {
+                  if (!contractFormData.supplier || !contractFormData.contract_number || !contractFormData.title || !contractFormData.start_date || !contractFormData.end_date) {
+                    alert('Пожалуйста, заполните все обязательные поля');
+                    return;
+                  }
+                  
+                  try {
+                    await createContract({
+                      supplier: contractFormData.supplier,
+                      contract_number: contractFormData.contract_number,
+                      title: contractFormData.title,
+                      description: contractFormData.description,
+                      start_date: contractFormData.start_date,
+                      end_date: contractFormData.end_date,
+                      total_amount: contractFormData.total_amount ? Number(contractFormData.total_amount) : undefined,
+                      notes: contractFormData.notes,
+                      is_auto_renew: contractFormData.is_auto_renew,
+                    }).unwrap();
+                    
+                    // Закрываем форму и сбрасываем данные
+                    setShowContractForm(false);
+                    setContractFormData({
+                      supplier: '',
+                      contract_number: '',
+                      title: '',
+                      description: '',
+                      start_date: '',
+                      end_date: '',
+                      total_amount: '',
+                      notes: '',
+                      is_auto_renew: false,
+                    });
+                  } catch (error) {
+                    console.error('Ошибка при создании договора:', error);
+                    alert('Ошибка при создании договора');
+                  }
+                }}
+              >
+                Создать договор
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.urls import reverse
 from .models import (
     Supplier,
@@ -46,11 +47,11 @@ class SupplierContractAdmin(SimpleHistoryAdmin):
     def get_expiration_status(self, obj):
         """Отображение статуса истечения договора."""
         if obj.is_expired:
-            return format_html('<span style="color: red;">Истёк</span>')
+            return mark_safe('<span style="color: red;">Истёк</span>')
         elif obj.is_expiring_soon:
-            return format_html('<span style="color: orange;">Истекает скоро</span>')
+            return mark_safe('<span style="color: orange;">Истекает скоро</span>')
         else:
-            return format_html('<span style="color: green;">Активен</span>')
+            return mark_safe('<span style="color: green;">Активен</span>')
 
 
 @admin.register(SupplierProductRequest)

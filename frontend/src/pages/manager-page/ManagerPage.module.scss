@@ -634,6 +634,21 @@
   border-bottom: rem(1) solid var(--color-light-gray);
 }
 
+.dashboardSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: rem(20);
+  padding-bottom: rem(12);
+  border-bottom: rem(1) solid var(--color-light-gray);
+  
+  .dashboardSectionTitle {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
 .dashboardTable {
   overflow-x: auto;
   

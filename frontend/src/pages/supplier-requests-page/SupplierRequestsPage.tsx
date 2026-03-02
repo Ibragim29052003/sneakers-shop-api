@@ -7,13 +7,14 @@ import {
   useCreateProductFromRequestMutation,
   useGetCommunicationsByRequestQuery,
   useCreateCommunicationMutation,
+  useGetMyContractsQuery,
 } from '@/services/api/suppliersApi';
 import { useGetProductsQuery } from '@/services/api/productsApi';
 import type { SupplierProductRequest } from '@/services/api/suppliersApi';
 import { CreateSupplierRequestForm } from './index';
 import styles from './SupplierRequestsPage.module.scss';
 
-type TabType = 'all' | 'pending' | 'under_review' | 'approved' | 'rejected';
+type TabType = 'all' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'contracts';
 
 const SupplierRequestsPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -80,6 +81,9 @@ const SupplierRequestsPage = () => {
   const { data: requests, isLoading, error } = useGetSupplierRequestsQuery({
     page_size: 100,
   });
+
+  // Получаем договоры поставщика
+  const { data: contracts = [] } = useGetMyContractsQuery();
 
   // Фильтрация на фронтенде по статусу и поставщику
   const filteredRequests = useMemo(() => {
@@ -247,6 +251,7 @@ const SupplierRequestsPage = () => {
     { key: 'under_review', label: 'На рассмотрении' },
     { key: 'approved', label: 'Одобренные' },
     { key: 'rejected', label: 'Отклоненные' },
+    { key: 'contracts', label: 'Договоры' },
   ];
 
   if (isLoading || isLoadingRole) {
@@ -312,7 +317,7 @@ const SupplierRequestsPage = () => {
       </div>
 
       {/* Вкладки - только для админов */}
-      {isAdmin && (
+      {(isAdmin || isSupplier) && (
         <nav className={styles.tabs} aria-label="Фильтр заявок по статусу">
           {tabs.map(tab => (
             <button
@@ -331,7 +336,59 @@ const SupplierRequestsPage = () => {
         </nav>
       )}
 
-      {!filteredRequests || filteredRequests.length === 0 ? (
+      {activeTab === 'contracts' ? (
+        <section className={styles.emptyState} aria-label="Договоры">
+          {contracts.length === 0 ? (
+            <>
+              <div className={styles.emptyState__icon}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+              </div>
+              <h2 className={styles.emptyState__title}>Нет договоров</h2>
+              <p className={styles.emptyState__text}>У вас пока нет договоров с магазином</p>
+            </>
+          ) : (
+            <div className={styles.requestsList}>
+              {contracts.map(contract => (
+                <article key={contract.id} className={styles.requestCard}>
+                  <div className={styles.requestCard__header}>
+                    <div className={styles.requestCard__info}>
+                      <h3 className={styles.requestCard__title}>{contract.title}</h3>
+                      <span className={styles.requestCard__supplier}>Договор № {contract.contract_number}</span>
+                    </div>
+                    <span 
+                      className={`${styles.statusBadge} ${contract.status_name === 'active' ? styles['statusBadge--approved'] : contract.status_name === 'expired' ? styles['statusBadge--rejected'] : styles['statusBadge--pending']}`}
+                    >
+                      {contract.status_name === 'active' ? 'Активен' : contract.status_name === 'expired' ? 'Истёк' : contract.status_name}
+                    </span>
+                  </div>
+                  <dl className={styles.requestCard__details}>
+                    <div className={styles.requestCard__detail}>
+                      <dt className={styles['requestCard__detail-label']}>Дата начала</dt>
+                      <dd className={styles['requestCard__detail-value']}>{formatDate(contract.start_date)}</dd>
+                    </div>
+                    <div className={styles.requestCard__detail}>
+                      <dt className={styles['requestCard__detail-label']}>Дата окончания</dt>
+                      <dd className={styles['requestCard__detail-value']}>{formatDate(contract.end_date)}</dd>
+                    </div>
+                    <div className={styles.requestCard__detail}>
+                      <dt className={styles['requestCard__detail-label']}>Сумма</dt>
+                      <dd className={styles['requestCard__detail-value']}>{contract.total_amount ? formatPrice(contract.total_amount) : '-'}</dd>
+                    </div>
+                    <div className={styles.requestCard__detail}>
+                      <dt className={styles['requestCard__detail-label']}>Товаров</dt>
+                      <dd className={styles['requestCard__detail-value']}>{contract.products_count}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+      !filteredRequests || filteredRequests.length === 0 ? (
         <section className={styles.emptyState} aria-label="Нет заявок">
           <div className={styles.emptyState__icon}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -452,7 +509,8 @@ const SupplierRequestsPage = () => {
             </article>
           ))}
         </section>
-      )}
+      ))}
+      
 
       {/* Модальное окно назначения менеджера */}
       {showAssignModal && (

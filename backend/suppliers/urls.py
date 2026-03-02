@@ -32,6 +32,11 @@ from .views import (
     RequestCommunicationViewSet,
     RequestCommunicationByRequestView,
     MarkCommunicationAsReadView,
+    # Договоры
+    MySupplierContractsView,
+    SupplierContractExpirationView,
+    HandleExpiredContractsView,
+    CreateSupplierContractView,
 )
 
 router = DefaultRouter()
@@ -93,4 +98,18 @@ urlpatterns = [
     path('register-supplier-with-request/', 
          RegisterSupplierWithRequestView.as_view(), 
          name='register-supplier-with-request'),
+    
+    # Договоры поставщика
+    path('my-contracts/', 
+         MySupplierContractsView.as_view(), 
+         name='my-contracts'),
+    path('expiring-contracts/', 
+         SupplierContractExpirationView.as_view(), 
+         name='expiring-contracts'),
+    path('handle-expired-contracts/', 
+         HandleExpiredContractsView.as_view(), 
+         name='handle-expired-contracts'),
+    path('create-contract/', 
+         CreateSupplierContractView.as_view(), 
+         name='create-contract'),
 ]

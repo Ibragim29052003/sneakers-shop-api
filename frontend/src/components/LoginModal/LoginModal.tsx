@@ -143,6 +143,11 @@ export const LoginModal: FC<LoginModalProps> = ({ openModal, onOpenChange, onLog
         localStorage.setItem("access_token", result.access);
         localStorage.setItem("refresh_token", result.refresh);
         
+        // Сохраняем данные пользователя
+        if (result.user) {
+          localStorage.setItem("user", JSON.stringify(result.user));
+        }
+        
         // Загружаем корзину пользователя после успешного входа
         try {
           const cartResponse = await fetch('/api/v1/cart/', {

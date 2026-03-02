@@ -118,12 +118,18 @@ class SupplierViewSet(viewsets.ModelViewSet):
     """ViewSet для модели поставщиков."""
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
-    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active']
     search_fields = ['name', 'inn', 'contact_person', 'email']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
+    
+    def get_permissions(self):
+        # Создание, редактирование, удаление - только админ
+        # Чтение - все авторизованные
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
 
 # ==================== Договоры ====================
@@ -132,12 +138,18 @@ class SupplierContractViewSet(viewsets.ModelViewSet):
     """ViewSet для модели договоров поставщиков."""
     queryset = SupplierContract.objects.all()
     serializer_class = SupplierContractSerializer
-    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['supplier', 'status']
     search_fields = ['contract_number', 'title', 'description']
     ordering_fields = ['created_at', 'end_date']
     ordering = ['-created_at']
+    
+    def get_permissions(self):
+        # Создание, редактирование, удаление - только админ
+        # Чтение - все авторизованные
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -729,3 +741,207 @@ class MarkCommunicationAsReadView(APIView):
             {'detail': 'Сообщение помечено как прочитанное.'},
             status=status.HTTP_200_OK
         )
+
+
+# ==================== Договоры поставщика ====================
+
+class CreateSupplierContractView(APIView):
+    """
+    API view для создания договора с поставщиком.
+    Доступно для админов и менеджеров (пользователей с назначенными заявками).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Создание договора с поставщиком."""
+        user = request.user
+        
+        # Проверяем роль:
+        # 1. is_staff = Django admin
+        # 2. Роль 'admin' в UserRole
+        # 3. Является менеджером каких-либо заявок (назначен в SupplierProductRequest)
+        is_admin = user.is_staff or user.user_roles.filter(role__name='admin').exists()
+        is_manager = SupplierProductRequest.objects.filter(manager_id=user.id).exists()
+        
+        if not (is_admin or is_manager):
+            return Response(
+                {'detail': 'У вас нет прав для создания договора. is_staff=' + str(user.is_staff) + ', roles=' + str(list(user.user_roles.values_list("role__name", flat=True)))},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Валидация данных
+        required_fields = ['supplier', 'contract_number', 'title', 'start_date', 'end_date']
+        for field in required_fields:
+            if field not in request.data:
+                return Response(
+                    {'detail': f'Поле {field} обязательно.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        supplier_id = request.data.get('supplier')
+        supplier = get_object_or_404(Supplier, id=supplier_id)
+        
+        # Получаем или создаём статус договора
+        status_id = request.data.get('status')
+        if status_id:
+            contract_status = get_object_or_404(ContractStatus, id=status_id)
+        else:
+            # Создаём статус по умолчанию, если его нет
+            contract_status, _ = ContractStatus.objects.get_or_create(
+                name='active',
+                defaults={'description': 'Активный договор'}
+            )
+        
+        # Проверяем, не существует ли уже такой договор
+        existing_contract = SupplierContract.objects.filter(
+            supplier=supplier,
+            contract_number=request.data.get('contract_number')
+        ).first()
+        
+        if existing_contract:
+            return Response(
+                {'detail': f"Договор с номером {request.data.get('contract_number')} для этого поставщика уже существует."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Создаём договор
+        contract = SupplierContract.objects.create(
+            supplier=supplier,
+            status=contract_status,
+            contract_number=request.data.get('contract_number'),
+            title=request.data.get('title'),
+            description=request.data.get('description', ''),
+            start_date=request.data.get('start_date'),
+            end_date=request.data.get('end_date'),
+            total_amount=request.data.get('total_amount'),
+            notes=request.data.get('notes', ''),
+            is_auto_renew=request.data.get('is_auto_renew', False),
+        )
+        
+        serializer = SupplierContractSerializer(contract)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class MySupplierContractsView(APIView):
+    """
+    API view для получения договоров текущего поставщика.
+    Поставщик видит только свои договоры.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Получение договоров текущего поставщика."""
+        user = request.user
+        
+        # Проверяем, что пользователь - поставщик
+        if not hasattr(user, 'supplier_profile') or not user.supplier_profile:
+            return Response(
+                {'detail': 'Вы не являетесь поставщиком.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        supplier = user.supplier_profile
+        contracts = SupplierContract.objects.filter(supplier=supplier).order_by('-created_at')
+        serializer = SupplierContractSerializer(contracts, many=True)
+        
+        return Response(serializer.data)
+
+
+class SupplierContractExpirationView(APIView):
+    """
+    API view для получения информации об истекающих договорах.
+    Доступно для админов, менеджеров и поставщиков.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Получение истекающих договоров."""
+        from datetime import timedelta
+        user = request.user
+        
+        # Определяем, какие договоры показывать
+        is_admin = user.is_staff or user.user_roles.filter(role__name='admin').exists()
+        is_manager = user.user_roles.filter(role__name='manager').exists()
+        is_supplier = hasattr(user, 'supplier_profile') and user.supplier_profile
+        
+        # Получаем договоры, истекающие в течение 30 дней
+        expiring_date = timezone.now().date() + timedelta(days=30)
+        
+        if is_supplier:
+            # Поставщик видит только свои договоры
+            contracts = SupplierContract.objects.filter(
+                supplier=user.supplier_profile,
+                end_date__gte=timezone.now().date(),
+                end_date__lte=expiring_date
+            ).order_by('end_date')
+        elif is_admin or is_manager:
+            # Админ и менеджер видят все договоры
+            contracts = SupplierContract.objects.filter(
+                end_date__gte=timezone.now().date(),
+                end_date__lte=expiring_date
+            ).order_by('end_date')
+        else:
+            return Response(
+                {'detail': 'У вас нет доступа к этой информации.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = SupplierContractSerializer(contracts, many=True)
+        
+        # Дополнительная информация о количестве
+        return Response({
+            'count': len(serializer.data),
+            'contracts': serializer.data,
+            'days_until_expiration': 30
+        })
+
+
+class HandleExpiredContractsView(APIView):
+    """
+    API view для обработки истекших договоров.
+    Деактивирует товары поставщиков, чьи договоры истекли.
+    Только для админов.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request):
+        """Обработка истекших договоров."""
+        from datetime import timedelta
+        
+        # Получаем истекшие договоры
+        expired_contracts = SupplierContract.objects.filter(
+            end_date__lt=timezone.now().date(),
+            status__name='active'
+        )
+        
+        results = []
+        for contract in expired_contracts:
+            # Меняем статус договора на истекший
+            try:
+                expired_status = ContractStatus.objects.get(name='expired')
+                contract.status = expired_status
+                contract.save(update_fields=['status', 'updated_at'])
+            except ContractStatus.DoesNotExist:
+                pass
+            
+            # Обрабатываем товары
+            result = contract.handle_expiration()
+            results.append(result)
+            
+            # Создаём уведомление для поставщика
+            try:
+                alert_type = AlertType.objects.get(name='contract_expired')
+                SystemAlert.objects.create(
+                    alert_type=alert_type,
+                    user=contract.supplier.user,
+                    title='Договор истёк',
+                    message=f'Договор №{contract.contract_number} истёк. Связанные товары деактивированы.',
+                    contract=contract
+                )
+            except (AlertType.DoesNotExist, AttributeError):
+                pass  # Игнорируем если нет типа уведомления или пользователя
+        
+        return Response({
+            'processed_contracts': len(results),
+            'results': results
+        })

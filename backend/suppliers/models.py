@@ -317,6 +317,32 @@ class SupplierContract(models.Model):
         """Проверка, истёк ли договор"""
         return self.end_date < timezone.now().date()
 
+    def handle_expiration(self):
+        """
+        Обработка истечения договора.
+        Деактивирует товары поставщика, связанные с этим договором.
+        """
+        from products.models import Product
+        
+        # Получаем товары, связанные с этим договором
+        supplier_products = self.supplier_products.all()
+        
+        affected_products = []
+        for sp in supplier_products:
+            # Деактивируем связанный товар
+            if sp.product:
+                sp.product.is_active = False
+                sp.product.save(update_fields=['is_active', 'updated_at'])
+                affected_products.append(sp.product.name)
+        
+        return {
+            'contract_id': self.id,
+            'contract_number': self.contract_number,
+            'supplier_name': self.supplier.name,
+            'affected_products_count': len(affected_products),
+            'affected_products': affected_products
+        }
+
 
 class ContractDocument(models.Model):
     """

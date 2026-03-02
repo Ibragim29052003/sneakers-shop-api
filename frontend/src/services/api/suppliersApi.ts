@@ -291,6 +291,20 @@ export interface CreateCommunication {
   message: string;
 }
 
+// Создание договора
+export interface CreateContract {
+  supplier: number;
+  contract_number: string;
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  total_amount?: number;
+  notes?: string;
+  status?: number;
+  is_auto_renew?: boolean;
+}
+
 // ==================== API СЕРВИС ====================
 
 export const suppliersApi = createApi({
@@ -544,6 +558,49 @@ export const suppliersApi = createApi({
     }[], void>({
       query: () => '/managers/',
     }),
+    
+    // ==================== ДОГОВОРЫ ПОСТАВЩИКА ====================
+    
+    // Получить свои договоры (для поставщика)
+    getMyContracts: builder.query<SupplierContract[], void>({
+      query: () => '/my-contracts/',
+      transformResponse: (response: SupplierContract[]) => response,
+    }),
+    
+    // Получить истекающие договоры
+    getExpiringContracts: builder.query<{
+      count: number;
+      contracts: SupplierContract[];
+      days_until_expiration: number;
+    }, void>({
+      query: () => '/expiring-contracts/',
+    }),
+    
+    // Обработать истекшие договоры (только админ)
+    handleExpiredContracts: builder.mutation<{
+      processed_contracts: number;
+      results: Array<{
+        contract_id: number;
+        contract_number: string;
+        supplier_name: string;
+        affected_products_count: number;
+        affected_products: string[];
+      }>;
+    }, void>({
+      query: () => ({
+        url: '/handle-expired-contracts/',
+        method: 'POST',
+      }),
+    }),
+    
+    // Создать договор с поставщиком
+    createContract: builder.mutation<SupplierContract, CreateContract>({
+      query: (data) => ({
+        url: '/create-contract/',
+        method: 'POST',
+        body: data,
+      }),
+    }),
   }),
 });
 
@@ -590,4 +647,10 @@ export const {
   
   // Менеджеры
   useGetManagersQuery,
+  
+  // Договоры поставщика
+  useGetMyContractsQuery,
+  useGetExpiringContractsQuery,
+  useHandleExpiredContractsMutation,
+  useCreateContractMutation,
 } = suppliersApi;
