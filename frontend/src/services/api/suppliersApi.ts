@@ -457,11 +457,12 @@ export const suppliersApi = createApi({
     // ==================== ДОГОВОРЫ ====================
     
     // Получить все договоры
-    getSupplierContracts: builder.query<SupplierContract[], { supplier?: number; status?: number }>({
+    getSupplierContracts: builder.query<SupplierContract[], { supplier?: number; status?: number; expiring_soon?: boolean }>({
       query: (params) => {
         const queryParams: Record<string, string | number | undefined> = {};
         if (params.supplier) queryParams.supplier = params.supplier;
         if (params.status) queryParams.status = params.status;
+        if (params.expiring_soon) queryParams.expiring_soon = 'true';
         return {
           url: '/supplier-contracts/',
           params: queryParams,

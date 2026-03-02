@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useGetSupplierRequestsQuery, useUpdateSupplierRequestMutation, useGetSupplierProductsQuery, useAssignManagerMutation, useGetManagersQuery } from '@/services/api/suppliersApi';
+import { useGetSupplierRequestsQuery, useUpdateSupplierRequestMutation, useGetSupplierProductsQuery, useAssignManagerMutation, useGetManagersQuery, useGetSupplierContractsQuery, useGetSuppliersQuery } from '@/services/api/suppliersApi';
 import { useCreateProductMutation, useGetCategoriesQuery } from '@/services/api/productsApi';
-import type { SupplierProductRequest } from '@/services/api/suppliersApi';
+import { useGetManagerOrdersQuery } from '@/services/api/ordersApi';
+import type { SupplierProductRequest, SupplierContract, Supplier, SupplierProduct } from '@/services/api/suppliersApi';
+import type { Order } from '@/services/api/ordersApi';
 import styles from './ManagerPage.module.scss';
 
-type TabType = 'my-requests' | 'all-requests';
+type TabType = 'dashboard' | 'my-requests' | 'all-requests';
 
 // Доступные страницы для публикации товара
 const PUBLISH_PAGES = [
@@ -24,8 +26,364 @@ interface ProductFormData {
   publishedPages: string[];
 }
 
+// Компонент Дашборд
+interface DashboardTabProps {
+  contracts: SupplierContract[];
+  expiringContracts: SupplierContract[];
+  supplierProducts: SupplierProduct[];
+  requests: SupplierProductRequest[];
+  suppliers: Supplier[];
+  orders: Order[];
+}
+
+const DashboardTab = ({ contracts, expiringContracts, supplierProducts, requests, suppliers, orders }: DashboardTabProps) => {
+  // Подсчёт статистики
+  const activeContracts = contracts.filter(c => c.status_name === 'active');
+  const pendingRequests = requests.filter(r => r.status_name === 'pending' || r.status_name === 'under_review');
+  const approvedRequests = requests.filter(r => r.status_name === 'approved');
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+  
+  const formatCurrency = (value: string | null) => {
+    if (!value) return '—';
+    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(Number(value));
+  };
+  
+  return (
+    <div className={styles.dashboard}>
+      {/* Карточки статистики */}
+      <div className={styles.dashboardStats}>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{activeContracts.length}</span>
+            <span className={styles.statLabel}>Активных договоров</span>
+          </div>
+        </div>
+        
+        <div className={`${styles.statCard} ${styles.statCardWarning}`}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{expiringContracts.length}</span>
+            <span className={styles.statLabel}>Истекают скоро</span>
+          </div>
+        </div>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{supplierProducts.length}</span>
+            <span className={styles.statLabel}>Товаров от поставщиков</span>
+          </div>
+        </div>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{pendingRequests.length}</span>
+            <span className={styles.statLabel}>Новых заявок</span>
+          </div>
+        </div>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{suppliers.length}</span>
+            <span className={styles.statLabel}>Поставщиков</span>
+          </div>
+        </div>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{orders.length}</span>
+            <span className={styles.statLabel}>Заказов</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Секция истекающих договоров */}
+      {expiringContracts.length > 0 && (
+        <div className={styles.dashboardSection}>
+          <h2 className={styles.dashboardSectionTitle}>Истекающие договоры (30 дней)</h2>
+          <div className={styles.dashboardTable}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Номер договора</th>
+                  <th>Поставщик</th>
+                  <th>Название</th>
+                  <th>Дата окончания</th>
+                  <th>Сумма</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expiringContracts.map(contract => (
+                  <tr key={contract.id}>
+                    <td>{contract.contract_number}</td>
+                    <td>{contract.supplier_name}</td>
+                    <td>{contract.title}</td>
+                    <td>{formatDate(contract.end_date)}</td>
+                    <td>{formatCurrency(contract.total_amount)}</td>
+                    <td>
+                      <span className={styles.statusBadge} data-status={contract.status_name}>
+                        {contract.status_name === 'active' && 'Активен'}
+                        {contract.status_name === 'draft' && 'Черновик'}
+                        {contract.status_name === 'suspended' && 'Приостановлен'}
+                        {contract.status_name === 'expired' && 'Истёк'}
+                        {contract.status_name === 'terminated' && 'Расторгнут'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      
+      {/* Секция всех договоров */}
+      <div className={styles.dashboardSection}>
+        <h2 className={styles.dashboardSectionTitle}>Все договоры с поставщиками</h2>
+        {contracts.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Договоров не найдено</p>
+          </div>
+        ) : (
+          <div className={styles.dashboardTable}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Номер договора</th>
+                  <th>Поставщик</th>
+                  <th>Название</th>
+                  <th>Дата начала</th>
+                  <th>Дата окончания</th>
+                  <th>Сумма</th>
+                  <th>Товаров</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contracts.slice(0, 10).map(contract => (
+                  <tr key={contract.id}>
+                    <td>{contract.contract_number}</td>
+                    <td>{contract.supplier_name}</td>
+                    <td>{contract.title}</td>
+                    <td>{formatDate(contract.start_date)}</td>
+                    <td>{formatDate(contract.end_date)}</td>
+                    <td>{formatCurrency(contract.total_amount)}</td>
+                    <td>{contract.products_count}</td>
+                    <td>
+                      <span className={styles.statusBadge} data-status={contract.status_name}>
+                        {contract.status_name === 'active' && 'Активен'}
+                        {contract.status_name === 'draft' && 'Черновик'}
+                        {contract.status_name === 'suspended' && 'Приостановлен'}
+                        {contract.status_name === 'expired' && 'Истёк'}
+                        {contract.status_name === 'terminated' && 'Расторгнут'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {contracts.length > 10 && (
+              <p className={styles.dashboardNote}>Показано 10 из {contracts.length} договоров</p>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Секция товаров от поставщиков */}
+      <div className={styles.dashboardSection}>
+        <h2 className={styles.dashboardSectionTitle}>Товары от поставщиков</h2>
+        {supplierProducts.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Товаров не найдено</p>
+          </div>
+        ) : (
+          <div className={styles.dashboardTable}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Товар</th>
+                  <th>Поставщик</th>
+                  <th>Артикул поставщика</th>
+                  <th>Цена поставщика</th>
+                  <th>Договор</th>
+                  <th>Предпочитаемый</th>
+                </tr>
+              </thead>
+              <tbody>
+                {supplierProducts.slice(0, 10).map(sp => (
+                  <tr key={sp.id}>
+                    <td>{sp.product_name}</td>
+                    <td>{sp.supplier_name}</td>
+                    <td>{sp.supplier_sku || '—'}</td>
+                    <td>{formatCurrency(sp.supplier_price)}</td>
+                    <td>{sp.contract_number || '—'}</td>
+                    <td>
+                      {sp.is_preferred ? (
+                        <span className={styles.preferredBadge}>Да</span>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {supplierProducts.length > 10 && (
+              <p className={styles.dashboardNote}>Показано 10 из {supplierProducts.length} товаров</p>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Секция заявок */}
+      <div className={styles.dashboardSection}>
+        <h2 className={styles.dashboardSectionTitle}>Заявки на поставку</h2>
+        {requests.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Заявок не найдено</p>
+          </div>
+        ) : (
+          <div className={styles.dashboardTable}>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Товар</th>
+                  <th>Поставщик</th>
+                  <th>Количество</th>
+                  <th>Цена</th>
+                  <th>Статус</th>
+                  <th>Дата</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.slice(0, 10).map(request => (
+                  <tr key={request.id}>
+                    <td>#{request.id}</td>
+                    <td>{request.product_name}</td>
+                    <td>{request.supplier_name}</td>
+                    <td>{request.quantity}</td>
+                    <td>{formatCurrency(request.suggested_price)}</td>
+                    <td>
+                      <span className={styles.statusBadge} data-status={request.status_name}>
+                        {request.status_name === 'pending' && 'Ожидает'}
+                        {request.status_name === 'under_review' && 'На рассмотрении'}
+                        {request.status_name === 'approved' && 'Одобрена'}
+                        {request.status_name === 'rejected' && 'Отклонена'}
+                        {request.status_name === 'revision_required' && 'На доработке'}
+                      </span>
+                    </td>
+                    <td>{formatDate(request.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {requests.length > 10 && (
+              <p className={styles.dashboardNote}>Показано 10 из {requests.length} заявок</p>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Секция заказов */}
+      <div className={styles.dashboardSection}>
+        <h2 className={styles.dashboardSectionTitle}>Заказы</h2>
+        {orders.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Заказов не найдено</p>
+          </div>
+        ) : (
+          <div className={styles.dashboardTable}>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Покупатель</th>
+                  <th>Статус</th>
+                  <th>Сумма</th>
+                  <th>Товаров</th>
+                  <th>Дата</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.slice(0, 10).map(order => (
+                  <tr key={order.id}>
+                    <td>#{order.id}</td>
+                    <td>{order.user.first_name || order.user.last_name 
+                      ? `${order.user.first_name} ${order.user.last_name}`.trim() 
+                      : order.user.email}</td>
+                    <td>
+                      <span className={styles.statusBadge} data-status={order.status_info.name}>
+                        {order.status_info.name}
+                      </span>
+                    </td>
+                    <td>{formatCurrency(order.total)}</td>
+                    <td>{order.items.length}</td>
+                    <td>{formatDate(order.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {orders.length > 10 && (
+              <p className={styles.dashboardNote}>Показано 10 из {orders.length} заказов</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ManagerPage = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('my-requests');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [selectedRequest, setSelectedRequest] = useState<SupplierProductRequest | null>(null);
   const [showProductForm, setShowProductForm] = useState(false);
   const [showAssignManager, setShowAssignManager] = useState<number | null>(null);
@@ -45,6 +403,16 @@ const ManagerPage = () => {
   const { data: requests = [], isLoading, error } = useGetSupplierRequestsQuery({});
   const { data: supplierProducts = [] } = useGetSupplierProductsQuery({});
   const { data: categories = [] } = useGetCategoriesQuery();
+  
+  // Получаем договоры
+  const { data: allContracts = [] } = useGetSupplierContractsQuery({});
+  const { data: expiringContracts = [] } = useGetSupplierContractsQuery({ expiring_soon: true });
+  
+  // Получаем поставщиков
+  const { data: suppliers = [] } = useGetSuppliersQuery();
+  
+  // Получаем заказы
+  const { data: orders = [] } = useGetManagerOrdersQuery();
   
   // Mutations
   const [updateRequest] = useUpdateSupplierRequestMutation();
@@ -156,6 +524,12 @@ const ManagerPage = () => {
       
       <div className={styles.tabs}>
         <button
+          className={`${styles.tabs__tab} ${activeTab === 'dashboard' ? styles['tabs__tab--active'] : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          Дашборд
+        </button>
+        <button
           className={`${styles.tabs__tab} ${activeTab === 'my-requests' ? styles['tabs__tab--active'] : ''}`}
           onClick={() => setActiveTab('my-requests')}
         >
@@ -168,6 +542,17 @@ const ManagerPage = () => {
           Все заявки ({requests.length})
         </button>
       </div>
+      
+      {activeTab === 'dashboard' && (
+        <DashboardTab 
+          contracts={allContracts}
+          expiringContracts={expiringContracts}
+          supplierProducts={supplierProducts}
+          requests={requests}
+          suppliers={suppliers}
+          orders={orders}
+        />
+      )}
       
       {displayRequests.length === 0 ? (
         <div className={styles.emptyState}>

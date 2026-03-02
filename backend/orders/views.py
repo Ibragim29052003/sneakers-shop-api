@@ -78,3 +78,25 @@ class OrderItemViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         return OrderItem.objects.filter(order__user=self.request.user)
+
+
+class ManagerOrdersView(APIView):
+    """API view для получения всех заказов менеджерами."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Проверяем, что пользователь - менеджер или админ
+        from users.models import UserRole
+        is_manager = request.user.user_roles.filter(role__name='manager').exists()
+        is_admin = request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists()
+        
+        if not (is_manager or is_admin):
+            return Response(
+                {'detail': 'У вас нет доступа к этой информации.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Получаем все заказы
+        orders = Order.objects.all().select_related('user', 'status').prefetch_related('items')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
