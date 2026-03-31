@@ -158,6 +158,18 @@ SIMPLE_JWT = {
 # настройки cors
 CORS_ALLOW_ALL_ORIGINS = True
 
+# кэширование
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,  # 5 минут
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
 # логирование
 LOGGING = {
     'version': 1,

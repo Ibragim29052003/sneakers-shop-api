@@ -32,6 +32,7 @@ class SupplierAdmin(SimpleHistoryAdmin):
     date_hierarchy = 'created_at'
     list_editable = ('is_active',)
     readonly_fields = ('created_at', 'updated_at')
+    raw_id_fields = ('user',)
     
 
 @admin.register(SupplierContract)
@@ -42,6 +43,7 @@ class SupplierContractAdmin(SimpleHistoryAdmin):
     search_fields = ('contract_number', 'supplier__name', 'title')
     date_hierarchy = 'created_at'
     readonly_fields = ('created_at', 'updated_at')
+    raw_id_fields = ('supplier',)
     
     @display(description='Статус истечения')
     def get_expiration_status(self, obj):

@@ -20,6 +20,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 
 class ProductCategoryInline(admin.TabularInline):
@@ -133,7 +135,7 @@ class ProductAdmin(SimpleHistoryAdmin):
     search_fields = ('name', 'description', 'sku')
     list_per_page = 25
     date_hierarchy = 'created_at'
-    raw_id_fields = ()
+    raw_id_fields = ('supplier', 'contract', 'created_from_request', 'created_from_source')
     list_display_links = ('name', 'sku')
     
     inlines = (ProductImageInline, ProductCategoryInline, ProductFilterInline)
@@ -207,6 +209,20 @@ class ProductAdmin(SimpleHistoryAdmin):
         3. Стилизация элементов
         4. Возврат HTTP ответа с PDF
         """
+        import os
+        
+        # Шрифт с поддержкой кириллицы (Arial Unicode MS)
+        font_path = '/Library/Fonts/Arial Unicode.ttf'
+        
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('ArialUnicode', font_path))
+                font_name = 'ArialUnicode'
+            except:
+                font_name = 'Helvetica'
+        else:
+            font_name = 'Helvetica'
+        
         # Создание PDF документа
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="products_report.pdf"'
@@ -220,8 +236,16 @@ class ProductAdmin(SimpleHistoryAdmin):
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
+            fontName=font_name,
             fontSize=18,
             spaceAfter=30,
+        )
+        
+        normal_style = ParagraphStyle(
+            'Normal',
+            parent=styles['Normal'],
+            fontName=font_name,
+            fontSize=10,
         )
         
         # Заголовок
@@ -246,19 +270,21 @@ class ProductAdmin(SimpleHistoryAdmin):
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), font_name),
             ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 1), (-1, -1), font_name),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
         ]))
         
         elements.append(table)
         
         # Итоговая информация
         elements.append(Spacer(1, 20))
-        elements.append(Paragraph(f'Всего товаров: {len(queryset)}', styles['Normal']))
+        elements.append(Paragraph(f'Всего товаров: {len(queryset)}', normal_style))
         
         # Сборка документа
         doc.build(elements)
@@ -369,6 +395,7 @@ class SliderImageAdmin(SimpleHistoryAdmin):
     date_hierarchy = 'created_at'
     list_display_links = ('title',)
     list_editable = ('is_active', 'order')
+    raw_id_fields = ('product',)
     
     fieldsets = (
         (None, {

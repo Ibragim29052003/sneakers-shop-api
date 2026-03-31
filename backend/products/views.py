@@ -13,7 +13,7 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.shortcuts import redirect, Http404
+from django.shortcuts import redirect, get_object_or_404, Http404
 from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value
 from django.db.models.functions import Concat
 from django_filters.rest_framework import DjangoFilterBackend
@@ -1033,6 +1033,133 @@ class ProductViewSet(viewsets.ModelViewSet):
             'deleted_archived': deleted_archived[0],  # Общее количество удаленных
             # Обратите внимание: delete() возвращает кортеж (удаленные, детали)
             # Второй элемент содержит {'модель': количество} для каждой удаленной модели
+        })
+
+
+    # =========================================================================
+    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ КЭШ-ФРЕЙМВОРКА И Http404
+    # =========================================================================
+    
+    @action(detail=False, methods=['get'])
+    def cache_examples(self, request):
+        """
+        Демонстрация использования кэш-фреймворка Django
+        
+        Django Cache Framework предоставляет интерфейс для кэширования данных.
+        Конфигурация в settings.py (CACHES).
+        """
+        from django.core.cache import cache
+        
+        # =========================================================================
+        # ПРИМЕР 1: cache.set() и cache.get() - базовое кэширование
+        # =========================================================================
+        
+        # Кэширование количества активных товаров на 5 минут
+        cache_key = 'active_products_count'
+        cached_count = cache.get(cache_key)
+        
+        if cached_count is None:
+            # Если нет в кэше - получаем из БД
+            cached_count = Product.objects.filter(is_active=True).count()
+            # Сохраняем в кэш на 300 секунд (5 минут)
+            cache.set(cache_key, cached_count, 300)
+        
+        # =========================================================================
+        # ПРИМЕР 2: cache.set_many() и cache.get_many() - множественные операции
+        # =========================================================================
+        
+        # Кэширование статистики товаров
+        product_stats_data = {
+            'total_count': Product.objects.count(),
+            'active_count': Product.objects.filter(is_active=True).count(),
+            'archived_count': Product.objects.filter(status='archived').count(),
+        }
+        cache.set_many({
+            'product_stats_total': product_stats_data['total_count'],
+            'product_stats_active': product_stats_data['active_count'],
+            'product_stats_archived': product_stats_data['archived_count'],
+        }, 300)
+        
+        # Получение нескольких значений
+        stats_cached = cache.get_many(['product_stats_total', 'product_stats_active'])
+        
+        # =========================================================================
+        # ПРИМЕР 3: cache.delete() и cache.clear() - удаление
+        # =========================================================================
+        
+        # Удаление конкретного ключа
+        # cache.delete('active_products_count')
+        
+        # Очистка всего кэша
+        # cache.clear()
+
+        return Response({
+            'cached_count': cached_count,
+            'product_stats_data': product_stats_data,
+            'stats_from_cache': stats_cached,
+            'cache_info': 'Данные кэшируются на 300 секунд (5 минут)'
+        })
+    
+    @action(detail=False, methods=['get'])
+    def http404_examples(self, request):
+        """
+        Демонстрация использования исключения Http404
+        
+        Http404 - исключение, которое возвращает страницу 404.
+        Используется, когда запрашиваемый объект не найден.
+        """
+        from django.http import Http404
+        
+        # =========================================================================
+        # ПРИМЕР 1: get_object_or_404() - автоматический raise Http404
+        # =========================================================================
+        
+        # get_object_or_404() автоматически вызывает Http404 если объект не найден
+        # Это наиболее частый способ использования
+        product_id = request.query_params.get('product_id', 1)
+        
+        try:
+            # Попытка получить товар
+            product = get_object_or_404(Product, pk=product_id)
+            product_name = product.name
+            product_price = str(product.price)
+            found = True
+        except Http404:
+            product_name = None
+            product_price = None
+            found = False
+        
+        # =========================================================================
+        # ПРИМЕР 2: Ручной вызов raise Http404
+        # =========================================================================
+        
+        # Можно вызвать Http404 вручную с сообщением
+        request_id = request.query_params.get('request_id')
+        if request_id:
+            # Пример: проверка существования объекта
+            from suppliers.models import SupplierProductRequest
+            request_obj = SupplierProductRequest.objects.filter(pk=request_id).first()
+            
+            if request_obj is None:
+                # Ручной raise Http404 с сообщением
+                raise Http404(f'Заявка с ID {request_id} не найдена')
+            
+            request_data = {
+                'id': request_obj.id,
+                'name': request_obj.name,
+                'status': request_obj.status
+            }
+        else:
+            request_data = None
+        
+        return Response({
+            # get_object_or_404 пример
+            'product_found': found,
+            'product_name': product_name,
+            'product_price': product_price,
+            # Ручной raise Http404 пример
+            'request_data': request_data,
+            'http404_example': 'Если объект не найден - вызывается Http404',
         })
 
 
