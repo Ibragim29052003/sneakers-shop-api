@@ -343,10 +343,10 @@ class SupplierContract(models.Model):
             'affected_products': affected_products
         }
 
-
+#555555##
 class ContractDocument(models.Model):
     """
-    Документы, прикреплённые к договору
+    Документы, прикреплённые к договору.
     """
     contract = models.ForeignKey(
         SupplierContract,
@@ -483,7 +483,12 @@ class SupplierProductRequest(models.Model):
 
 class RequestDocument(models.Model):
     """
-    Документы, прикреплённые к заявке на поставку
+    Документы, прикреплённые к заявке на поставку.
+
+    ПРИМЕР ИСПОЛЬЗОВАНИЯ models.FileField() для заявок:
+    - upload_to='requests/documents/%Y/%m/%d' - отдельная директория
+    - file_name - название файла для отображения
+    - uploaded_by - кто загрузил
     """
     request = models.ForeignKey(
         SupplierProductRequest,

@@ -18,14 +18,18 @@ class CategorySerializer(serializers.ModelSerializer):
             'is_active', 'created_at', 'updated_at', 'subcategories_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
-    
+
+#333333$$ Получение количества подкатегорий
+
     def get_subcategories_count(self, obj):
-        """Получение количества подкатегорий."""
         return obj.subcategories.count()
 
+#@@@ser 5555 (46 - Сериализаторы строят абсолютную ссылку, чтобы фронтенд мог сразу показать изображение)
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели изображений товара."""
+    """
+    Сериализатор для изображений товара.
+    """
     image = serializers.SerializerMethodField()
     
     class Meta:
@@ -79,6 +83,7 @@ class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
     main_image_url = serializers.SerializerMethodField()
+    absolute_url = serializers.SerializerMethodField()
     supplier_name = serializers.SerializerMethodField()
     # Поле для создания товара с категориями - поддерживает categories_ids и categories
     categories_ids = serializers.ListField(
@@ -99,7 +104,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'price', 'old_price', 'sku',
             'is_active', 'created_at', 'updated_at', 'categories', 'categories_ids',
-            'images', 'main_image_url', 'external_url', 'supplier', 'supplier_name',
+            'images', 'main_image_url', 'absolute_url', 'external_url', 'supplier', 'supplier_name',
             'published_pages', 'image_urls'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -126,6 +131,9 @@ class ProductSerializer(serializers.ModelSerializer):
         if first_image:
             return self.get_media_url(first_image.image.url)
         return None
+
+    def get_absolute_url(self, obj): # отдать ссылку на товар 
+        return self.get_media_url(obj.get_absolute_url())
     
     def get_supplier_name(self, obj):
         """Получение имени поставщика."""
@@ -175,7 +183,7 @@ class ProductSerializer(serializers.ModelSerializer):
             # Убираем начальный слэш если есть
             if clean_path.startswith('/'):
                 clean_path = clean_path[1:]
-            
+#@@@ser
             # Создаём объект изображения
             ProductImage.objects.create(
                 product=product,
@@ -209,6 +217,15 @@ class ProductSerializer(serializers.ModelSerializer):
                     pass
         
         return instance
+
+
+class ProductSupplierDemoSerializer(serializers.ModelSerializer):
+    """Упрощенный сериализатор для демонстрации select_related('supplier')."""
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'supplier', 'supplier_name']
 
 
 class ProductCategorySerializer(serializers.ModelSerializer):

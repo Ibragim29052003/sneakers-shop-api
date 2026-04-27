@@ -13,6 +13,10 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-default-key')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['*']
+INTERNAL_IPS = [
+    '127.0.0.1',
+    'localhost',
+]
 
 # определение приложения
 INSTALLED_APPS = [
@@ -30,6 +34,7 @@ INSTALLED_APPS = [
     'import_export',
     'simple_history',
     'corsheaders',
+    'debug_toolbar',
     
     # локальные приложения
     'users',
@@ -43,6 +48,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -117,6 +123,8 @@ STATICFILES_DIRS = [
 ]
 
 # медиа файлы (загрузки)
+# MEDIA_URL - URL по которому будут доступны загруженные файлы
+# MEDIA_ROOT - физическая директория для хранения файлов
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

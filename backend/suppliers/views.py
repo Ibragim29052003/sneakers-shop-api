@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db.models import Q
 
 from .models import (
     Supplier,
@@ -206,15 +207,32 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
+        search_query = (self.request.query_params.get('search') or '').strip()
+        case_sensitive = self.request.query_params.get('case_sensitive', 'false').lower() == 'true'
+
         # Админ видит все заявки
         if user.is_staff or user.user_roles.filter(role__name='admin').exists():
-            return SupplierProductRequest.objects.all()
+            queryset = SupplierProductRequest.objects.all()
         # Менеджер видит свои назначенные заявки
-        if hasattr(self, 'action') and self.action in ['list', 'retrieve']:
-            return SupplierProductRequest.objects.filter(
+        elif hasattr(self, 'action') and self.action in ['list', 'retrieve']:
+            queryset = SupplierProductRequest.objects.filter(
                 manager_id=user.id
             ) | SupplierProductRequest.objects.filter(supplier__contact_person=user.email)
-        return SupplierProductRequest.objects.filter(manager_id=user.id)
+        else:
+            queryset = SupplierProductRequest.objects.filter(manager_id=user.id)
+
+        if search_query:
+            lookup = 'contains' if case_sensitive else 'icontains'
+            search_filter = (
+                Q(**{f'product_name__{lookup}': search_query}) |
+                Q(**{f'product_sku__{lookup}': search_query}) |
+                Q(**{f'product_description__{lookup}': search_query}) |
+                Q(**{f'notes__{lookup}': search_query}) |
+                Q(**{f'supplier__name__{lookup}': search_query})
+            )
+            queryset = queryset.filter(search_filter)
+
+        return queryset.distinct()
     
     def perform_create(self, serializer):
         serializer.save()

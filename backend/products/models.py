@@ -1,6 +1,4 @@
-"""
-модели приложения товаров
-"""
+
 from django.db import models
 from django.utils import timezone
 from django.utils.html import format_html
@@ -10,7 +8,7 @@ from django.utils.text import slugify
 from simple_history.models import HistoricalRecords
 from datetime import timedelta
 
-
+#%%333333vi162
 class ProductManager(models.Manager):
     """
     Кастомный менеджер модели товара
@@ -54,6 +52,7 @@ class Category(models.Model):
     # модель категории с иерархической структурой
     name = models.CharField('название категории', max_length=100)
     description = models.TextField('описание', blank=True)
+#333333$$ser22view39
     parent = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -88,34 +87,7 @@ class Category(models.Model):
 class ProductCategory(models.Model):
     """
     Промежуточная модель для связи товаров и категорий (M2M).
-    
-    ПРИМЕР ИСПОЛЬЗОВАНИЯ ManyToManyField с through:
-    
-    through параметр позволяет создать промежуточную модель с дополнительными полями.
     В данном случае мы храним дату добавления товара в категорию (created_at).
-    
-    БЕЗ through (простая M2M связь):
-    - Только связи product_id и category_id
-    - Нельзя добавить дополнительные данные
-    
-    С through (данная реализация):
-    - Можно хранить дату добавления
-    - Можно добавить другие поля (например, порядок, приоритет)
-    - Можно добавить методы и логику к связи
-    
-    ПРИМЕР ИСПОЛЬЗОВАНИЯ:
-    product = Product.objects.get(pk=1)
-    category = Category.objects.get(pk=1)
-    
-    # Добавление товара в категорию
-    ProductCategory.objects.create(product=product, category=category)
-    
-    # Или через add() метод
-    product.categories.add(category)  # автоматически создаёт ProductCategory
-    
-    # Получение всех связей товара
-    product.product_categories.all()  # все связи товара с категориями
-    category.category_products.all()   # все связи категории с товарами
     """
     product = models.ForeignKey(
         'Product',
@@ -139,15 +111,15 @@ class ProductCategory(models.Model):
     def __str__(self):
         return f'{self.product.name} - {self.category.name}'
 
-
+#@@@ser and 55555
 class ProductImage(models.Model):
-    # модель изображений товара
     product = models.ForeignKey(
         'Product',
         on_delete=models.CASCADE,
-        related_name='images',
+        related_name='images', # для связи Product -> ProductImage
         verbose_name='товар'
     )
+
     image = models.ImageField('изображение', upload_to='products/%Y/%m/%d')
     is_main = models.BooleanField('основное изображение', default=False)
     alt_text = models.CharField('альтернативный текст', max_length=200, blank=True)
@@ -171,7 +143,7 @@ class ProductImage(models.Model):
             )
         return ''
 
-
+#**66666
 class SliderImage(models.Model):
     """
     Модель для изображений слайдера на главной странице.
@@ -233,31 +205,10 @@ class SliderImage(models.Model):
             )
         return ''
 
-
+#3333333##
 class Product(models.Model):
-    """
-    Основная модель товара.
     
-    ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ timezone:
-    
-    1. Пример: При создании товара сохраняется дата создания (created_at).
-       Это дата, когда товар был добавлен в систему.
-       Используется для:
-       - Сортировки товаров по новизне
-    - Фильтрации товаров за последние N дней
-    - Отображения "новых поступлений" на сайте
-    
-    2. Пример: Расчёт скидки в зависимости от срока хранения на складе.
-       Если товар хранится более 30 дней, применяется скидка:
-       - 30+ дней: скидка 5%
-    - 60+ дней: скидка 10%
-    - 90+ дней: скидка 20%
-    
-    3. Пример: Определение "свежести" товара для маркетплейса.
-       Товары менее 7 дней считаются "новыми", отображаются в разделе "Новинки".
-    """
-    
-    # Статусы товара для демонстрации choices
+    # Статусы товара
     STATUS_CHOICES = [
         ('draft', 'Черновик'),
         ('active', 'Активен'),
@@ -265,8 +216,9 @@ class Product(models.Model):
         ('out_of_stock', 'Нет в наличии'),
     ]
     
-    # Кастомный менеджер
+    
     objects = ProductManager()
+    all_objects = models.Manager()
     
     name = models.CharField('название товара', max_length=200)
     description = models.TextField('описание', blank=True)
@@ -304,7 +256,7 @@ class Product(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='products',
+        related_name='products', # для связи Supplier -> Product
         verbose_name='поставщик'
     )
     contract = models.ForeignKey(
@@ -331,38 +283,16 @@ class Product(models.Model):
         related_name='products',
         verbose_name='источник создания'
     )
-    
-    # Связь с категориями
-    # ПРИМЕР ИСПОЛЬЗОВАНИЯ ManyToManyField с through параметром:
-    #
-    # through=ProductCategory указывает на промежуточную модель
-    # Это позволяет хранить дополнительные данные о связи (дату добавления)
-    #
-    # Через related_name='products' можно обращаться:
-    # - category.products.all() - все товары в категории
-    # - product.categories.all() - все категории товара
-    #
-    # используем related_name вместо direct ManyToMany для совместимости с ProductCategory
+#444444(())
+
     categories = models.ManyToManyField(
         Category,
         through=ProductCategory,
         related_name='products',
         verbose_name='категории'
     )
-    
-    # =========================================================================
-    # ПРИМЕР ИСПОЛЬЗОВАНИЯ models.URLField()
-    # =========================================================================
+
     # URLField - поле для хранения URL-адресов
-    # max_length=200 - максимальная длина URL
-    # blank=True - поле может быть пустым (необязательное)
-    # verify_exists=False - не проверять существование URL (для производительности)
-    #
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ:
-    # product = Product.objects.get(pk=1)
-    # product.external_url = 'https://example.com/product/123'
-    # product.save()
-    #
     # В админке/сериализаторе поле будет валидировать URL
     external_url = models.URLField(
         'внешняя ссылка',
@@ -383,18 +313,21 @@ class Product(models.Model):
     # отслеживание истории изменений через simple_history
     history = HistoricalRecords()
     
+#333333##
     class Meta:
         verbose_name = 'товар'
         verbose_name_plural = 'товары'
-        ordering = ['-created_at']
+        ordering = ['-created_at'] # минус означает сортировку по убыванию
     
     def __str__(self):
         return self.name
     
+
+#$%555вопрос555
     def get_main_image(self):
         # получение основного изображения товара
         return self.images.filter(is_main=True).first()
-    
+    # заголовок колонки в админке
     @display(description='цена')
     def get_price_with_currency(self):
         # отображение цены с символом валюты
@@ -404,54 +337,25 @@ class Product(models.Model):
     def get_categories_list(self):
         # получение списка названий категорий
         return ', '.join([c.name for c in self.categories.all()])
+# reverse() для генерации URL по имени маршрута
     
+    
+#**333se135
     def get_absolute_url(self):
-        """
-        Возвращает абсолютный URL для товара.
-        Использует reverse() для генерации URL по имени маршрута.
-        
-        Пример использования в шаблоне:
-        <a href="{{ product.get_absolute_url }}">{{ product.name }}</a>
-        
-        Пример использования в коде:
-        product = Product.objects.get(pk=1)
-        url = product.get_absolute_url()  # -> '/api/v1/products/1/'
-        
-        reverse() ищет маршрут по имени 'product-detail', который автоматически
-        создаётся DRF Router при регистрации ViewSet с basename='product'.
-        """
+
         return reverse('product-detail', kwargs={'pk': self.pk})
-    
+#33333##
     def get_days_in_warehouse(self):
         """
-        ПРИМЕР ИСПОЛЬЗОВАНИЯ timezone:
-        
         Рассчитывает количество дней, которое товар хранится на складе.
-        
-        Returns:
-            int: Количество дней на складе или 0 если дата не указана
         """
         if self.warehouse_date:
-            # Используем timezone.now() для получения текущей даты с учётом временной зоны
             days = (timezone.now().date() - self.warehouse_date).days
-            return max(0, days)  # Не возвращаем отрицательные значения
+            return max(0, days)
         return 0
     
     def get_discount_percentage(self):
-        """
-        ПРИМЕР ИСПОЛЬЗОВАНИЯ timezone:
-        
-        Рассчитывает процент скидки в зависимости от срока хранения на складе.
-        
-        Бизнес-логика:
-        - Товар на складе менее 30 дней: скидка 0%
-        - 30-59 дней: скидка 5%
-        - 60-89 дней: скидка 10%
-        - 90+ дней: скидка 20%
-        
-        Returns:
-            int: Процент скидки (0-20)
-        """
+
         days = self.get_days_in_warehouse()
         
         if days >= 90:
@@ -465,10 +369,7 @@ class Product(models.Model):
     
     def get_discounted_price(self):
         """
-        ПРИМЕР ИСПОЛЬЗОВАНИЯ timezone:
-        
         Рассчитывает цену со скидкой на основе срока хранения товара.
-        
         Returns:
             Decimal: Цена со скидкой
         """
@@ -477,13 +378,8 @@ class Product(models.Model):
         return self.price * (Decimal('1') - discount)
     
     def is_new(self):
-        """
-        ПРИМЕР ИСПОЛЬЗОВАНИЯ timezone:
-        
+        """        
         Определяет, является ли товар "новым" (менее 7 дней с момента создания).
-        
-        Returns:
-            bool: True если товар новый
         """
         days_since_creation = (timezone.now() - self.created_at).days
         return days_since_creation < 7

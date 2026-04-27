@@ -130,8 +130,8 @@ class CategoryAdmin(SimpleHistoryAdmin):
 @admin.register(Product)
 class ProductAdmin(SimpleHistoryAdmin):
     # настройка админки для модели товара
-    list_display = ('name', 'sku', 'get_price_display', 'get_old_price_display', 'get_is_active_status', 'created_at', 'get_category_list')
-    list_filter = ('is_active', 'product_categories__category', 'created_at', 'price')
+    list_display = ('name', 'sku', 'status', 'get_price_display', 'get_old_price_display', 'created_at', 'get_category_list')
+    list_filter = ('status', 'product_categories__category', 'created_at', 'price')
     search_fields = ('name', 'description', 'sku')
     list_per_page = 25
     date_hierarchy = 'created_at'
@@ -142,7 +142,7 @@ class ProductAdmin(SimpleHistoryAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'description', 'sku', 'price', 'old_price', 'is_active')
+            'fields': ('name', 'description', 'sku', 'price', 'old_price', 'status')
         }),
         (_('Категории'), {
             'fields': (),
@@ -158,21 +158,28 @@ class ProductAdmin(SimpleHistoryAdmin):
     
     class Media:
         js = ('admin/js/product_filters.js',)
+
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if db_field.name == 'status':
+            kwargs['choices'] = [
+                ('active', 'Активен'),
+                ('draft', 'Черновик'),
+            ]
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        # Делаем статус главным переключателем видимости товара.
+        obj.is_active = obj.status == 'active'
+        super().save_model(request, obj, form, change)
     
-    # =========================================================================
-    # ПРИМЕРЫ АДМИНСКИХ ДЕЙСТВИЙ (ADMIN ACTIONS)
-    # =========================================================================
-    
+
+#555555##
     def archive_products(self, request, queryset):
         """
         Действие: архивирование выбранных товаров.
-        
-        ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ ADMIN ACTIONS:
         1. Массовое удаление объектов
         2. Массовое изменение статуса
         3. Экспорт данных
-        4. Отправка email уведомлений
-        5. Генерация отчётов
         """
         updated = queryset.update(status='archived', is_active=False)
         self.message_user(request, f'{updated} товаров архивировано.')
@@ -191,24 +198,11 @@ class ProductAdmin(SimpleHistoryAdmin):
     mark_as_draft.short_description = 'Перевести в черновик'
     
     # Регистрация действий
-    actions = [archive_products, activate_products, mark_as_draft, 'generate_pdf_report']
-    
-    # =========================================================================
-    # ПРИМЕР ГЕНЕРАЦИИ PDF В АДМИНКЕ
-    # =========================================================================
+    actions = [activate_products, mark_as_draft, 'generate_pdf_report']
+##55555#
     
     def generate_pdf_report(self, request, queryset):
-        """
-        Действие: генерация PDF отчёта о выбранных товарах.
-        
-        ПРИМЕР ГЕНЕРАЦИИ PDF (стр. 488 учебника):
-        
-        Использование reportlab для создания PDF документов:
-        1. Создание документа с помощью SimpleDocTemplate
-        2. Добавление таблиц, параграфов, изображений
-        3. Стилизация элементов
-        4. Возврат HTTP ответа с PDF
-        """
+    
         import os
         
         # Шрифт с поддержкой кириллицы (Arial Unicode MS)

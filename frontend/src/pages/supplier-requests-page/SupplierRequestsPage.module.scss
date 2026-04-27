@@ -88,6 +88,137 @@
   }
 }
 
+.searchBar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: rem(12);
+  margin-bottom: rem(24);
+
+  @include tablet {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  &__toggle {
+    @include wb-button;
+    @include square(48);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      width: rem(20);
+      height: rem(20);
+    }
+  }
+}
+
+.searchPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: rem(16);
+  align-items: end;
+  flex: 1;
+  max-width: rem(980);
+  padding: rem(18);
+  background: var(--color-white);
+  border: var(--border);
+  border-radius: rem(10);
+
+  @include tablet {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  &__field {
+    min-width: 0;
+  }
+
+  &__label {
+    display: block;
+    margin-bottom: rem(8);
+    font-size: rem(14);
+    color: var(--color-gray);
+  }
+
+  &__input {
+    width: 100%;
+    min-height: rem(44);
+    padding: rem(10) rem(14);
+    border: var(--border);
+    border-radius: rem(8);
+    font-size: rem(14);
+    transition: border-color var(--transition-duration), box-shadow var(--transition-duration);
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 rem(3) rgba(102, 90, 181, 0.12);
+    }
+  }
+
+  &__modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: rem(12);
+    min-height: rem(44);
+    align-items: center;
+
+    @include tablet {
+      min-height: auto;
+    }
+  }
+
+  &__mode {
+    display: inline-flex;
+    align-items: center;
+    gap: rem(8);
+    font-size: rem(14);
+    color: var(--color-dark-gray);
+    cursor: pointer;
+
+    input {
+      accent-color: var(--color-purple);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: rem(10);
+    flex-wrap: wrap;
+  }
+
+  &__submit,
+  &__reset {
+    @include wb-button;
+    min-height: rem(44);
+    padding: rem(10) rem(18);
+    font-size: rem(14);
+  }
+
+  &__submit {
+    box-shadow: 0 rem(4) rem(15) rgba(102, 90, 181, 0.25);
+  }
+
+  &__reset {
+    background: var(--color-el-gray);
+    color: var(--color-gray);
+    box-shadow: none;
+    border: rem(1) solid var(--color-light-gray);
+
+    &:hover {
+      color: var(--color-white);
+      background: linear-gradient(
+        135deg,
+        var(--color-purple) 0%,
+        var(--color-lavender) 100%
+      );
+    }
+  }
+}
+
 .requestsList {
   display: flex;
   flex-direction: column;

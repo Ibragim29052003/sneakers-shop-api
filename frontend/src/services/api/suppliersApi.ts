@@ -262,6 +262,7 @@ export interface RequestFilterParams {
   supplier?: number;
   status?: number;
   search?: string;
+  case_sensitive?: boolean;
   page?: number;
   page_size?: number;
 }
@@ -375,11 +376,12 @@ export const suppliersApi = createApi({
     // Получить все заявки на поставку
     getSupplierRequests: builder.query<SupplierProductRequest[], RequestFilterParams>({
       query: (params) => {
-        const queryParams: Record<string, string | number | undefined> = {};
+        const queryParams: Record<string, string | number | boolean | undefined> = {};
         
         if (params.supplier) queryParams.supplier = params.supplier;
         if (params.status) queryParams.status = params.status;
         if (params.search) queryParams.search = params.search;
+        if (typeof params.case_sensitive === 'boolean') queryParams.case_sensitive = params.case_sensitive;
         if (params.page) queryParams.page = params.page;
         if (params.page_size) queryParams.page_size = params.page_size;
         

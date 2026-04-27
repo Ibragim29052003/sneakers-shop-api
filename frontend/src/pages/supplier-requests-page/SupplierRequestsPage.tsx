@@ -15,9 +15,14 @@ import { CreateSupplierRequestForm } from './index';
 import styles from './SupplierRequestsPage.module.scss';
 
 type TabType = 'all' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'contracts';
+type SearchMode = 'insensitive' | 'sensitive';
 
 const SupplierRequestsPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('insensitive');
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const [managerId, setManagerId] = useState<string>('');
@@ -79,6 +84,8 @@ const SupplierRequestsPage = () => {
   const { data: statuses } = useGetRequestStatusesQuery();
   
   const { data: requests, isLoading, error } = useGetSupplierRequestsQuery({
+    search: submittedSearch || undefined,
+    case_sensitive: searchMode === 'sensitive',
     page_size: 100,
   });
 
@@ -254,6 +261,18 @@ const SupplierRequestsPage = () => {
     { key: 'contracts', label: 'Договоры' },
   ];
 
+  const handleSearchSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    setSubmittedSearch(searchInput.trim());
+  };
+
+  const handleSearchReset = () => {
+    setSearchInput('');
+    setSubmittedSearch('');
+    setSearchMode('insensitive');
+    setIsSearchOpen(false);
+  };
+
   if (isLoading || isLoadingRole) {
     return (
       <main className={styles.supplierRequestsPage}>
@@ -336,6 +355,84 @@ const SupplierRequestsPage = () => {
         </nav>
       )}
 
+      <div className={styles.searchBar}>
+        <button
+          type="button"
+          className={styles.searchBar__toggle}
+          onClick={() => setIsSearchOpen((prev) => !prev)}
+          aria-label={isSearchOpen ? 'Скрыть поиск' : 'Открыть поиск'}
+          aria-expanded={isSearchOpen}
+          aria-controls="request-search-panel"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="16.65" y1="16.65" x2="21" y2="21" />
+          </svg>
+        </button>
+
+        {isSearchOpen && (
+          <form
+            id="request-search-panel"
+            className={styles.searchPanel}
+            onSubmit={handleSearchSubmit}
+            aria-label="Поиск заявок"
+          >
+            <div className={styles.searchPanel__field}>
+              <label htmlFor="request-search" className={styles.searchPanel__label}>
+                Поиск по товарам
+              </label>
+              <input
+                id="request-search"
+                type="text"
+                className={styles.searchPanel__input}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Название, артикул, описание, поставщик"
+                autoFocus
+              />
+            </div>
+
+            <div className={styles.searchPanel__modes} role="radiogroup" aria-label="Режим поиска">
+              <label className={styles.searchPanel__mode}>
+                <input
+                  type="radio"
+                  name="search-mode"
+                  value="insensitive"
+                  checked={searchMode === 'insensitive'}
+                  onChange={() => setSearchMode('insensitive')}
+                />
+                Без учета регистра
+              </label>
+              <label className={styles.searchPanel__mode}>
+                <input
+                  type="radio"
+                  name="search-mode"
+                  value="sensitive"
+                  checked={searchMode === 'sensitive'}
+                  onChange={() => setSearchMode('sensitive')}
+                />
+                С учетом регистра
+              </label>
+            </div>
+
+            <div className={styles.searchPanel__actions}>
+              <button type="submit" className={styles.searchPanel__submit}>
+                Найти
+              </button>
+              {(submittedSearch || searchInput) && (
+                <button
+                  type="button"
+                  className={styles.searchPanel__reset}
+                  onClick={handleSearchReset}
+                >
+                  Сбросить
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
+
       {activeTab === 'contracts' ? (
         <section className={styles.emptyState} aria-label="Договоры">
           {contracts.length === 0 ? (
@@ -396,7 +493,11 @@ const SupplierRequestsPage = () => {
             </svg>
           </div>
           <h2 className={styles.emptyState__title}>Нет заявок</h2>
-          <p className={styles.emptyState__text}>Заявок с выбранным статусом не найдено</p>
+          <p className={styles.emptyState__text}>
+            {submittedSearch
+              ? `По запросу "${submittedSearch}" ничего не найдено`
+              : 'Заявок с выбранным статусом не найдено'}
+          </p>
         </section>
       ) : (
         <section className={styles.requestsList} aria-label="Список заявок">

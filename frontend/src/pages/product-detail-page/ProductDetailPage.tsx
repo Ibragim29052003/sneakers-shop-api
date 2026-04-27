@@ -243,6 +243,9 @@ const ProductDetailPage: FC = () => {
           >
             Повторить
           </button>
+          {/* <button onClick={() => navigate("/")}>
+            Вернуться в каталог
+          </button> */}
         </div>
       </div>
     );

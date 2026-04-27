@@ -18,7 +18,7 @@ from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value
 from django.db.models.functions import Concat
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Category, Product, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
-from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer
+from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer, ProductSupplierDemoSerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -34,25 +34,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Получение списка категорий с предзагрузкой подкатегорий.
-        
-        ПРИМЕР ИСПОЛЬЗОВАНИЯ prefetch_related():
-        
-        prefetch_related() - выполняет отдельный запрос для связанных объектов
-        и "присоединяет" их к основному запросу. Используется для:
-        - Обратных связей (ForeignKey с related_name)
-        - Связей ManyToMany
-        - Обратных связей OneToOne
-        
-        В данном случае: category.subcategories - это обратная связь через ForeignKey.
-        
-        Пример SQL без prefetch_related():
-        SELECT * FROM products_category;  -- 1 запрос
-        SELECT * FROM products_category WHERE parent_id IN (1,2,3);  -- N запросов
-        
-        Пример SQL с prefetch_related():
-        SELECT * FROM products_category;  -- 1 запрос
-        SELECT * FROM products_category WHERE parent_id IN (1,2,3);  -- 1 запрос (все подкатегории сразу)
         """
+
         return super().get_queryset().prefetch_related('subcategories')
 
 
@@ -81,11 +64,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     
     def get_queryset(self):
-        """
-        Получение списка товаров с предзагрузкой категорий и изображений.
-        Также поддерживает фильтрацию по colors, sizes, fabrics.
-        """
-        queryset = super().get_queryset().prefetch_related('categories', 'images')
+        queryset = (
+            super()
+            .get_queryset()
+            .exclude(status='draft')
+            .prefetch_related('categories', 'images')
+        )
         
         # Получаем параметры фильтров из query params
         category_param = self.request.query_params.get('category')
@@ -153,25 +137,57 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save()
+
+    @action(detail=False, methods=['get'], url_path='supplier-demo')
+    def supplier_demo(self, request):
+        """
+        Демонстрация N+1 проблемы для связи Product -> supplier.
+        """
+        queryset = Product.objects.filter(supplier__isnull=False).order_by('id')
+###444############# http://127.0.0.1:8000/api/v1/products/supplier-demo/
+        queryset = queryset.select_related('supplier')
+
+        limit = request.query_params.get('limit')
+        if limit and limit.isdigit():
+            queryset = queryset[:int(limit)]
+        else:
+            queryset = queryset[:20]
+
+        serializer = ProductSupplierDemoSerializer(
+            queryset,
+            many=True,
+            context={'request': request},
+        )
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def manager_examples(self, request):
+        all_products_via_objects = Product.objects.all()
+        all_products_via_default_manager = Product.all_objects.all()
+        active_products = Product.objects.active()
+        recent_products = Product.objects.recently_created(days=30)
+        price_range_products = Product.objects.with_price_range(min_price=100, max_price=1000)
+        uncategorized_products = Product.objects.without_category()
+
+        return Response({
+            'objects_all_count': all_products_via_objects.count(),
+            'all_objects_count': all_products_via_default_manager.count(),
+            'all_products_print': list(
+                all_products_via_objects.values('id', 'name', 'status', 'price')
+            ),
+            'active_products_count': active_products.count(),
+            'recent_products_count': recent_products.count(),
+            'price_range_products_count': price_range_products.count(),
+            'without_category_count': uncategorized_products.count(),
+        })
     
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ filter()
-    # =========================================================================
-    
+#333333##
     @action(detail=False, methods=['get'])
     def filter_examples(self, request):
-        """
-        Демонстрация различных способов использования filter()
-        
-        filter() - метод для фильтрации queryset по заданным условиям.
-        Возвращает новый QuerySet с отфильтрованными объектами.
-        """
-        
-        # Пример 1: filter() с простыми условиями
+
         # Найти все активные товары
         active_products = Product.objects.filter(is_active=True)
         
-        # Пример 2: filter() с несколькими условиями (AND)
         # Найти активные товары с ценой от 100 до 1000
         active_price_range = Product.objects.filter(
             is_active=True,
@@ -179,20 +195,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             price__lte=1000
         )
         
-        # Пример 3: filter() с использованием __ (double underscore)
         # Найти товары конкретного поставщика
         # products/suppliers__name - обращение к связанной таблице через __
         supplier_products = Product.objects.filter(supplier__name='Поставщик ООО')
         
-        # Пример 4: filter() с lookup типами
+     
         # Найти товары с ценой больше или равно
         expensive_products = Product.objects.filter(price__gte=500)
         
-        # Пример 5: filter() с связанными полями через __
         # Найти товары в конкретной категории
         category_products = Product.objects.filter(categories__id=1)
         
-        # Пример 6: filter() с датами
         # Найти товары, созданные за последние 7 дней
         from django.utils import timezone
         from datetime import timedelta
@@ -209,40 +222,32 @@ class ProductViewSet(viewsets.ModelViewSet):
             'recent_products_count': recent_products.count(),
         })
     
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ exclude()
-    # =========================================================================
+   
     
     @action(detail=False, methods=['get'])
     def exclude_examples(self, request):
-        """
-        Демонстрация использования exclude()
-        
+        """  
         exclude() - метод для исключения объектов, соответствующих условиям.
         Возвращает QuerySet с объектами, НЕ соответствующими условиям.
         """
         
-        # Пример 1: exclude() - исключить товары определённого статуса
-        # Исключить черновики
+        # исключить товары определённого статуса
         not_drafts = Product.objects.exclude(status='draft')
         
-        # Пример 2: exclude() с несколькими условиями
         # Исключить товары без поставщика И с ценой ниже 100
         excluded_products = Product.objects.exclude(
             supplier__isnull=True,
             price__lt=100
         )
         
-        # Пример 3: exclude() с связанными полями через __
         # Исключить товары конкретного поставщика
         exclude_supplier = Product.objects.exclude(supplier__name='Тестовый Поставщик')
         
-        # Пример 4: exclude() комбинированный с filter()
         # Сначала фильтруем по активности, затем исключаем определённую категорию
         filtered = Product.objects.filter(is_active=True)
         result = filtered.exclude(categories__id__in=[1, 2])
         
-        # Пример 5: exclude() с Q объектами для сложных условий
+        # exclude() с Q объектами для сложных условий
         from django.db.models import Q
         complex_exclude = Product.objects.exclude(
             Q(status='archived') | Q(price__lt=10)
@@ -256,37 +261,32 @@ class ProductViewSet(viewsets.ModelViewSet):
             'complex_exclude_count': complex_exclude.count(),
         })
     
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ order_by()
-    # =========================================================================
     
     @action(detail=False, methods=['get'])
     def order_by_examples(self, request):
-        """
-        Демонстрация использования order_by()
-        
+        """       
         order_by() - метод для сортировки результатов запроса.
         По умолчанию сортировка по возрастанию.
         Для сортировки по убыванию используется минус (-).
         """
         
-        # Пример 1: order_by() по одному полю (по возрастанию)
+        # по одному полю (по возрастанию)
         # Сортировка по названию товара (А-Я)
         by_name = Product.objects.order_by('name')
         
-        # Пример 2: order_by() по убыванию
+        # по убыванию
         # Сортировка по дате создания (новые первые)
         by_created_desc = Product.objects.order_by('-created_at')
         
-        # Пример 3: order_by() по нескольким полям
+        # по нескольким полям
         # Сначала по статусу, затем по цене
         by_status_and_price = Product.objects.order_by('status', 'price')
         
-        # Пример 4: order_by() с связанными полями через __
+        # с связанными полями через __
         # Сортировка по имени поставщика
         by_supplier = Product.objects.order_by('supplier__name')
         
-        # Пример 5: order_by() с annotate (аннотация)
+        # с annotate (аннотация)
         # Сортировка по количеству изображений
         from django.db.models import Count
         by_images_count = Product.objects.annotate(
@@ -310,16 +310,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             'by_images_count_count': by_images_count.count(),
             'custom_order_count': custom_order.count(),
         })
-    
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ __ (double underscore)
-    # =========================================================================
+
     
     @action(detail=False, methods=['get'])
     def double_underscore_examples(self, request):
         """
-        Демонстрация использования __ (double underscore)
-        
         Django ORM использует __ для:
         1. Доступа к полям связанных таблиц (related table lookup)
         2. Вызова методов (queryset methods)
@@ -327,44 +322,34 @@ class ProductViewSet(viewsets.ModelViewSet):
         ВАРИАНТ 1: Обращение к связанной таблице (related table lookup)
         """
         
-        # ВАРИАНТ 1: Обращение к связанной таблице через __
+        # Обращение к связанной таблице через __
         
-        # Пример 1.1: products.supplier__name
         # Найти товары, где имя поставщика содержит "ООО"
         products_by_supplier_name = Product.objects.filter(
             supplier__name__icontains='ООО'
         )
         
-        # Пример 1.2: products.categories__id
         # Найти товары, которые находятся в категории с ID=1
         products_in_category = Product.objects.filter(
             categories__id=1
         )
         
-        # Пример 1.3: products.supplier__contract__status
-        # Найти товары от поставщиков с активным договором
-        # Три уровня вложенности: Product -> Supplier -> SupplierContract -> status
         products_with_active_contract = Product.objects.filter(
             supplier__contracts__status__name='active'
         )
         
-        # Пример 1.4: products.supplier__contracts__end_date__gte
-        # Найти товары от поставщиков, у которых есть действующий договор (не истёк)
         from django.utils import timezone
         from datetime import timedelta
         products_valid_contract = Product.objects.filter(
             supplier__contracts__end_date__gte=timezone.now().date()
         )
         
-        # Пример 1.5: products.images__is_main
-        # Найти товары с главным изображением
         products_with_main_image = Product.objects.filter(
             images__is_main=True
         )
         
-        # ВАРИАНТ 2: Методы (queryset methods) с __
+        # Методы (queryset methods) с __
         
-        # Пример 2.1: filter() и annotate() - агрегация
         # Найти товары и добавить количество изображений как аннотацию
         products_with_image_count = Product.objects.annotate(
             image_count=Count('images')
@@ -408,24 +393,18 @@ class ProductViewSet(viewsets.ModelViewSet):
             'prefetched_count': products_prefetched.count(),
         })
     
-    # =========================================================================
-    # ПРИМЕРЫ АГРЕГАЦИИ И АННОТИРОВАНИЯ (3 примера)
-    # =========================================================================
+
     
     @action(detail=False, methods=['get'])
     def aggregation_examples(self, request):
-        """
-        Демонстрация функций агрегирования и аннотирования
-        
+        """        
         АГРЕГАЦИЯ (aggregate) - вычисляет одно значение для всего набора данных.
         Примеры: Sum, Count, Avg, Max, Min
         
         АННОТАЦИЯ (annotate) - вычисляет значение для каждого объекта отдельно.
         """
         
-        # =========================================================================
         # ПРИМЕР 1: Агрегация - общее количество и средняя цена товаров
-        # =========================================================================
         
         # aggregate() - вычисляет агрегированные значения для всего QuerySet
         # Возвращает словарь с результатами
@@ -437,19 +416,13 @@ class ProductViewSet(viewsets.ModelViewSet):
             total_value=Sum('price')
         )
         
-        # =========================================================================
         # ПРИМЕР 2: Аннотация - количество изображений для каждого товара
-        # =========================================================================
         
-        # annotate() - добавляет вычисляемое поле к каждому объекту в QuerySet
-        # Результат - новый QuerySet с дополнительным полем
         products_with_image_count = Product.objects.annotate(
             image_count=Count('images')
         ).values('id', 'name', 'image_count')
         
-        # =========================================================================
         # ПРИМЕР 3: Аннотация с фильтрацией - товары с категориями
-        # =========================================================================
         
         # Аннотация с условным подсчётом
         products_with_categories = Product.objects.annotate(
@@ -460,9 +433,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         ).values('id', 'name', 'category_count', 'has_main_image')
         
-        # =========================================================================
         # ДОПОЛНИТЕЛЬНЫЕ ПРИМЕРЫ АГРЕГАЦИИ
-        # =========================================================================
         
         # Агрегация по группам (GROUP BY)
         # Средняя цена товаров по статусам
@@ -516,9 +487,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'suppliers_with_product_count': list(suppliers_with_product_count)[:3],
         })
     
-    # =========================================================================
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ related_name
-    # =========================================================================
     
     @action(detail=False, methods=['get'])
     def related_name_examples(self, request):
@@ -600,23 +569,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             'user_orders': user_orders_data,
         })
     
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ __icontains и __contains
-    # =========================================================================
-    
+    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ __icontains (регистронезависимый) и __contains
+#**6
+
     @action(detail=False, methods=['get'])
     def contains_examples(self, request):
-        """
-        Демонстрация использования __icontains и __contains
-        
-        __icontains - регистронезависимый поиск подстроки (LIKE %...%)
-        __contains - регистрозависимый поиск подстроки (LIKE BINARY %...%)
-        """
-        
-        # =========================================================================
-        # ПРИМЕР 1: __icontains - регистронезависимый поиск
-        # =========================================================================
-        
+           
         # Найти товары, где название содержит "телефон" (любой регистр)
         # Эквивалентно: WHERE LOWER(name) LIKE LOWER('%телефон%')
         products_icontains = Product.objects.filter(
@@ -635,9 +593,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             supplier__name__icontains='ооо'
         )
         
-        # =========================================================================
         # ПРИМЕР 2: __contains - регистрозависимый поиск
-        # =========================================================================
         
         # Найти товары, где артикул (SKU) содержит "IPHONE" (точно так)
         # Эквивалентно: WHERE sku LIKE BINARY '%IPHONE%'
@@ -659,9 +615,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             sku__contains='2024'
         )
         
-        # =========================================================================
         # ПРИМЕР 3: Практическое применение
-        # =========================================================================
         
         # Поиск по нескольким полям с __icontains (OR условие)
         from django.db.models import Q
@@ -671,27 +625,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         
         return Response({
-            # __icontains примеры
             'icontains_phone_count': products_icontains.count(),
             'icontains_discount_count': products_with_discount.count(),
             'icontains_supplier_count': supplier_products_icontains.count(),
-            # __contains примеры
             'contains_iphone_count': products_contains_case.count(),
             'contains_pro_count': products_pro_contains.count(),
             'contains_active_2024_count': active_2024.count(),
-            # Практическое применение
             'multi_field_search_count': multi_field_search.count(),
         })
     
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ values() и values_list()
-    # =========================================================================
     
     @action(detail=False, methods=['get'])
     def values_examples(self, request):
-        """
-        Демонстрация использования values() и values_list()
-        
+        """        
         values() - возвращает QuerySet с словарями (QuerySet[dict])
         values_list() - возвращает QuerySet с кортежами (QuerySet[tuple])
         
@@ -699,49 +645,31 @@ class ProductViewSet(viewsets.ModelViewSet):
         эти методы позволяют получить только нужные поля.
         """
         
-        # =========================================================================
-        # ПРИМЕР 1: values() - возвращает словари
-        # =========================================================================
         
-        # Получить только id и name всех товаров
-        # Результат: [{'id': 1, 'name': 'Товар 1'}, {'id': 2, 'name': 'Товар 2'}]
         products_values = Product.objects.values('id', 'name')
         
-        # values() с фильтрацией
-        # Получить name и price активных товаров
         active_products_values = Product.objects.filter(
             is_active=True
         ).values('name', 'price')
         
-        # values() с аннотацией
-        # Получить товары с количеством изображений
+        #  товары с количеством изображений
         products_with_image_count = Product.objects.annotate(
             image_count=Count('images')
         ).values('name', 'image_count')
         
-        # values() по связанным полям (через __)
-        # Получить название товара и имя поставщика
         products_with_supplier = Product.objects.values(
             'name', 'supplier__name'
         )
         
-        # values() + order_by
-        # Получить товары отсортированные по цене
+        #  товары отсортированные по цене
         products_ordered = Product.objects.values(
             'name', 'price'
         ).order_by('price')
         
-        # =========================================================================
-        # ПРИМЕР 2: values_list() - возвращает кортежи
-        # =========================================================================
         
-        # Получить список всех названий товаров
-        # flat=True преобразует кортежи в плоский список
-        # Результат: ['Товар 1', 'Товар 2', 'Товар 3']
         products_names_list = Product.objects.values_list('name', flat=True)
         
         # values_list() без flat - возвращает кортежи
-        # Результат: [(1, 'Товар 1'), (2, 'Товар 2')]
         products_id_name = Product.objects.values_list('id', 'name')
         
         # values_list() с фильтрацией
@@ -762,9 +690,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'status', flat=True
         ).distinct()
         
-        # =========================================================================
         # ПРИМЕР 3: Практическое применение
-        # =========================================================================
         
         # Получить словарь {id: name} для создания ChoiceField
         product_choices = dict(Product.objects.values_list('id', 'name'))
@@ -790,25 +716,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             'first_5_values': first_5_values,
         })
     
-    # =========================================================================
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ count() и exists()
-    # =========================================================================
     
     @action(detail=False, methods=['get'])
     def count_exists_examples(self, request):
-        """
-        Демонстрация использования count() и exists()
         
-        count() - возвращает количество объектов в QuerySet (integer)
-        exists() - возвращает True если есть хотя бы один объект (boolean)
-        
-        ВАЖНО: count() и exists() более эффективны чем len(queryset)
-        потому что не загружают объекты в память.
-        """
-        
-        # =========================================================================
-        # ПРИМЕР 1: count() - подсчёт количества объектов
-        # =========================================================================
         
         # Общее количество товаров
         total_products = Product.objects.count()
@@ -841,9 +753,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             image_count=Count('images')
         ).filter(image_count__gt=0).count()
         
-        # =========================================================================
         # ПРИМЕР 2: exists() - проверка наличия объектов
-        # =========================================================================
         
         # Проверить существует ли хотя бы один товар
         has_any_product = Product.objects.exists()
@@ -868,9 +778,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         # Проверить уникальность перед созданием
         sku_exists = Product.objects.filter(sku='UNIQUE-SKU-123').exists()
         
-        # =========================================================================
         # ПРИМЕР 3: Практическое применение
-        # =========================================================================
         
         # Паттерн: если товаров много - показать сообщение
         if total_products > 100:
@@ -910,40 +818,44 @@ class ProductViewSet(viewsets.ModelViewSet):
             'product_available': product_available,
         })
     
-    # =========================================================================
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ update() и delete()
-    # =========================================================================
     
     @action(detail=False, methods=['get', 'post'])
     def update_delete_examples(self, request):
-        """
-        Демонстрация использования update() и delete()
-        
-        update() - массовое обновление полей объектов (возвращает количество)
-        delete() - массовое удаление объектов (возвращает количество удаленных)
-        
-        ВАЖНО: Эти методы выполняются на уровне БД, минуя модель.
-        Сигналы (post_save, post_delete) НЕ вызываются!
-        Для использования сигналов нужно обновлять/удалять объекты в цикле.
-        """
-        
-        # =========================================================================
-        # ПРИМЕР 1: update() - массовое обновление
-        # =========================================================================
-        
+                
         # Обновить статус всех активных товаров на 'archived'
         # Возвращает количество обновлённых записей
         archived_count = Product.objects.filter(
             is_active=False
         ).update(status='archived')
         
-        # update() с F() выражением - арифметика
-        # Увеличить цену всех товаров на 10%
-        # from django.db.models import F
+#№№ 
+        # F expressions (выражения F) позволяют ссылаться на значения полей модели непосредственно в запросах к базе данных. 
+
+        from django.db.models import F
         increased_price_count = Product.objects.filter(
             is_active=True
         ).update(price=F('price') * 1.1)
-        
+
+
+        # # Уменьшить количество на складе
+        # Product.objects.filter(inventory__quantity__gt=0).update(
+        #     inventory__quantity=F('inventory__quantity') - 1
+        # )
+
+        # # Обновить цену с учётом скидки
+        # Product.objects.all().update(
+        #     price=F('price') * (1 - F('discount_percentage') / 100)
+        # )
+
+        # # Найти товары, где цена меньше старой цены
+        # products = Product.objects.filter(price__lt=F('old_price'))
+
+        # # Найти товары с отрицательным остатком
+        # products = Product.objects.filter(
+        #     inventory__quantity__lt=F('min_stock_level')
+        # )
+                
         # update() с несколькими полями
         # Обновить статус и активность товаров без поставщика
         no_supplier_updated = Product.objects.filter(
@@ -970,12 +882,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         )
         
-        # =========================================================================
         # ПРИМЕР 2: delete() - массовое удаление
-        # =========================================================================
         
-        # Удалить все товары со статусом 'archived' и старше 1 года
-        # (в реальном приложении здесь была бы дата)
+        # Удалить все товары со статусом 'archived'
         deleted_archived = Product.objects.filter(
             status='archived'
         ).delete()  # Возвращает (количество_удаленных, {'модель': количество})
@@ -991,9 +900,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         #     supplier__name='Тестовый Поставщик'
         # ).delete()
         
-        # =========================================================================
-        # ПРИМЕР 3: Практическое применение update() и delete()
-        # =========================================================================
         
         # POST запрос для демонстрации update/delete (только для примера)
         if request.method == 'POST':
@@ -1036,39 +942,21 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
 
 
-    # =========================================================================
-    # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ КЭШ-ФРЕЙМВОРКА И Http404
-    # =========================================================================
-    
+###    
     @action(detail=False, methods=['get'])
     def cache_examples(self, request):
-        """
-        Демонстрация использования кэш-фреймворка Django
-        
-        Django Cache Framework предоставляет интерфейс для кэширования данных.
-        Конфигурация в settings.py (CACHES).
-        """
+
         from django.core.cache import cache
         
-        # =========================================================================
-        # ПРИМЕР 1: cache.set() и cache.get() - базовое кэширование
-        # =========================================================================
-        
-        # Кэширование количества активных товаров на 5 минут
         cache_key = 'active_products_count'
         cached_count = cache.get(cache_key)
         
         if cached_count is None:
             # Если нет в кэше - получаем из БД
             cached_count = Product.objects.filter(is_active=True).count()
-            # Сохраняем в кэш на 300 секунд (5 минут)
             cache.set(cache_key, cached_count, 300)
         
-        # =========================================================================
-        # ПРИМЕР 2: cache.set_many() и cache.get_many() - множественные операции
-        # =========================================================================
-        
-        # Кэширование статистики товаров
+
         product_stats_data = {
             'total_count': Product.objects.count(),
             'active_count': Product.objects.filter(is_active=True).count(),
@@ -1080,18 +968,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             'product_stats_archived': product_stats_data['archived_count'],
         }, 300)
         
-        # Получение нескольких значений
         stats_cached = cache.get_many(['product_stats_total', 'product_stats_active'])
         
-        # =========================================================================
-        # ПРИМЕР 3: cache.delete() и cache.clear() - удаление
-        # =========================================================================
-        
-        # Удаление конкретного ключа
-        # cache.delete('active_products_count')
-        
-        # Очистка всего кэша
-        # cache.clear()
 
         return Response({
             'cached_count': cached_count,
@@ -1102,20 +980,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def http404_examples(self, request):
-        """
-        Демонстрация использования исключения Http404
-        
-        Http404 - исключение, которое возвращает страницу 404.
-        Используется, когда запрашиваемый объект не найден.
-        """
         from django.http import Http404
         
-        # =========================================================================
-        # ПРИМЕР 1: get_object_or_404() - автоматический raise Http404
-        # =========================================================================
         
-        # get_object_or_404() автоматически вызывает Http404 если объект не найден
-        # Это наиболее частый способ использования
         product_id = request.query_params.get('product_id', 1)
         
         try:
@@ -1129,11 +996,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             product_price = None
             found = False
         
-        # =========================================================================
-        # ПРИМЕР 2: Ручной вызов raise Http404
-        # =========================================================================
-        
-        # Можно вызвать Http404 вручную с сообщением
+
+        # Ручной вызов raise Http404 с сообщением
         request_id = request.query_params.get('request_id')
         if request_id:
             # Пример: проверка существования объекта
@@ -1141,7 +1005,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             request_obj = SupplierProductRequest.objects.filter(pk=request_id).first()
             
             if request_obj is None:
-                # Ручной raise Http404 с сообщением
                 raise Http404(f'Заявка с ID {request_id} не найдена')
             
             request_data = {
@@ -1164,73 +1027,27 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 
 class ProductImageViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для модели изображений товара.
-    
-    ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ select_related():
-    
-    select_related() - выполняет JOIN связанных объектов в одном запросе.
-    Используется для:
-    - ForeignKey связей (OneToMany и ManyToOne)
-    - OneToOne связей
-    
-    В данном случае: image.product - это ForeignKey к модели Product.
-    
-    Пример SQL БЕЗ select_related():
-    SELECT * FROM products_productimage;  -- 1 запрос
-    SELECT * FROM products_product WHERE id = 1;  -- N запросов (для каждого изображения)
-    
-    Пример SQL С select_related():
-    SELECT products_productimage.*, products_product.* 
-    FROM products_productimage 
-    LEFT JOIN products_product ON products_productimage.product_id = products_product.id;
-    -- Всё в одном запросе!
-    
-    ПРЕИМУЩЕСТВА:
-    - Меньше запросов к БД
-    - Особенно эффективно для один-к-одному и один-ко-многим
-    
-    ОГРАНИЧЕНИЯ:
-    - Нельзя использовать для ManyToManyField
-    - Создаёт более сложный SQL запрос
-    """
     queryset = ProductImage.objects.all()
     serializer_class = ProductImageSerializer
     
     def get_queryset(self):
         """
         Получение изображений с использованием select_related для оптимизации.
-        
         Вместо 2 запросов (изображения + товары) выполняется 1 запрос с JOIN.
         """
         return super().get_queryset().select_related('product')
     
-    # =========================================================================
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ return redirect
-    # =========================================================================
     
     @action(detail=False, methods=['get'])
     def redirect_to_first_product(self, request):
-        """
-        Демонстрация использования redirect
-        
-        return redirect используется для перенаправления пользователя на другую страницу.
-        В данном примере: после обращения к этому эндпоинту пользователь 
-        перенаправляется на страницу первого товара.
-        
-        ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ redirect:
-        1. После успешного создания объекта - redirect на его страницу
-        2. После удаления объекта - redirect на список объектов
-        3. При обращении к несуществующему объекту - redirect на страницу 404 или главную
-        4. После редактирования объекта - redirect обратно к списку
-        """
         first_product = Product.objects.first()
         if first_product:
-            # Редирект на страницу первого товара
+            # Редирект на страницу первого товара, reverse() строит URL по имени маршрута, чтобы не писать адрес вручную строкой
             from django.urls import reverse
             return redirect(reverse('product-detail', kwargs={'pk': first_product.pk}))
         else:
-            # Редирект на список товаров если товаров нет
+            # Редирект на список товаров, если обращение к несуществующему объекту
             from django.urls import reverse
             return redirect(reverse('product-list'))
     
@@ -1250,9 +1067,6 @@ class ProductImageViewSet(viewsets.ModelViewSet):
     def redirect_not_found(self, request, pk=None):
         """
         Демонстрация редиректа при обращении к несуществующему объекту.
-        
-        Если объект не найден, вместо ошибки 404 можно сделать редирект
-        на страницу со списком объектов или на главную страницу.
         """
         try:
             product = self.get_object()
