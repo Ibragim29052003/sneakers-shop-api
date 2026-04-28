@@ -31,10 +31,11 @@ class ProductImageSerializer(serializers.ModelSerializer):
     Сериализатор для изображений товара.
     """
     image = serializers.SerializerMethodField()
+    image_file = serializers.ImageField(write_only=True, required=False, source='image')
     
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'is_main', 'alt_text', 'created_at']
+        fields = ['id', 'image', 'image_file', 'product', 'is_main', 'alt_text', 'created_at']
         read_only_fields = ['created_at']
     
     def get_image(self, obj):
@@ -102,7 +103,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'price', 'old_price', 'sku',
+            'id', 'name', 'description', 'price', 'old_price', 'sku', 'status',
             'is_active', 'created_at', 'updated_at', 'categories', 'categories_ids',
             'images', 'main_image_url', 'absolute_url', 'external_url', 'supplier', 'supplier_name',
             'published_pages', 'image_urls'
@@ -197,6 +198,7 @@ class ProductSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Обновление товара с категориями."""
         category_ids = validated_data.pop('categories_ids', None)
+        image_urls = validated_data.pop('image_urls', None)
         
         # Обновляем остальные поля
         for attr, value in validated_data.items():
@@ -215,8 +217,44 @@ class ProductSerializer(serializers.ModelSerializer):
                     ProductCategory.objects.create(product=instance, category=category)
                 except Category.DoesNotExist:
                     pass
-        
+
+        # Полная замена изображений, если передан новый список URL
+        if image_urls is not None:
+            import urllib.parse
+
+            ProductImage.objects.filter(product=instance).delete()
+
+            for index, image_url in enumerate(image_urls):
+                decoded_url = urllib.parse.unquote(image_url)
+                clean_path = decoded_url
+
+                while '/media/media/' in clean_path:
+                    clean_path = clean_path.replace('/media/media/', '/media/', 1)
+
+                if clean_path.startswith('/media/'):
+                    clean_path = clean_path[7:]
+                elif clean_path.startswith('media/'):
+                    clean_path = clean_path[6:]
+
+                if clean_path.startswith('/'):
+                    clean_path = clean_path[1:]
+
+                ProductImage.objects.create(
+                    product=instance,
+                    image=clean_path,
+                    is_main=(index == 0),
+                    alt_text=instance.name
+                )
+
         return instance
+
+
+class ProductShowcaseSerializer(ProductSerializer):
+    """Сериализатор товара для витринных блоков на главной странице."""
+    sold_quantity = serializers.IntegerField(read_only=True)
+
+    class Meta(ProductSerializer.Meta):
+        fields = ProductSerializer.Meta.fields + ['sold_quantity']
 
 
 class ProductSupplierDemoSerializer(serializers.ModelSerializer):

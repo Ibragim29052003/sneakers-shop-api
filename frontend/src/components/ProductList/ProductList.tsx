@@ -17,6 +17,7 @@ interface ProductListProps {
   extraClassName?: string; // дополнительный класс
   totalProducts: number;
   isFilterVisible: boolean;
+  searchQuery?: string;
 }
 
 const ProductList: FC<ProductListProps> = ({
@@ -25,6 +26,7 @@ const ProductList: FC<ProductListProps> = ({
   extraClassName,
   totalProducts,
   isFilterVisible,
+  searchQuery,
 }) => {
   const dispatch = useAppDispatch();
   const currentPage = useAppSelector(selectCurrentPage);
@@ -37,20 +39,31 @@ const ProductList: FC<ProductListProps> = ({
   const visibleProducts = products.slice(startIndex, startIndex + itemsPerPage);
 
   const cardsRef = useRef<HTMLUListElement>(null);
+  const previousPageRef = useRef(currentPage);
 
   const handlePageChange = (page: number) => {
     if (page === currentPage) return;
     dispatch(setCurrentPage(page));
   };
 
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      dispatch(setCurrentPage(totalPages));
+    }
+  }, [currentPage, dispatch, totalPages]);
+
   // скролл после обновления контента
   useEffect(() => {
-    if (currentPage > 0 && visibleProducts.length > 0) {
+    const pageChanged = previousPageRef.current !== currentPage;
+
+    if (pageChanged && currentPage > 0 && visibleProducts.length > 0) {
       cardsRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
     }
+
+    previousPageRef.current = currentPage;
   }, [currentPage, visibleProducts.length]);
 
   if (loading) {
@@ -76,9 +89,15 @@ const ProductList: FC<ProductListProps> = ({
         role="region"
         aria-live="polite"
       >
-        <p className={styles.productList__empty_title}>Товары не найдены</p>
+        <p className={styles.productList__empty_title}>
+          {searchQuery
+            ? `По запросу «${searchQuery}» ничего не найдено`
+            : "Товары не найдены"}
+        </p>
         <p className={styles.productList__empty_text}>
-          Попробуйте изменить фильтры
+          {searchQuery
+            ? "Попробуйте изменить запрос или очистить поиск"
+            : "Попробуйте изменить фильтры"}
         </p>
       </div>
     );

@@ -5,6 +5,23 @@
     display: none;
   }
 
+  &__productsCount {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: rem(42);
+    padding: rem(10) rem(16);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: rem(22);
+    background:
+      radial-gradient(circle at top left, rgba(246, 226, 89, 0.2), transparent 38%),
+      linear-gradient(135deg, #fffdf7, var(--color-white));
+    color: var(--color-black);
+    font-size: rem(14);
+    font-weight: 600;
+    box-shadow: 0 rem(10) rem(24) rgba(0, 0, 0, 0.04);
+  }
+
   &__body {
     display: grid;
     grid-template-columns: 1fr 2fr;
@@ -58,6 +75,49 @@
     display: flex;
     flex-direction: column;
     gap: rem(20);
+  }
+
+  &__topInfo {
+    display: flex;
+    align-items: center;
+    gap: rem(12);
+  }
+
+  &__searchSummary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: rem(16);
+    padding: rem(16) rem(20);
+    border: 1px solid rgba(246, 226, 89, 0.8);
+    border-radius: rem(24);
+    background:
+      radial-gradient(circle at top left, rgba(246, 226, 89, 0.24), transparent 30%),
+      linear-gradient(135deg, #fffdf6, #ffffff);
+    box-shadow: 0 rem(14) rem(30) rgba(0, 0, 0, 0.04);
+
+    &_text {
+      margin: 0;
+      font-size: rem(15);
+      color: var(--color-black);
+    }
+
+    &_button {
+      padding: rem(10) rem(16);
+      border: none;
+      border-radius: rem(18);
+      background-color: var(--color-black);
+      color: var(--color-white);
+      font-weight: 600;
+      transition:
+        background-color var(--transition-duration),
+        transform var(--transition-duration);
+
+      @include hover {
+        background-color: var(--color-accent);
+        transform: translateY(rem(-1));
+      }
+    }
   }
 
   &__filterButton {
@@ -141,6 +201,13 @@
       grid-template-columns: repeat(2, 1fr);
       gap: rem(12);
       padding-block: 2rem;
+
+      .catalog__productsCount {
+        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+      }
+
       > * {
         flex: 1;
       }
@@ -149,15 +216,30 @@
     &__content > :global(.sortPanel) {
       display: none;
     }
+
+    &__searchSummary {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: rem(14) rem(16);
+
+      &_button {
+        width: 100%;
+      }
+    }
   }
 
   &__top {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: rem(16);
 
     &_visible {
-      justify-content: flex-end;
+      justify-content: space-between;
+    }
+
+    &_withToggle {
+      justify-content: space-between;
     }
   }
 }

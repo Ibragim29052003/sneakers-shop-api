@@ -73,12 +73,12 @@ const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
   const filterParams: FilterGroupCountsParams = {
     category,
     filters: {
-      colors: filters.colors?.length ? filters.colors : undefined,
-      sizes: filters.sizes?.length ? filters.sizes : undefined,
-      fabrics: filters.fabrics?.length ? filters.fabrics : undefined,
+      colors: debouncedFilters.colors?.length ? debouncedFilters.colors : undefined,
+      sizes: debouncedFilters.sizes?.length ? debouncedFilters.sizes : undefined,
+      fabrics: debouncedFilters.fabrics?.length ? debouncedFilters.fabrics : undefined,
     },
-    minPrice: filters.minPrice,
-    maxPrice: filters.maxPrice,
+    minPrice: debouncedFilters.minPrice,
+    maxPrice: debouncedFilters.maxPrice,
   };
 
   // Получаем фильтры с счетчиками с бэкенда для данной категории

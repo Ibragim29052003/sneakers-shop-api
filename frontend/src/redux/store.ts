@@ -3,6 +3,7 @@ import sliderReducer from "./slider/slice";
 import filtersReducer from "./filter/slice";
 import paginationReducer from "./pagination/slice";
 import cartReducer from "./cart/slice";
+import catalogSearchReducer from "./catalogSearch/slice";
 import {
   useDispatch,
   type TypedUseSelectorHook,
@@ -18,6 +19,7 @@ export const store = configureStore({
     filters: filtersReducer,
     pagination: paginationReducer,
     cart: cartReducer,
+    catalogSearch: catalogSearchReducer,
 
     // добавляем RTK Query reducer
     [productsApi.reducerPath]: productsApi.reducer,

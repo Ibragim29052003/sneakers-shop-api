@@ -19,6 +19,7 @@ export interface Category {
 export interface ProductImage {
   id: number;
   image: string;        // URL изображения
+  product?: number;
   is_main: boolean;     // является ли главным
   alt_text: string;
   created_at: string;
@@ -42,6 +43,23 @@ export interface Product {
   supplier: number | null;  // ID поставщика
   supplier_name: string | null;  // Имя поставщика
   published_pages: string[];  // Страницы для публикации (women, men, children)
+}
+
+export interface ShowcaseProduct extends Product {
+  sold_quantity: number;
+}
+
+export interface HomeShowcaseBlock {
+  title: string;
+  description: string;
+  items: ShowcaseProduct[];
+  based_on_sales?: boolean;
+}
+
+export interface HomeShowcasesResponse {
+  category: string | null;
+  premium: HomeShowcaseBlock;
+  bestsellers: HomeShowcaseBlock;
 }
 
 // Модель слайда для слайдера
@@ -118,6 +136,8 @@ export interface FilterParams {
   category?: string;     // фильтр по категории
   min_price?: number;    // минимальная цена
   max_price?: number;    // максимальная цена
+  price__gte?: number;   // минимальная цена (django-filter)
+  price__lte?: number;   // максимальная цена (django-filter)
   search?: string;       // поиск по названию
   ordering?: string;     // сортировка (например: "price" или "-price")
   page?: number;         // номер страницы (пагинация)
@@ -197,6 +217,8 @@ export const productsApi = createApi({
         if (params.category) queryParams.category = params.category;
         if (params.min_price) queryParams.min_price = params.min_price;
         if (params.max_price) queryParams.max_price = params.max_price;
+        if (params.price__gte !== undefined) queryParams.price__gte = params.price__gte;
+        if (params.price__lte !== undefined) queryParams.price__lte = params.price__lte;
         if (params.search) queryParams.search = params.search;
         if (params.ordering) queryParams.ordering = params.ordering;
         if (params.page) queryParams.page = params.page;
@@ -245,6 +267,7 @@ export const productsApi = createApi({
       price: string;
       old_price?: string | null;
       sku?: string;
+      status?: 'draft' | 'active' | 'archived' | 'out_of_stock';
       is_active?: boolean;
       published_pages?: string[];
       categories_ids?: number[];
@@ -254,6 +277,62 @@ export const productsApi = createApi({
         url: '/products/',
         method: 'POST',
         body: product,
+      }),
+    }),
+
+    updateProduct: builder.mutation<Product, {
+      id: number;
+      product: {
+        name?: string;
+        description?: string;
+        price?: string;
+        old_price?: string | null;
+        sku?: string;
+        is_active?: boolean;
+        published_pages?: string[];
+        categories_ids?: number[];
+        image_urls?: string[];
+      };
+    }>({
+      query: ({ id, product }) => ({
+        url: `/products/${id}/`,
+        method: 'PATCH',
+        body: product,
+      }),
+    }),
+
+    deleteProduct: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/products/${id}/`,
+        method: 'DELETE',
+      }),
+    }),
+
+    uploadProductImage: builder.mutation<ProductImage, {
+      product: number;
+      imageFile: File;
+      is_main?: boolean;
+      alt_text?: string;
+    }>({
+      query: ({ product, imageFile, is_main = false, alt_text = '' }) => {
+        const formData = new FormData();
+        formData.append('product', String(product));
+        formData.append('image_file', imageFile);
+        formData.append('is_main', String(is_main));
+        formData.append('alt_text', alt_text);
+
+        return {
+          url: '/product-images/',
+          method: 'POST',
+          body: formData,
+        };
+      },
+    }),
+
+    deleteProductImage: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/product-images/${id}/`,
+        method: 'DELETE',
       }),
     }),
 
@@ -365,6 +444,16 @@ export const productsApi = createApi({
       query: () => '/slider/active-slides/',
     }),
 
+    getHomeShowcases: builder.query<HomeShowcasesResponse, string>({
+      query: (category) => ({
+        url: '/products/home-showcases/',
+        params: {
+          category,
+          limit: 4,
+        },
+      }),
+    }),
+
     /**
      * АВТОРИЗАЦИЯ (LOGIN)
      * 
@@ -452,12 +541,17 @@ export const {
   useGetFilteredProductsQuery,    // для getFilteredProducts
   useGetProductByIdQuery,        // для getProductById
   useCreateProductMutation,      // для createProduct
+  useUpdateProductMutation,      // для updateProduct
+  useDeleteProductMutation,      // для deleteProduct
+  useUploadProductImageMutation, // для uploadProductImage
+  useDeleteProductImageMutation, // для deleteProductImage
   useGetCategoriesQuery,         // для getCategories
   useGetCategoryByIdQuery,       // для getCategoryById
   useGetFiltersByCategoryQuery,  // для getFiltersByCategory
   useGetFiltersWithCountsQuery,   // для getFiltersWithCounts
   useGetSliderSlidesQuery,       // для getSliderSlides (все слайды)
   useGetActiveSliderSlidesQuery, // для getActiveSliderSlides
+  useGetHomeShowcasesQuery,      // для getHomeShowcases
   useCreateSliderSlideMutation,  // для createSliderSlide
   useUpdateSliderSlideMutation,  // для updateSliderSlide
   useDeleteSliderSlideMutation,  // для deleteSliderSlide

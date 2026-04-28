@@ -14,11 +14,11 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import redirect, get_object_or_404, Http404
-from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value
-from django.db.models.functions import Concat
+from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value, IntegerField
+from django.db.models.functions import Concat, Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Category, Product, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
-from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer, ProductSupplierDemoSerializer
+from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer, ProductSupplierDemoSerializer, ProductShowcaseSerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -62,14 +62,51 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description', 'sku']
     ordering_fields = ['price', 'created_at', 'name']
     ordering = ['-created_at']
-    
-    def get_queryset(self):
-        queryset = (
+
+    category_mapping = {
+        'women': ['женщин', 'women', 'woman', 'женская', 'для женщин', 'для девочек', 'жен'],
+        'men': ['мужчин', 'men', 'man', 'мужская', 'для мужчин', 'для мальчиков', 'муж'],
+        'children': ['детей', 'children', 'child', 'детская', 'для детей', 'ребенок', 'kids'],
+    }
+
+    def _get_base_queryset(self):
+        return (
             super()
             .get_queryset()
             .exclude(status='draft')
             .prefetch_related('categories', 'images')
         )
+
+    def _apply_category_filter(self, queryset, category_param):
+        if not category_param:
+            return queryset
+
+        search_names = self.category_mapping.get(category_param, [])
+        if not search_names:
+            return queryset
+
+        category_query = Q()
+        for name in search_names:
+            category_query |= Q(name__icontains=name)
+
+        category_ids = list(
+            Category.objects.filter(category_query).values_list('id', flat=True)
+        )
+        product_filter = Q(published_pages__contains=[category_param])
+        if category_ids:
+            product_filter |= Q(categories__id__in=category_ids)
+
+        matching_product_ids = (
+            Product.objects
+            .exclude(status='draft')
+            .filter(product_filter)
+            .values_list('id', flat=True)
+            .distinct()
+        )
+        return queryset.filter(id__in=matching_product_ids)
+    
+    def get_queryset(self):
+        queryset = self._get_base_queryset()
         
         # Получаем параметры фильтров из query params
         category_param = self.request.query_params.get('category')
@@ -79,24 +116,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         # Фильтрация по категории
         if category_param:
-            # Маппинг фронтенд категорий на названия в базе
-            category_mapping = {
-                'women': ['женщин', 'women', 'woman', 'женская', 'для женщин', 'для девочек', 'жен'],
-                'men': ['мужчин', 'men', 'man', 'мужская', 'для мужчин', 'для мальчиков', 'муж'],
-                'children': ['детей', 'children', 'child', 'детская', 'для детей', 'ребенок', 'kids'],
-            }
-            
-            search_names = category_mapping.get(category_param, [])
-            if search_names:
-                from django.db.models import Q
-                query = Q()
-                for name in search_names:
-                    query |= Q(name__icontains=name)
-                categories = Category.objects.filter(query)
-                if categories.exists():
-                    # Фильтруем товары по найденным категориям
-                    category_ids = list(categories.values_list('id', flat=True))
-                    queryset = queryset.filter(categories__id__in=category_ids).distinct()
+            queryset = self._apply_category_filter(queryset, category_param)
         
         # Применяем фильтры если они есть
         from django.db.models import Q
@@ -137,6 +157,79 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save()
+
+    @action(detail=False, methods=['get'], url_path='home-showcases')
+    def home_showcases(self, request):
+        """
+        Возвращает две витринные подборки для главной страницы:
+        - premium: дорогие товары категории
+        - bestsellers: самые продаваемые товары по данным заказов
+        """
+        category = request.query_params.get('category')
+        limit = request.query_params.get('limit', '4')
+        limit = int(limit) if str(limit).isdigit() else 4
+        limit = max(1, min(limit, 8))
+
+        base_queryset = self._apply_category_filter(
+            self._get_base_queryset().filter(is_active=True),
+            category,
+        )
+
+        premium_queryset = (
+            base_queryset
+            .order_by('-price', '-created_at')[:limit]
+        )
+
+        bestseller_queryset = (
+            base_queryset
+            .annotate(
+                sold_quantity=Coalesce(
+                    Sum('order_items__quantity'),
+                    Value(0),
+                )
+            )
+            .filter(sold_quantity__gt=0)
+            .order_by('-sold_quantity', '-created_at')[:limit]
+        )
+
+        bestsellers_from_sales = bestseller_queryset.exists()
+
+        if not bestsellers_from_sales:
+            bestseller_queryset = (
+                base_queryset
+                .annotate(sold_quantity=Value(0, output_field=IntegerField()))
+                .order_by('-created_at')[:limit]
+            )
+
+        premium_data = ProductShowcaseSerializer(
+            premium_queryset,
+            many=True,
+            context={'request': request},
+        ).data
+        bestsellers_data = ProductShowcaseSerializer(
+            bestseller_queryset,
+            many=True,
+            context={'request': request},
+        ).data
+
+        return Response({
+            'category': category,
+            'premium': {
+                'title': 'Премиальная подборка',
+                'description': 'Самые выразительные и дорогие позиции категории.',
+                'items': premium_data,
+            },
+            'bestsellers': {
+                'title': 'Хиты продаж',
+                'description': (
+                    'Товары, которые чаще всего покупают.'
+                    if bestsellers_from_sales
+                    else 'Пока заказов мало, поэтому показываем свежие предложения.'
+                ),
+                'based_on_sales': bestsellers_from_sales,
+                'items': bestsellers_data,
+            },
+        })
 
     @action(detail=False, methods=['get'], url_path='supplier-demo')
     def supplier_demo(self, request):

@@ -1,76 +1,37 @@
 import { useState, useCallback, useEffect, type FC } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useGetProductByIdQuery } from "@/services/api/productsApi";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import {
+  useGetProductByIdQuery,
+  useCreateProductMutation,
+  useDeleteProductMutation,
+  useUpdateProductMutation,
+  useUploadProductImageMutation,
+  useDeleteProductImageMutation,
+} from "@/services/api/productsApi";
 import { useSwipeable } from "react-swipeable";
 import { useAppDispatch } from "@/redux/store";
 import { addToCart } from "@/redux/cart/slice";
 
 import styles from "./ProductDetailPage.module.scss";
 
-// SVG иконки
 const CartIcon = () => (
-  <svg
-    className={styles.productDetail__addToCartIcon}
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
+  <svg className={styles.productDetail__addToCartIcon} viewBox="0 0 24 24" aria-hidden="true">
     <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
-  </svg>
-);
-
-const HeartIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg
-    className={styles.productDetail__favoriteIcon}
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
-    <path
-      d={
-        filled
-          ? "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-          : "M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"
-      }
-    />
-  </svg>
-);
-
-const ChevronLeftIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
-      fill="currentColor"
-    />
   </svg>
 );
 
 const CheckIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
-      fill="currentColor"
-    />
+    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
   </svg>
 );
 
 const CloseIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-      fill="currentColor"
-    />
+    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor" />
   </svg>
 );
 
-// Тип уведомления
 interface Notification {
   id: number;
   type: "success" | "error";
@@ -78,48 +39,96 @@ interface Notification {
   message: string;
 }
 
+interface ProductFormState {
+  name: string;
+  description: string;
+  price: string;
+  old_price: string;
+  sku: string;
+  is_active: boolean;
+}
+
 const ProductDetailPage: FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const productId = id ? parseInt(id, 10) : 0;
 
-  // Получение данных о товаре
-  const { data: product, isLoading, error } = useGetProductByIdQuery(productId);
+  const { data: product, isLoading, error, refetch } = useGetProductByIdQuery(productId);
+  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
+  const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
+  const [uploadProductImage, { isLoading: isUploadingImage }] = useUploadProductImageMutation();
+  const [deleteProductImage, { isLoading: isDeletingImage }] = useDeleteProductImageMutation();
 
-  // Локальное состояние
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Вычисление скидки
-  const calculateDiscount = () => {
-    if (!product?.old_price || !product.price) return 0;
-    const oldPrice = parseFloat(product.old_price);
-    const newPrice = parseFloat(product.price);
-    if (oldPrice <= newPrice) return 0;
-    return Math.round(((oldPrice - newPrice) / oldPrice) * 100);
-  };
+  const [editForm, setEditForm] = useState<ProductFormState>({
+    name: "",
+    description: "",
+    price: "",
+    old_price: "",
+    sku: "",
+    is_active: true,
+  });
 
-  const discount = product ? calculateDiscount() : 0;
+  const [createForm, setCreateForm] = useState<ProductFormState>({
+    name: "",
+    description: "",
+    price: "",
+    old_price: "",
+    sku: "",
+    is_active: true,
+  });
 
-  // Получение всех изображений товара
-  const getAllImages = () => {
-    if (!product) return [];
-    if (product.images && product.images.length > 0) {
-      return product.images.map((img) => img.image);
+  const [createPublishedPage, setCreatePublishedPage] = useState<"women" | "men" | "children">("women");
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [createImageFiles, setCreateImageFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setIsAdmin(!!payload.is_staff);
+    } catch {
+      setIsAdmin(false);
     }
-    if (product.main_image_url) {
-      return [product.main_image_url];
-    }
-    return ["/placeholder-product.jpg"];
-  };
+  }, []);
 
-  const images = product ? getAllImages() : [];
+  useEffect(() => {
+    if (!product) return;
+    setEditForm({
+      name: product.name || "",
+      description: product.description || "",
+      price: product.price || "",
+      old_price: product.old_price || "",
+      sku: product.sku || "",
+      is_active: product.is_active,
+    });
+  }, [product]);
 
-  // Навигация по слайдам
+  const showNotification = useCallback((type: "success" | "error", title: string, message: string) => {
+    const notification = { id: Date.now(), type, title, message };
+    setNotifications((prev) => [...prev, notification]);
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+    }, 3500);
+  }, []);
+
+  const closeNotification = useCallback((nid: number) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== nid));
+  }, []);
+
+  const images = product?.images?.length
+    ? product.images.map((img) => img.image)
+    : product?.main_image_url
+      ? [product.main_image_url]
+      : ["/placeholder-product.jpg"];
+
   const goToNextSlide = useCallback(() => {
     setSelectedImageIndex((prev) => (prev + 1) % images.length);
   }, [images.length]);
@@ -128,7 +137,6 @@ const ProductDetailPage: FC = () => {
     setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
   }, [images.length]);
 
-  // Поддержка свайпов
   const handlers = useSwipeable({
     onSwipedLeft: goToNextSlide,
     onSwipedRight: goToPrevSlide,
@@ -136,56 +144,9 @@ const ProductDetailPage: FC = () => {
     trackMouse: true,
   });
 
-  // Обработчики
-  const handleThumbnailClick = useCallback((index: number) => {
-    setSelectedImageIndex(index);
-  }, []);
-
-  // Функция показа уведомления
-  const showNotification = useCallback(
-    (type: "success" | "error", title: string, message: string) => {
-      const newNotification: Notification = {
-        id: Date.now(),
-        type,
-        title,
-        message,
-      };
-      setNotifications((prev) => [...prev, newNotification]);
-
-      // Удаляем уведомление через 4 секунды
-      setTimeout(() => {
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === newNotification.id ? { ...n, hiding: true } : n
-          )
-        );
-        setTimeout(() => {
-          setNotifications((prev) =>
-            prev.filter((n) => n.id !== newNotification.id)
-          );
-        }, 300);
-      }, 4000);
-    },
-    []
-  );
-
-  // Закрыть уведомление
-  const closeNotification = useCallback((id: number) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, hiding: true } : n))
-    );
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 300);
-  }, []);
-
-  // Обработчик добавления в корзину
   const handleAddToCart = useCallback(() => {
     if (!product) return;
-
     setIsAddingToCart(true);
-
-    // Добавляем в Redux корзину
     dispatch(
       addToCart({
         id: product.id,
@@ -195,372 +156,223 @@ const ProductDetailPage: FC = () => {
         oldPrice: product.old_price ? parseFloat(product.old_price) : undefined,
       })
     );
-
     setIsAddingToCart(false);
+    showNotification("success", "Товар добавлен", product.name);
+  }, [dispatch, product, showNotification]);
 
-    // Показываем красивое уведомление
-    showNotification("success", "Товар добавлен в корзину", product.name);
-  }, [product, dispatch, showNotification]);
+  const handleUpdateProduct = async () => {
+    if (!product) return;
+    if (!editForm.name.trim() || !editForm.price.trim()) {
+      showNotification("error", "Ошибка", "Название и цена обязательны");
+      return;
+    }
+    try {
+      await updateProduct({
+        id: product.id,
+        product: {
+          name: editForm.name.trim(),
+          description: editForm.description,
+          price: editForm.price.trim(),
+          old_price: editForm.old_price.trim() || null,
+          sku: editForm.sku.trim(),
+          is_active: editForm.is_active,
+        },
+      }).unwrap();
+      showNotification("success", "Готово", "Товар обновлен");
+      await refetch();
+    } catch {
+      showNotification("error", "Ошибка", "Не удалось обновить товар");
+    }
+  };
 
-  const handleFavoriteToggle = useCallback(() => {
-    setIsFavorite((prev) => !prev);
-  }, []);
+  const handleDeleteProduct = async () => {
+    if (!product) return;
+    if (!window.confirm(`Удалить товар "${product.name}"?`)) return;
+    try {
+      await deleteProduct(product.id).unwrap();
+      navigate(`/${createPublishedPage}`);
+    } catch {
+      showNotification("error", "Ошибка", "Не удалось удалить товар");
+    }
+  };
 
-  // Категория товара для хлебных крошек
-  const categoryName = product?.categories?.[0]?.name || "Товар";
+  const handleUploadImagesToCurrentProduct = async () => {
+    if (!product || editImageFiles.length === 0) return;
+    try {
+      for (let i = 0; i < editImageFiles.length; i += 1) {
+        await uploadProductImage({
+          product: product.id,
+          imageFile: editImageFiles[i],
+          is_main: !product.images?.length && i === 0,
+          alt_text: product.name,
+        }).unwrap();
+      }
+      setEditImageFiles([]);
+      await refetch();
+      showNotification("success", "Готово", "Фото добавлены");
+    } catch {
+      showNotification("error", "Ошибка", "Не удалось добавить фото");
+    }
+  };
 
-  // Состояние загрузки
+  const handleDeleteImage = async (imageId: number) => {
+    try {
+      await deleteProductImage(imageId).unwrap();
+      await refetch();
+      showNotification("success", "Готово", "Фото удалено");
+    } catch {
+      showNotification("error", "Ошибка", "Не удалось удалить фото");
+    }
+  };
+
+  const handleCreateNewProduct = async () => {
+    if (!createForm.name.trim() || !createForm.price.trim()) {
+      showNotification("error", "Ошибка", "Заполните название и цену");
+      return;
+    }
+    try {
+      const created = await createProduct({
+        name: createForm.name.trim(),
+        description: createForm.description,
+        price: createForm.price.trim(),
+        old_price: createForm.old_price.trim() || null,
+        sku: createForm.sku.trim() || `SKU-${Date.now()}`,
+        status: createForm.is_active ? "active" : "draft",
+        is_active: createForm.is_active,
+        published_pages: [createPublishedPage],
+        categories_ids: [],
+      }).unwrap();
+
+      if (createImageFiles.length > 0) {
+        for (let i = 0; i < createImageFiles.length; i += 1) {
+          await uploadProductImage({
+            product: created.id,
+            imageFile: createImageFiles[i],
+            is_main: i === 0,
+            alt_text: created.name,
+          }).unwrap();
+        }
+      }
+
+      showNotification("success", "Готово", "Новый товар создан");
+      navigate(`/product/${created.id}`);
+    } catch {
+      showNotification("error", "Ошибка", "Не удалось создать товар");
+    }
+  };
+
   if (isLoading) {
-    return (
-      <div className={styles.productDetail}>
-        <div
-          className={styles.productDetail__loading}
-          role="status"
-          aria-label="Загрузка товара"
-        >
-          <div className={styles.productDetail__loadingSpinner} />
-          <span className={styles.visuallyHidden}>Загрузка товара...</span>
-        </div>
-      </div>
-    );
+    return <div className={styles.productDetail}><div className={styles.productDetail__loading} /></div>;
   }
 
-  // Ошибка при загрузке
   if (error || !product) {
-    return (
-      <div className={styles.productDetail}>
-        <div className={styles.productDetail__error} role="alert">
-          <h2 className={styles.productDetail__errorTitle}>
-            Ошибка загрузки товара
-          </h2>
-          <p className={styles.productDetail__errorMessage}>
-            Не удалось загрузить информацию о товаре. Пожалуйста, попробуйте
-            позже.
-          </p>
-          <button
-            className={styles.productDetail__errorButton}
-            onClick={() => window.location.reload()}
-          >
-            Повторить
-          </button>
-          {/* <button onClick={() => navigate("/")}>
-            Вернуться в каталог
-          </button> */}
-        </div>
-      </div>
-    );
+    return <div className={styles.productDetail}><div className={styles.productDetail__error}>Ошибка загрузки товара</div></div>;
   }
 
   return (
     <div className={styles.productDetail__container}>
       <nav className={styles.productDetail__breadcrumb} aria-label="Навигация">
-        <Link to="/" className={styles.productDetail__breadcrumbLink}>
-          Главная
-        </Link>
+        <Link to="/" className={styles.productDetail__breadcrumbLink}>Главная</Link>
         <span className={styles.productDetail__breadcrumbSeparator}>/</span>
-        <Link to="/women" className={styles.productDetail__breadcrumbLink}>
-          Каталог
-        </Link>
+        <Link to="/women" className={styles.productDetail__breadcrumbLink}>Каталог</Link>
         <span className={styles.productDetail__breadcrumbSeparator}>/</span>
-        <span className={styles.productDetail__breadcrumbCurrent}>
-          {categoryName}
-        </span>
+        <span className={styles.productDetail__breadcrumbCurrent}>{product.categories?.[0]?.name || "Товар"}</span>
       </nav>
 
       <div className={styles.productDetail}>
-        {/* Хлебные крошки */}
-
-        {/* Галерея изображений - Слайдер */}
         <div className={styles.productDetail__gallery}>
-          {images.length > 0 && (
-            <div
-              className={styles.productDetail__slider}
-              role="region"
-              aria-label="Галерея товара"
-              {...handlers}
-            >
-              <div className={styles.productDetail__sliderContainer}>
-                <div
-                  className={styles.productDetail__slides}
-                  style={{
-                    transform: `translateX(-${selectedImageIndex * 100}%)`,
-                  }}
-                >
-                  {images.map((image, index) => (
-                    <div key={index} className={styles.productDetail__slide}>
-                      <img
-                        src={image}
-                        alt={`${product.name} - изображение ${index + 1}`}
-                        className={styles.productDetail__slideImage}
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "ArrowLeft") goToPrevSlide();
-                          if (e.key === "ArrowRight") goToNextSlide();
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Кнопки навигации */}
-                {images.length > 1 && (
-                  <>
-                    <button
-                      className={`${styles.productDetail__navButton} ${styles.productDetail__navButton_prev}`}
-                      onClick={goToPrevSlide}
-                      aria-label="Предыдущее изображение"
-                    >
-                      <ChevronLeftIcon />
-                    </button>
-                    <button
-                      className={`${styles.productDetail__navButton} ${styles.productDetail__navButton_next}`}
-                      onClick={goToNextSlide}
-                      aria-label="Следующее изображение"
-                    >
-                      <ChevronRightIcon />
-                    </button>
-
-                    {/* Точечная навигация */}
-                    <div
-                      className={styles.productDetail__dots}
-                      role="tablist"
-                      aria-label="Навигация по слайдам"
-                    >
-                      {images.map((_, index) => (
-                        <button
-                          key={index}
-                          className={`${styles.productDetail__dot} ${
-                            index === selectedImageIndex
-                              ? styles.productDetail__dot_active
-                              : ""
-                          }`}
-                          onClick={() => handleThumbnailClick(index)}
-                          role="tab"
-                          aria-selected={index === selectedImageIndex}
-                          aria-label={`Слайд ${index + 1}`}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Счетчик */}
-                    <div
-                      className={styles.productDetail__counter}
-                      aria-live="polite"
-                    >
-                      {selectedImageIndex + 1} / {images.length}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Миниатюры */}
-          {images.length > 1 && (
-            <div
-              className={styles.productDetail__thumbnails}
-              role="tablist"
-              aria-label="Миниатюры изображений"
-            >
-              {images.map((image, index) => (
-                <button
-                  key={index}
-                  className={`${styles.productDetail__thumbnail} ${
-                    index === selectedImageIndex
-                      ? styles.productDetail__thumbnail_active
-                      : ""
-                  }`}
-                  onClick={() => handleThumbnailClick(index)}
-                  role="tab"
-                  aria-selected={index === selectedImageIndex}
-                  aria-label={`Изображение ${index + 1}`}
-                  tabIndex={0}
-                >
-                  <img
-                    src={image}
-                    alt={`Миниатюра ${index + 1}`}
-                    className={styles.productDetail__thumbnailImage}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Информация о товаре */}
-        <div className={styles.productDetail__info}>
-          <h1 className={styles.productDetail__title}>{product.name}</h1>
-
-          <p className={styles.productDetail__sku}>
-            Артикул: {product.sku || "—"}
-          </p>
-
-          {/* Цена */}
-          <div className={styles.productDetail__priceBlock}>
-            <span className={styles.productDetail__price}>
-              {parseFloat(product.price).toLocaleString("ru-RU")} ₽
-            </span>
-
-            {product.old_price &&
-              parseFloat(product.old_price) > parseFloat(product.price) && (
-                <>
-                  <span className={styles.productDetail__oldPrice}>
-                    {parseFloat(product.old_price).toLocaleString("ru-RU")} ₽
-                  </span>
-                  <span className={styles.productDetail__discount}>
-                    -{discount}%
-                  </span>
-                </>
-              )}
-          </div>
-
-          {/* Описание */}
-          <p className={styles.productDetail__description}>
-            {product.description || "Описание товара недоступно."}
-          </p>
-
-          {/* Опции товара (цвет, размер) */}
-          <div className={styles.productDetail__options}>
-            {/* Цвет */}
-            <div className={styles.productDetail__optionGroup}>
-              <span className={styles.productDetail__optionLabel}>Цвет</span>
-              <div
-                className={styles.productDetail__colorOptions}
-                role="radiogroup"
-                aria-label="Выбор цвета"
-              >
-                {["#000000", "#FFFFFF", "#665AB5", "#EB3F5E", "#309D5B"].map(
-                  (color, index) => (
-                    <button
-                      key={index}
-                      className={`${styles.productDetail__colorOption} ${
-                        selectedColor === color
-                          ? styles.productDetail__colorOption_active
-                          : ""
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setSelectedColor(color)}
-                      role="radio"
-                      aria-checked={selectedColor === color}
-                      aria-label={`Цвет ${color}`}
-                      tabIndex={0}
-                    />
-                  )
-                )}
-              </div>
-            </div>
-
-            {/* Размер */}
-            <div className={styles.productDetail__optionGroup}>
-              <span className={styles.productDetail__optionLabel}>Размер</span>
-              <div
-                className={styles.productDetail__sizeOptions}
-                role="radiogroup"
-                aria-label="Выбор размера"
-              >
-                {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
-                  <button
-                    key={size}
-                    className={`${styles.productDetail__sizeOption} ${
-                      selectedSize === size
-                        ? styles.productDetail__sizeOption_active
-                        : ""
-                    }`}
-                    onClick={() => setSelectedSize(size)}
-                    role="radio"
-                    aria-checked={selectedSize === size}
-                    tabIndex={0}
-                  >
-                    {size}
-                  </button>
+          <div className={styles.productDetail__slider} {...handlers}>
+            <div className={styles.productDetail__sliderContainer}>
+              <div className={styles.productDetail__slides} style={{ transform: `translateX(-${selectedImageIndex * 100}%)` }}>
+                {images.map((image, index) => (
+                  <div key={index} className={styles.productDetail__slide}>
+                    <img src={image} alt={`${product.name} ${index + 1}`} className={styles.productDetail__slideImage} />
+                  </div>
                 ))}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Кнопки действий */}
+        <div className={styles.productDetail__info}>
+          <h1 className={styles.productDetail__title}>{product.name}</h1>
+          <p className={styles.productDetail__sku}>Артикул: {product.sku || "—"}</p>
+          <div className={styles.productDetail__priceBlock}>
+            <span className={styles.productDetail__price}>{parseFloat(product.price).toLocaleString("ru-RU")} ₽</span>
+          </div>
+          <p className={styles.productDetail__description}>{product.description || "Описание товара недоступно."}</p>
+
           <div className={styles.productDetail__actions}>
-            <button
-              className={styles.productDetail__addToCart}
-              onClick={handleAddToCart}
-              disabled={isAddingToCart}
-              aria-label={
-                isAddingToCart
-                  ? "Добавление в корзину..."
-                  : "Добавить в корзину"
-              }
-            >
+            <button className={styles.productDetail__addToCart} onClick={handleAddToCart} disabled={isAddingToCart}>
               <CartIcon />
               {isAddingToCart ? "Добавляем..." : "В корзину"}
             </button>
-
-            <button
-              className={`${styles.productDetail__favorite} ${
-                isFavorite ? styles.productDetail__favorite_active : ""
-              }`}
-              onClick={handleFavoriteToggle}
-              aria-label={
-                isFavorite ? "Удалить из избранного" : "Добавить в избранное"
-              }
-              aria-pressed={isFavorite}
-            >
-              <HeartIcon filled={isFavorite} />
-            </button>
           </div>
 
-          {/* Детали товара */}
-          <div className={styles.productDetail__details}>
-            <div className={styles.productDetail__detailItem}>
-              <span className={styles.productDetail__detailLabel}>
-                Категория:
-              </span>
-              <span className={styles.productDetail__detailValue}>
-                {product.categories?.map((c) => c.name).join(", ") || "—"}
-              </span>
+          {isAdmin && (
+            <div className={styles.productDetail__adminPanel}>
+              <h3 className={styles.productDetail__adminTitle}>Редактирование товара</h3>
+              <input className={styles.productDetail__adminInput} value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} placeholder="Название" />
+              <input className={styles.productDetail__adminInput} value={editForm.price} onChange={(e) => setEditForm((p) => ({ ...p, price: e.target.value }))} placeholder="Цена" />
+              <input className={styles.productDetail__adminInput} value={editForm.old_price} onChange={(e) => setEditForm((p) => ({ ...p, old_price: e.target.value }))} placeholder="Старая цена" />
+              <input className={styles.productDetail__adminInput} value={editForm.sku} onChange={(e) => setEditForm((p) => ({ ...p, sku: e.target.value }))} placeholder="SKU" />
+              <textarea className={styles.productDetail__adminTextarea} value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} placeholder="Описание" />
+
+              <div className={styles.productDetail__adminImageGrid}>
+                {product.images?.map((img) => (
+                  <div key={img.id} className={styles.productDetail__adminImageCard}>
+                    <img src={img.image} alt={img.alt_text || product.name} className={styles.productDetail__adminImagePreview} />
+                    <button className={styles.productDetail__adminDangerBtn} onClick={() => handleDeleteImage(img.id)} disabled={isDeletingImage}>Удалить фото</button>
+                  </div>
+                ))}
+              </div>
+
+              <input type="file" multiple accept="image/*" className={styles.productDetail__adminFileInput} onChange={(e) => setEditImageFiles(Array.from(e.target.files || []))} />
+
+              <div className={styles.productDetail__actions}>
+                <button className={styles.productDetail__adminPrimaryBtn} onClick={handleUploadImagesToCurrentProduct} disabled={isUploadingImage || editImageFiles.length === 0}>{isUploadingImage ? "Загружаем..." : "Добавить фото"}</button>
+                <button className={styles.productDetail__adminPrimaryBtn} onClick={handleUpdateProduct} disabled={isUpdating}>{isUpdating ? "Сохраняем..." : "Сохранить"}</button>
+                <button className={styles.productDetail__adminDangerBtn} onClick={handleDeleteProduct} disabled={isDeleting}>{isDeleting ? "Удаляем..." : "Удалить товар"}</button>
+              </div>
             </div>
-            <div className={styles.productDetail__detailItem}>
-              <span className={styles.productDetail__detailLabel}>
-                Артикул:
-              </span>
-              <span className={styles.productDetail__detailValue}>
-                {product.sku || "—"}
-              </span>
+          )}
+
+          {isAdmin && (
+            <div className={styles.productDetail__adminPanel}>
+              <h3 className={styles.productDetail__adminTitle}>Создание нового товара</h3>
+              <input className={styles.productDetail__adminInput} value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} placeholder="Название" />
+              <input className={styles.productDetail__adminInput} value={createForm.price} onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))} placeholder="Цена" />
+              <input className={styles.productDetail__adminInput} value={createForm.old_price} onChange={(e) => setCreateForm((p) => ({ ...p, old_price: e.target.value }))} placeholder="Старая цена" />
+              <input className={styles.productDetail__adminInput} value={createForm.sku} onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))} placeholder="SKU" />
+              <textarea className={styles.productDetail__adminTextarea} value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))} placeholder="Описание" />
+
+              <label className={styles.productDetail__adminLabel}>
+                Публикация:
+                <select className={styles.productDetail__adminSelect} value={createPublishedPage} onChange={(e) => setCreatePublishedPage(e.target.value as "women" | "men" | "children") }>
+                  <option value="women">Женщинам</option>
+                  <option value="men">Мужчинам</option>
+                  <option value="children">Детям</option>
+                </select>
+              </label>
+
+              <input type="file" multiple accept="image/*" className={styles.productDetail__adminFileInput} onChange={(e) => setCreateImageFiles(Array.from(e.target.files || []))} />
+
+              <div className={styles.productDetail__actions}>
+                <button className={styles.productDetail__adminPrimaryBtn} onClick={handleCreateNewProduct} disabled={isCreating || isUploadingImage}>{isCreating ? "Создаем..." : "Создать товар"}</button>
+              </div>
             </div>
-            <div className={styles.productDetail__detailItem}>
-              <span className={styles.productDetail__detailLabel}>
-                Наличие:
-              </span>
-              <span className={styles.productDetail__detailValue}>
-                {product.is_active ? "В наличии" : "Нет в наличии"}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Уведомления */}
       {notifications.map((notification) => (
-        <div
-          key={notification.id}
-          className={`${styles.notification} ${
-            styles[`notification_${notification.type}`]
-          } ${(notification as any).hiding ? styles.hiding : ""}`}
-          role="alert"
-        >
-          <div className={styles.notification__icon}>
-            <CheckIcon />
-          </div>
+        <div key={notification.id} className={`${styles.notification} ${styles[`notification_${notification.type}`]}`} role="alert">
+          <div className={styles.notification__icon}><CheckIcon /></div>
           <div className={styles.notification__content}>
             <p className={styles.notification__title}>{notification.title}</p>
-            <p className={styles.notification__message}>
-              {notification.message}
-            </p>
+            <p className={styles.notification__message}>{notification.message}</p>
           </div>
-          <button
-            className={styles.notification__close}
-            onClick={() => closeNotification(notification.id)}
-            aria-label="Закрыть уведомление"
-          >
+          <button className={styles.notification__close} onClick={() => closeNotification(notification.id)} aria-label="Закрыть уведомление">
             <CloseIcon />
           </button>
         </div>

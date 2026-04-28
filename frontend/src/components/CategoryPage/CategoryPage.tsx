@@ -6,7 +6,11 @@ import { selectFilters } from "@/redux/filter/selectors";
 // Импортируем хуки из RTK Query
 // useGetFilteredProductsQuery - получает отфильтрованные товары для каталога
 // useGetActiveSliderSlidesQuery - получает слайды из отдельной таблицы
-import { useGetFilteredProductsQuery, useGetActiveSliderSlidesQuery } from "@/services/api/productsApi";
+import {
+  useGetFilteredProductsQuery,
+  useGetActiveSliderSlidesQuery,
+  useGetHomeShowcasesQuery,
+} from "@/services/api/productsApi";
 
 // Импортируем экшн для обновления слайдов в Redux
 import { setSlides } from "@/redux/slider/slice";
@@ -17,6 +21,7 @@ import type { Slide } from "@/redux/slider/types";
 // Импортируем компоненты
 import Slider from "@/features/slider/Slider";
 import CatalogLayout from "../CatalogLayout";
+import HomeShowcases from "@/components/HomeShowcases/HomeShowcases";
 import Spiner from "@/components/Spiner/Spiner";
 
 // Хук для debounce (задержка запроса при изменении фильтров)
@@ -98,8 +103,8 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
     ...debouncedFilters,
     category,
     ordering,
-    min_price: debouncedFilters.minPrice,
-    max_price: debouncedFilters.maxPrice,
+    price__gte: debouncedFilters.minPrice,
+    price__lte: debouncedFilters.maxPrice,
   };
 
   // Удаляем дублирующие поля (minPrice/maxPrice теперь в min_price/max_price)
@@ -131,6 +136,8 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
     isLoading: slidesLoading,  // индикатор загрузки
     error: slidesError,       // ошибка
   } = useGetActiveSliderSlidesQuery();
+
+  const { data: showcases } = useGetHomeShowcasesQuery(category);
 
   /**
    * ПРИ ПОЛУЧЕНИИ ДАННЫХ - сохраняем в Redux для слайдера
@@ -165,6 +172,11 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
     <div className={styles.categoryPage}>
       {/* Слайдер - получает данные через Redux (useAppSelector) */}
       {shouldShowSlider && <Slider />}
+
+      <HomeShowcases
+        premium={showcases?.premium}
+        bestsellers={showcases?.bestsellers}
+      />
       
       {/* Каталог с товарами */}
       <CatalogLayout

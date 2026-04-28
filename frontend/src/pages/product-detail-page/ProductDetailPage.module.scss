@@ -684,6 +684,104 @@
     padding: rem(14) rem(32);
     text-decoration: none;
   }
+
+  &__adminPanel {
+    display: flex;
+    flex-direction: column;
+    gap: rem(12);
+    padding: rem(20);
+    border: rem(1) solid var(--color-light-gray);
+    border-radius: rem(12);
+    background: var(--color-white);
+  }
+
+  &__adminTitle {
+    margin: 0;
+    font-size: rem(18);
+    color: var(--color-dark-gray);
+  }
+
+  &__adminInput,
+  &__adminTextarea,
+  &__adminSelect {
+    width: 100%;
+    border: rem(1) solid var(--color-light-gray);
+    border-radius: rem(10);
+    padding: rem(10) rem(12);
+    font-size: rem(14);
+    color: var(--color-dark-gray);
+    background: var(--color-white);
+
+    &:focus {
+      outline: rem(2) solid var(--color-purple);
+      outline-offset: rem(1);
+      border-color: var(--color-purple);
+    }
+  }
+
+  &__adminTextarea {
+    min-height: rem(96);
+    resize: vertical;
+  }
+
+  &__adminLabel {
+    display: flex;
+    flex-direction: column;
+    gap: rem(8);
+    font-size: rem(14);
+    color: var(--color-dark-gray);
+  }
+
+  &__adminFileInput {
+    font-size: rem(14);
+    color: var(--color-dark-gray);
+  }
+
+  &__adminImageGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(rem(120), 1fr));
+    gap: rem(12);
+  }
+
+  &__adminImageCard {
+    display: flex;
+    flex-direction: column;
+    gap: rem(8);
+  }
+
+  &__adminImagePreview {
+    width: 100%;
+    height: rem(120);
+    object-fit: cover;
+    border-radius: rem(8);
+    border: rem(1) solid var(--color-light-gray);
+  }
+
+  &__adminPrimaryBtn,
+  &__adminDangerBtn {
+    border: none;
+    border-radius: rem(10);
+    padding: rem(10) rem(14);
+    font-size: rem(14);
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__adminPrimaryBtn {
+    background: var(--color-purple);
+    color: var(--color-white);
+  }
+
+  &__adminDangerBtn {
+    background: #c62828;
+    color: var(--color-white);
+  }
 }
 
 // Уведомление (Toast)
