@@ -1,12 +1,14 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from rest_framework.test import APIClient
 
 from carts.models import Cart, CartItem
 from orders.models import Order, OrderItem, OrderStatus
-from products.models import Product, ProductFavorite
+from products.models import Category, FilterGroup, FilterOption, Product, ProductFavorite, ProductFilter
+from suppliers.models import Supplier
 from reviews.models import Review
 from users.models import Role, UserRole
 
@@ -30,7 +32,10 @@ class CourseRequirementsAPITests(TestCase):
         UserRole.objects.create(user=self.admin, role=self.role_admin)
 
         self.order_status = OrderStatus.objects.create(id=1, name='new', description='new')
+        self.paid_status = OrderStatus.objects.create(name='paid', description='paid')
+        self.delivered_status = OrderStatus.objects.create(name='delivered', description='delivered', is_final=True)
         self.completed_status = OrderStatus.objects.create(name='completed', description='completed', is_final=True)
+        self.cancelled_status = OrderStatus.objects.create(name='cancelled', description='cancelled', is_final=True)
 
         self.product_ok = Product.objects.create(
             name='Sneaker A',
@@ -57,8 +62,46 @@ class CourseRequirementsAPITests(TestCase):
             stock_quantity=0,
             sku='SKU-C',
             status='out_of_stock',
-            is_active=True,
+            is_active=False,
         )
+        self.product_archived = Product.objects.create(
+            name='Sneaker D',
+            description='D',
+            price=Decimal('650.00'),
+            stock_quantity=5,
+            sku='SKU-D',
+            status='archived',
+            is_active=False,
+        )
+        self.product_draft = Product.objects.create(
+            name='Sneaker E',
+            description='E',
+            price=Decimal('550.00'),
+            stock_quantity=5,
+            sku='SKU-E',
+            status='draft',
+            is_active=False,
+        )
+
+        self.category = Category.objects.create(name='Sneakers')
+        self.product_ok.categories.add(self.category)
+
+        self.supplier = Supplier.objects.create(name='ACME Supplier')
+        self.product_ok.supplier = self.supplier
+        self.product_ok.save(update_fields=['supplier'])
+
+        self.color_group = FilterGroup.objects.create(name='Цвет', category=self.category)
+        self.size_group = FilterGroup.objects.create(name='Размер', category=self.category)
+        self.fabric_group = FilterGroup.objects.create(name='Материал', category=self.category)
+        self.color_black = FilterOption.objects.create(group=self.color_group, name='black')
+        self.color_white = FilterOption.objects.create(group=self.color_group, name='white')
+        self.size_42 = FilterOption.objects.create(group=self.size_group, name='42')
+        self.size_43 = FilterOption.objects.create(group=self.size_group, name='43')
+        self.fabric_cotton = FilterOption.objects.create(group=self.fabric_group, name='cotton')
+
+        ProductFilter.objects.create(product=self.product_ok, filter_option=self.color_black)
+        ProductFilter.objects.create(product=self.product_ok, filter_option=self.size_42)
+        ProductFilter.objects.create(product=self.product_ok, filter_option=self.fabric_cotton)
 
         Cart.objects.get_or_create(user=self.buyer)
         Cart.objects.get_or_create(user=self.other_user)
@@ -71,6 +114,184 @@ class CourseRequirementsAPITests(TestCase):
         if isinstance(data, dict) and 'results' in data:
             return data['results']
         return data
+
+    def test_product_price_must_be_positive(self):
+        self.auth(self.admin)
+        response = self.client.post(
+            '/api/v1/products/',
+            {
+                'name': 'Bad Price',
+                'description': 'X',
+                'price': '0.00',
+                'stock_quantity': 5,
+                'sku': 'SKU-BAD-0',
+                'status': 'active',
+                'is_active': True,
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('price', response.data)
+
+    def test_product_old_price_cannot_be_less_than_price(self):
+        self.auth(self.admin)
+        response = self.client.post(
+            '/api/v1/products/',
+            {
+                'name': 'Bad Old Price',
+                'description': 'X',
+                'price': '1000.00',
+                'old_price': '900.00',
+                'stock_quantity': 5,
+                'sku': 'SKU-BAD-OLD',
+                'status': 'active',
+                'is_active': True,
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('old_price', response.data)
+
+    def test_product_get_discounted_price_works_correctly(self):
+        product = Product.objects.create(
+            name='Discounted',
+            description='X',
+            price=Decimal('1000.00'),
+            stock_quantity=5,
+            sku='SKU-DISC',
+            status='active',
+            is_active=True,
+        )
+        self.assertEqual(product.get_discounted_price(), Decimal('1000.00'))
+
+    def test_cart_cannot_add_non_positive_quantity(self):
+        self.auth(self.buyer)
+        response = self.client.post('/api/v1/cart-items/', {'product_id': self.product_ok.id, 'quantity': 0}, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_cart_cannot_add_archived_or_draft_or_out_of_stock_product(self):
+        self.auth(self.buyer)
+        for product in [self.product_archived, self.product_draft, self.product_oos]:
+            response = self.client.post('/api/v1/cart-items/', {'product_id': product.id, 'quantity': 1}, format='json')
+            self.assertEqual(response.status_code, 400)
+
+    def test_order_total_model_validation_forbidden_when_non_positive(self):
+        order = Order(user=self.buyer, status=self.order_status, shipping_address='A', total=Decimal('0.00'))
+        with self.assertRaises(ValidationError):
+            order.full_clean()
+
+    def test_order_creation_failure_does_not_decrease_stock(self):
+        self.auth(self.buyer)
+        CartItem.objects.create(cart=self.buyer.cart, product=self.product_low, quantity=1)
+        before = self.product_low.stock_quantity
+        response = self.client.post(
+            '/api/v1/orders/',
+            {'shipping_address': 'Улица Пушкина, д 10, Москва, 123456', 'notes': ''},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.product_low.refresh_from_db()
+        self.assertEqual(self.product_low.stock_quantity, before)
+
+    def test_admin_can_change_order_status(self):
+        order = Order.objects.create(user=self.buyer, status=self.order_status, shipping_address='A', total=1000)
+        self.auth(self.admin)
+        response = self.client.patch(f'/api/v1/orders/{order.id}/', {'status': self.completed_status.id}, format='json')
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status_id, self.completed_status.id)
+
+    def test_review_cannot_be_left_for_new_order_status(self):
+        self.auth(self.buyer)
+        order = Order.objects.create(user=self.buyer, status=self.order_status, shipping_address='A', total=1000)
+        OrderItem.objects.create(
+            order=order,
+            product=self.product_ok,
+            product_name=self.product_ok.name,
+            product_sku=self.product_ok.sku,
+            price=self.product_ok.price,
+            quantity=1,
+        )
+        response = self.client.post('/api/v1/reviews/', {'product': self.product_ok.id, 'rating': 5, 'comment': 'x'}, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_review_cannot_be_left_twice(self):
+        self.auth(self.buyer)
+        order = Order.objects.create(user=self.buyer, status=self.completed_status, shipping_address='A', total=1000)
+        OrderItem.objects.create(
+            order=order,
+            product=self.product_ok,
+            product_name=self.product_ok.name,
+            product_sku=self.product_ok.sku,
+            price=self.product_ok.price,
+            quantity=1,
+        )
+        self.assertEqual(
+            self.client.post('/api/v1/reviews/', {'product': self.product_ok.id, 'rating': 5, 'comment': '1'}, format='json').status_code,
+            201,
+        )
+        response_second = self.client.post('/api/v1/reviews/', {'product': self.product_ok.id, 'rating': 4, 'comment': '2'}, format='json')
+        self.assertEqual(response_second.status_code, 400)
+
+    def test_product_filter_by_fabric(self):
+        self.auth(self.buyer)
+        response = self.client.get('/api/v1/products/?fabrics=cotton')
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response)
+        ids = {item['id'] for item in items}
+        self.assertIn(self.product_ok.id, ids)
+
+    def test_analytics_endpoint_forbidden_for_buyer(self):
+        self.auth(self.buyer)
+        response = self.client.get('/api/v1/analytics/products/')
+        self.assertEqual(response.status_code, 403)
+
+    def test_analytics_endpoint_available_for_admin_and_metrics_correct(self):
+        ProductFavorite.objects.create(user=self.buyer, product=self.product_ok)
+        ProductFavorite.objects.create(user=self.other_user, product=self.product_ok)
+
+        Review.objects.create(user=self.buyer, product=self.product_ok, rating=5, comment='great', is_verified_purchase=True)
+        Review.objects.create(user=self.other_user, product=self.product_ok, rating=3, comment='ok', is_verified_purchase=True)
+
+        paid_order = Order.objects.create(user=self.buyer, status=self.paid_status, shipping_address='A', total=1200)
+        OrderItem.objects.create(
+            order=paid_order,
+            product=self.product_ok,
+            product_name=self.product_ok.name,
+            product_sku=self.product_ok.sku,
+            price=Decimal('600.00'),
+            quantity=2,
+        )
+        cancelled_order = Order.objects.create(user=self.buyer, status=self.cancelled_status, shipping_address='A', total=999)
+        OrderItem.objects.create(
+            order=cancelled_order,
+            product=self.product_ok,
+            product_name=self.product_ok.name,
+            product_sku=self.product_ok.sku,
+            price=Decimal('999.00'),
+            quantity=1,
+        )
+
+        self.auth(self.admin)
+        response = self.client.get('/api/v1/analytics/products/')
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.data
+        self.assertEqual(payload['orders_summary']['total_orders'], 2)
+        self.assertEqual(payload['orders_summary']['paid_orders'], 1)
+        self.assertEqual(payload['orders_summary']['cancelled_orders'], 1)
+        self.assertEqual(Decimal(str(payload['orders_summary']['total_revenue'])), Decimal('1200.00'))
+
+        sold_top = payload['top_sold_products'][0]
+        self.assertEqual(sold_top['id'], self.product_ok.id)
+        self.assertEqual(sold_top['sold_quantity'], 2)
+        self.assertEqual(Decimal(str(sold_top['revenue'])), Decimal('1200.00'))
+
+        rated_top = payload['top_rated_products'][0]
+        self.assertEqual(rated_top['reviews_count'], 2)
+
+        fav_top = payload['most_favorited_products'][0]
+        self.assertEqual(fav_top['favorites_count'], 2)
 
     def test_cart_cannot_add_out_of_stock_product(self):
         self.auth(self.buyer)
@@ -196,6 +417,72 @@ class CourseRequirementsAPITests(TestCase):
         ids = {item['id'] for item in items}
         self.assertIn(self.product_ok.id, ids)
         self.assertNotIn(self.product_low.id, ids)
+
+    def test_product_filter_by_category(self):
+        self.auth(self.buyer)
+        response = self.client.get(f'/api/v1/products/?category={self.category.id}')
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response)
+        ids = {item['id'] for item in items}
+        self.assertIn(self.product_ok.id, ids)
+
+    def test_product_filter_by_supplier(self):
+        self.auth(self.buyer)
+        response = self.client.get(f'/api/v1/products/?supplier={self.supplier.id}')
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response)
+        ids = {item['id'] for item in items}
+        self.assertIn(self.product_ok.id, ids)
+
+    def test_product_filter_by_color(self):
+        self.auth(self.buyer)
+        response = self.client.get('/api/v1/products/?colors=black')
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response)
+        ids = {item['id'] for item in items}
+        self.assertIn(self.product_ok.id, ids)
+
+    def test_product_filter_by_size(self):
+        self.auth(self.buyer)
+        response = self.client.get('/api/v1/products/?sizes=42')
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response)
+        ids = {item['id'] for item in items}
+        self.assertIn(self.product_ok.id, ids)
+
+    def test_non_admin_cannot_create_product(self):
+        self.auth(self.buyer)
+        response = self.client.post(
+            '/api/v1/products/',
+            {
+                'name': 'Sneaker X',
+                'description': 'X',
+                'price': '900.00',
+                'stock_quantity': 5,
+                'sku': 'SKU-X',
+                'status': 'active',
+                'is_active': True,
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_create_product(self):
+        self.auth(self.admin)
+        response = self.client.post(
+            '/api/v1/products/',
+            {
+                'name': 'Sneaker Admin',
+                'description': 'X',
+                'price': '900.00',
+                'stock_quantity': 5,
+                'sku': 'SKU-ADMIN',
+                'status': 'active',
+                'is_active': True,
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
 
     def test_product_has_favorites_count_annotation(self):
         ProductFavorite.objects.create(user=self.buyer, product=self.product_ok)
