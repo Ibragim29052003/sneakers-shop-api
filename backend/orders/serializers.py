@@ -1,6 +1,9 @@
 """
 Сериализаторы для приложения заказов
 """
+import re
+from decimal import Decimal
+
 from rest_framework import serializers
 from .models import OrderStatus, Order, OrderItem
 from users.serializers import UserSerializer
@@ -50,35 +53,72 @@ class OrderSerializer(serializers.ModelSerializer):
 class OrderCreateSerializer(serializers.ModelSerializer):
     """Сериализатор для создания заказов."""
     
+    MIN_ORDER_TOTAL = Decimal('500.00')
+    MAX_ORDER_TOTAL = Decimal('100000.00')
+    SHIPPING_ADDRESS_PATTERN = r'^.+,\s*д\.?\s*\d+[\w\-/]*,\s*.+,\s*\d{6}$'
+
     class Meta:
         model = Order
-        fields = ['status', 'shipping_address', 'notes']
+        fields = ['shipping_address', 'notes']
+
+    def validate_shipping_address(self, value):
+        """Валидация адреса доставки: улица, дом, город, индекс."""
+        if not re.match(self.SHIPPING_ADDRESS_PATTERN, value.strip(), flags=re.IGNORECASE):
+            raise serializers.ValidationError(
+                'Адрес должен быть в формате: "Улица Пушкина, д 10, Москва, 123456".'
+            )
+        return value
     
     def create(self, validated_data):
         """Создание заказа из корзины."""
         user = self.context['request'].user
         from carts.models import Cart
         from django.db import transaction
-        
+        from products.models import Product
+
         with transaction.atomic():
-            cart = Cart.objects.get(user=user)
+            cart, _ = Cart.objects.get_or_create(user=user)
+            if not cart.items.exists():
+                raise serializers.ValidationError({'detail': 'Нельзя оформить пустой заказ.'})
+
+            cart_items = list(cart.items.select_related('product'))
+            product_ids = [item.product_id for item in cart_items]
+            products_by_id = {
+                product.id: product
+                for product in Product.objects.select_for_update().filter(id__in=product_ids)
+            }
+
+            for cart_item in cart_items:
+                product = products_by_id.get(cart_item.product_id)
+                if not product or product.stock_quantity <= 0 or product.status == 'out_of_stock':
+                    raise serializers.ValidationError(
+                        {'detail': f'Товар "{cart_item.product.name}" недоступен для заказа.'}
+                    )
+                if cart_item.quantity > product.stock_quantity:
+                    raise serializers.ValidationError(
+                        {'detail': f'Недостаточно товара "{product.name}" на складе.'}
+                    )
+
             order = Order.objects.create(user=user, **validated_data)
-            
-            # Создание товаров в заказе
-            for cart_item in cart.items.all():
+
+            for cart_item in cart_items:
+                product = products_by_id[cart_item.product_id]
                 OrderItem.objects.create(
                     order=order,
-                    product=cart_item.product,
-                    product_name=cart_item.product.name,
-                    product_sku=cart_item.product.sku,
-                    price=cart_item.product.price,
+                    product=product,
+                    product_name=product.name,
+                    product_sku=product.sku,
+                    price=product.price,
                     quantity=cart_item.quantity
                 )
-            
-            # Расчет общей суммы
-            order.calculate_total()
-            
-            # Очистка корзины
+                product.stock_quantity -= cart_item.quantity
+                product.save(update_fields=['stock_quantity'])
+
+            total = order.calculate_total()
+            if total < self.MIN_ORDER_TOTAL or total > self.MAX_ORDER_TOTAL:
+                raise serializers.ValidationError(
+                    {'detail': 'Сумма заказа должна быть от 500 до 100000 рублей.'}
+                )
+
             cart.items.all().delete()
-            
             return order

@@ -2,15 +2,13 @@
 Представления для приложения заказов
 """
 from rest_framework import viewsets, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from django.shortcuts import get_object_or_404
 from django.db import transaction
 from .models import OrderStatus, Order, OrderItem
-from .serializers import OrderStatusSerializer, OrderSerializer, OrderItemSerializer
-from carts.models import Cart
-from products.models import Product
+from .serializers import OrderStatusSerializer, OrderSerializer, OrderItemSerializer, OrderCreateSerializer
 
 
 class OrderStatusViewSet(viewsets.ModelViewSet):
@@ -24,47 +22,35 @@ class OrderViewSet(viewsets.ModelViewSet):
     """ViewSet для модели заказов."""
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return OrderCreateSerializer
+        return OrderSerializer
     
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
+        is_admin = self.request.user.is_staff or self.request.user.user_roles.filter(role__name='admin').exists()
+        queryset = Order.objects.select_related('user', 'status').prefetch_related('items__product')
+        if is_admin:
+            return queryset
+        return queryset.filter(user=self.request.user)
     
     def perform_create(self, serializer):
         """Создание заказа из корзины."""
-        with transaction.atomic():
-            user = self.request.user
-            cart = get_object_or_404(Cart, user=user)
-            
-            # Создание заказа
-            order = serializer.save(user=user)
-            
-            # Создание товаров в заказе из товаров корзины
-            for cart_item in cart.items.all():
-                order_item = OrderItem.objects.create(
-                    order=order,
-                    product=cart_item.product,
-                    product_name=cart_item.product.name,
-                    product_sku=cart_item.product.sku,
-                    price=cart_item.product.price,
-                    quantity=cart_item.quantity
-                )
-            
-            # Расчет общей суммы
-            order.calculate_total()
-            
-            # Очистка корзины
-            cart.items.all().delete()
+        serializer.save()
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        """Обновление статуса заказа."""
+        """Обновление заказа. Смена статуса доступна только администратору/менеджеру."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        status_id = request.data.get('status')
         
-        if status_id:
-            instance.status_id = status_id
-            instance.save()
-        
+        is_admin = request.user.is_staff or request.user.user_roles.filter(role__name='admin').exists()
+        is_manager = request.user.user_roles.filter(role__name='manager').exists()
+
+        if not (is_admin or is_manager):
+            raise PermissionDenied('Только администратор или менеджер может изменять заказ.')
+
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -77,7 +63,7 @@ class OrderItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return OrderItem.objects.filter(order__user=self.request.user)
+        return OrderItem.objects.filter(order__user=self.request.user).select_related('order', 'product')
 
 
 class ManagerOrdersView(APIView):
