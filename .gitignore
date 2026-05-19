@@ -8,17 +8,22 @@ env/
 
 # Django
 media/
+/backend/media/
 staticfiles/
 .env
 test.env
+/test.env
 
 # Node
 node_modules/
+/node_modules/
 dist/
 build/
+/backend/package-lock.json
 
 # IDE
 .vscode/
+/.vscode/
 .idea/
 
 # OS
