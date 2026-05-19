@@ -4,10 +4,11 @@
 from rest_framework import viewsets, status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 
+from core.permissions import IsAdminRole, IsOwnerOrAdmin
 from .models import Role, UserRole, UserProfile
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -25,13 +26,13 @@ User = get_user_model()
 class CustomTokenObtainPairView(TokenObtainPairView):
     """Пользовательское представление получения токена с информацией о пользователе."""
     serializer_class = CustomTokenObtainPairSerializer
-    permission_classes = []  # Разрешаем публичный вход
+    permission_classes = [AllowAny]
 
 
 class UserCreateAPIView(generics.CreateAPIView):
     """API представление для регистрации пользователя."""
     serializer_class = UserCreateSerializer
-    permission_classes = []  # Разрешаем публичную регистрацию
+    permission_classes = [AllowAny]
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -75,7 +76,11 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         if self.action == 'create':
-            return []
+            return [AllowAny()]
+        if self.action == 'list':
+            return [IsAdminRole()]
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsOwnerOrAdmin()]
         return [IsAuthenticated()]
     
     def get_serializer_class(self):
@@ -95,13 +100,14 @@ class RoleViewSet(viewsets.ModelViewSet):
     """ViewSet для управления ролями."""
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminRole]
 
 
 class UserRoleViewSet(viewsets.ModelViewSet):
     """ViewSet для управления назначениями ролей."""
     queryset = UserRole.objects.all()
     serializer_class = UserRoleSerializer
+    permission_classes = [IsAdminRole]
     
     def get_queryset(self):
         return super().get_queryset().filter(user_id=self.kwargs.get('user_pk'))
@@ -109,7 +115,7 @@ class UserRoleViewSet(viewsets.ModelViewSet):
 
 class ManagersListView(APIView):
     """API view для получения списка менеджеров."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminRole]
     
     def get(self, request):
         """Получение всех пользователей с ролью менеджера или админа."""
