@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     
     # сторонние приложения
     'rest_framework',
+    'rest_framework.authtoken',
     'rest_framework_simplejwt',
     'django_filters',
     'import_export',
@@ -212,6 +213,7 @@ AUTHENTICATION_BACKENDS = (
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
 # Email / Mailhog
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
