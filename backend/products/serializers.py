@@ -123,14 +123,16 @@ class ProductSerializer(serializers.ModelSerializer):
         return f"{base_url}{relative_url}"
     
     def get_main_image_url(self, obj):
-        """Получение URL главного изображения."""
-        main_image = obj.images.filter(is_main=True).first()
-        if main_image:
-            return self.get_media_url(main_image.image.url)
-        first_image = obj.images.first()
-        if first_image:
-            return self.get_media_url(first_image.image.url)
-        return None
+        """Получение URL главного изображения без дополнительных запросов в БД."""
+        images = list(obj.images.all())
+        main_image = next((image for image in images if image.is_main), None)
+        if main_image is None and images:
+            main_image = images[0]
+
+        if not main_image or not main_image.image:
+            return None
+
+        return self.get_media_url(main_image.image.url)
 
     def get_absolute_url(self, obj): # отдать ссылку на товар 
         return self.get_media_url(obj.get_absolute_url())
@@ -140,6 +142,14 @@ class ProductSerializer(serializers.ModelSerializer):
         if obj.supplier:
             return obj.supplier.name
         return None
+
+    def validate_categories_ids(self, value):
+        """Проверяет, что все переданные категории существуют."""
+        unique_ids = set(value)
+        existing_count = Category.objects.filter(id__in=unique_ids).count()
+        if existing_count != len(unique_ids):
+            raise serializers.ValidationError('Одна или несколько категорий не найдены.')
+        return value
 
     def create(self, validated_data):
         """Создание товара с категориями через through модель."""
@@ -151,12 +161,9 @@ class ProductSerializer(serializers.ModelSerializer):
         product = Product.objects.create(**validated_data)
         
         # Создаём связи через промежуточную таблицу
-        for cat_id in category_ids:
-            try:
-                category = Category.objects.get(id=cat_id)
-                ProductCategory.objects.create(product=product, category=category)
-            except Category.DoesNotExist:
-                pass
+        categories = Category.objects.filter(id__in=category_ids)
+        for category in categories:
+            ProductCategory.objects.create(product=product, category=category)
         
         # Создаём изображения товара
         for index, image_url in enumerate(image_urls):
@@ -209,12 +216,9 @@ class ProductSerializer(serializers.ModelSerializer):
             ProductCategory.objects.filter(product=instance).delete()
             
             # Создаём новые связи
-            for cat_id in category_ids:
-                try:
-                    category = Category.objects.get(id=cat_id)
-                    ProductCategory.objects.create(product=instance, category=category)
-                except Category.DoesNotExist:
-                    pass
+            categories = Category.objects.filter(id__in=category_ids)
+            for category in categories:
+                ProductCategory.objects.create(product=instance, category=category)
 
         # Полная замена изображений, если передан новый список URL
         if image_urls is not None:

@@ -79,7 +79,13 @@ class ProductViewSet(viewsets.ModelViewSet):
                     Cast(Avg('reviews__rating'), output_field=DecimalField(max_digits=3, decimal_places=2)),
                     Value(0, output_field=DecimalField(max_digits=3, decimal_places=2)),
                 ),
-                sold_quantity=Coalesce(Sum('order_items__quantity'), Value(0)),
+                sold_quantity=Coalesce(
+                    Sum(
+                        'order_items__quantity',
+                        filter=Q(order_items__order__status__name__in=['paid', 'delivered', 'completed']),
+                    ),
+                    Value(0),
+                ),
                 favorites_count=Coalesce(Count('favorites', distinct=True), Value(0)),
             )
         )
@@ -191,7 +197,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             base_queryset
             .annotate(
                 sold_quantity=Coalesce(
-                    Sum('order_items__quantity'),
+                    Sum(
+                        'order_items__quantity',
+                        filter=Q(order_items__order__status__name__in=['paid', 'delivered', 'completed']),
+                    ),
                     Value(0),
                 )
             )
@@ -238,7 +247,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             },
         })
 
-    @action(detail=False, methods=['get'], url_path='supplier-demo')
     def supplier_demo(self, request):
         """
         Демонстрация N+1 проблемы для связи Product -> supplier.
@@ -260,7 +268,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
     def manager_examples(self, request):
         all_products_via_objects = Product.objects.all()
         all_products_via_default_manager = Product.all_objects.all()
@@ -282,7 +289,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
     
 #333333##
-    @action(detail=False, methods=['get'])
     def filter_examples(self, request):
 
         # Найти все активные товары
@@ -324,7 +330,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     
    
     
-    @action(detail=False, methods=['get'])
     def exclude_examples(self, request):
         """  
         exclude() - метод для исключения объектов, соответствующих условиям.
@@ -362,7 +367,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
     
     
-    @action(detail=False, methods=['get'])
     def order_by_examples(self, request):
         """       
         order_by() - метод для сортировки результатов запроса.
@@ -412,7 +416,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
 
     
-    @action(detail=False, methods=['get'])
     def double_underscore_examples(self, request):
         """
         Django ORM использует __ для:
@@ -495,7 +498,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     
 
     
-    @action(detail=False, methods=['get'])
     def aggregation_examples(self, request):
         """        
         АГРЕГАЦИЯ (aggregate) - вычисляет одно значение для всего набора данных.
@@ -589,7 +591,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ related_name
     
-    @action(detail=False, methods=['get'])
     def related_name_examples(self, request):
         """
         Демонстрация использования related_name
@@ -672,7 +673,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ __icontains (регистронезависимый) и __contains
 #**6
 
-    @action(detail=False, methods=['get'])
     def contains_examples(self, request):
            
         # Найти товары, где название содержит "телефон" (любой регистр)
@@ -735,7 +735,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
     
     
-    @action(detail=False, methods=['get'])
     def values_examples(self, request):
         """        
         values() - возвращает QuerySet с словарями (QuerySet[dict])
@@ -818,7 +817,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ count() и exists()
     
-    @action(detail=False, methods=['get'])
     def count_exists_examples(self, request):
         
         
@@ -920,7 +918,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ update() и delete()
     
-    @action(detail=False, methods=['get', 'post'])
     def update_delete_examples(self, request):
                 
         # Обновить статус всех активных товаров на 'archived'
@@ -1043,7 +1040,6 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 
 ###    
-    @action(detail=False, methods=['get'])
     def cache_examples(self, request):
 
         from django.core.cache import cache
@@ -1078,7 +1074,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             'cache_info': 'Данные кэшируются на 300 секунд (5 минут)'
         })
     
-    @action(detail=False, methods=['get'])
     def http404_examples(self, request):
         from django.http import Http404
         
@@ -1139,7 +1134,6 @@ class ProductImageViewSet(viewsets.ModelViewSet):
     
     # ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ return redirect
     
-    @action(detail=False, methods=['get'])
     def redirect_to_first_product(self, request):
         first_product = Product.objects.first()
         if first_product:
@@ -1151,7 +1145,6 @@ class ProductImageViewSet(viewsets.ModelViewSet):
             from django.urls import reverse
             return redirect(reverse('product-list'))
     
-    @action(detail=False, methods=['get'])
     def redirect_after_delete(self, request):
         """
         Демонстрация редиректа после удаления объекта.
@@ -1163,7 +1156,6 @@ class ProductImageViewSet(viewsets.ModelViewSet):
         # Пример: после "удаления" перенаправляем на список товаров
         return redirect(reverse('product-list'))
     
-    @action(detail=True, methods=['get'])
     def redirect_not_found(self, request, pk=None):
         """
         Демонстрация редиректа при обращении к несуществующему объекту.

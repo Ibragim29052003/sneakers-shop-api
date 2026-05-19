@@ -30,6 +30,7 @@ class CourseRequirementsAPITests(TestCase):
         UserRole.objects.create(user=self.admin, role=self.role_admin)
 
         self.order_status = OrderStatus.objects.create(id=1, name='new', description='new')
+        self.completed_status = OrderStatus.objects.create(name='completed', description='completed', is_final=True)
 
         self.product_ok = Product.objects.create(
             name='Sneaker A',
@@ -172,7 +173,7 @@ class CourseRequirementsAPITests(TestCase):
         response = self.client.post('/api/v1/reviews/', {'product': self.product_ok.id, 'rating': 5, 'comment': 'great'}, format='json')
         self.assertEqual(response.status_code, 400)
 
-        order = Order.objects.create(user=self.buyer, status=self.order_status, shipping_address='A', total=1000)
+        order = Order.objects.create(user=self.buyer, status=self.completed_status, shipping_address='A', total=1000)
         OrderItem.objects.create(
             order=order,
             product=self.product_ok,

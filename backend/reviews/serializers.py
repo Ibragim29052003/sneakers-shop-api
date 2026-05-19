@@ -55,7 +55,11 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             )
         
         # Проверка, что пользователь действительно покупал товар
-        has_purchased = product.order_items.filter(order__user=user).exists()
+        allowed_statuses = ['paid', 'delivered', 'completed']
+        has_purchased = product.order_items.filter(
+            order__user=user,
+            order__status__name__in=allowed_statuses,
+        ).exists()
         if not has_purchased:
             raise serializers.ValidationError(
                 {'detail': 'Оставлять отзыв могут только покупатели этого товара.'}

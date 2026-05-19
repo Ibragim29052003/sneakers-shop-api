@@ -2,6 +2,8 @@
 модели приложения заказов
 """
 from django.db import models
+from django.db.models import Q
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.admin import display
 from decimal import Decimal
@@ -57,7 +59,18 @@ class Order(models.Model):
         verbose_name = 'заказ'
         verbose_name_plural = 'заказы'
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=Q(total__gt=0),
+                name='order_total_gt_0',
+            ),
+        ]
     
+    def clean(self):
+        super().clean()
+        if self.total <= 0:
+            raise ValidationError({'total': 'Сумма заказа должна быть больше 0.'})
+
     def __str__(self):
         return f'заказ #{self.id} - {self.user.email}'
     
