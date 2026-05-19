@@ -3,16 +3,29 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+try:
+    import sentry_sdk
+except ImportError:  # pragma: no cover
+    sentry_sdk = None
+from django.core.exceptions import ImproperlyConfigured
+
 # сборка путей внутри проекта: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# предупреждение безопасности: сохраняйте секретный ключ, используемый в продакшене!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-default-key')
-
 # предупреждение безопасности: не запускайте с включенным отладчиком в продакшене!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
+ENABLE_SILK = os.environ.get('DJANGO_ENABLE_SILK', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-key'
+    else:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY must be set when DEBUG is False.')
+
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 INTERNAL_IPS = [
     '127.0.0.1',
     'localhost',
@@ -26,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     
     # сторонние приложения
     'rest_framework',
@@ -34,7 +48,13 @@ INSTALLED_APPS = [
     'import_export',
     'simple_history',
     'corsheaders',
-    'debug_toolbar',
+    'django_celery_beat',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
     
     # локальные приложения
     'users',
@@ -45,18 +65,30 @@ INSTALLED_APPS = [
     'suppliers',
 ]
 
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+
+if ENABLE_SILK:
+    INSTALLED_APPS.append('silk')
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE.insert(2, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+
+if ENABLE_SILK:
+    MIDDLEWARE.insert(2, 'silk.middleware.SilkyMiddleware')
 
 ROOT_URLCONF = 'core.urls'
 
@@ -77,6 +109,15 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '').strip()
+if SENTRY_DSN and sentry_sdk is not None:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        send_default_pii=True,
+        traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
+        profiles_sample_rate=float(os.environ.get('SENTRY_PROFILES_SAMPLE_RATE', '0.0')),
+    )
 
 # база данных
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
@@ -111,7 +152,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # интернационализация
 LANGUAGE_CODE = 'ru'
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.environ.get('CELERY_TIMEZONE', 'UTC')
 USE_I18N = True
 USE_TZ = True
 
@@ -163,8 +204,37 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+SITE_ID = int(os.environ.get('DJANGO_SITE_ID', '1'))
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+)
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+# Email / Mailhog
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'mailhog')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '1025'))
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = False
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@onlinestore.local')
+
+# Celery
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_TIMEZONE = os.environ.get('CELERY_TIMEZONE', TIME_ZONE)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
 # настройки cors
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+        if origin.strip()
+    ]
 
 # кэширование
 CACHES = {
