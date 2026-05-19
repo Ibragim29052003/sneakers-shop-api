@@ -1,11 +1,9 @@
 """
 Представления для приложения корзины
 """
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
+from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
 
@@ -16,7 +14,7 @@ class CartViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return Cart.objects.filter(user=self.request.user)
+        return Cart.objects.filter(user=self.request.user).prefetch_related('items__product')
     
     def get_object(self):
         """Получение или создание корзины для пользователя."""
@@ -36,32 +34,31 @@ class CartItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return CartItem.objects.filter(cart__user=self.request.user)
-    
-    def perform_create(self, serializer):
-        """Добавление товара в корзину."""
-        cart = get_object_or_404(Cart, user=self.request.user)
+        return CartItem.objects.filter(cart__user=self.request.user).select_related('product', 'cart')
+
+    def create(self, request, *args, **kwargs):
+        """Добавление товара в корзину с объединением одинаковых позиций."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        cart, _ = Cart.objects.get_or_create(user=request.user)
         product = serializer.validated_data.get('product')
         quantity = serializer.validated_data.get('quantity', 1)
-        
-        # Проверка, есть ли товар уже в корзине
+
         existing_item = CartItem.objects.filter(cart=cart, product=product).first()
         if existing_item:
             existing_item.quantity += quantity
-            existing_item.save()
-            return existing_item
-        
+            existing_item.save(update_fields=['quantity', 'updated_at'])
+            output_serializer = self.get_serializer(existing_item)
+            return Response(output_serializer.data, status=200)
+
         serializer.save(cart=cart)
+        return Response(serializer.data, status=201)
     
     def update(self, request, *args, **kwargs):
         """Обновление количества товара в корзине."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        quantity = request.data.get('quantity')
-        
-        if quantity is not None:
-            instance.quantity = int(quantity)
-            instance.save()
         
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)

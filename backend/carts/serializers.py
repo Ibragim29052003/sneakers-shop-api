@@ -16,6 +16,34 @@ class CartItemSerializer(serializers.ModelSerializer):
         write_only=True
     )
     total_price = serializers.SerializerMethodField()
+
+    def validate(self, attrs):
+        """Проверка наличия товара на складе."""
+        product = attrs.get('product')
+        quantity = attrs.get('quantity', 1)
+
+        if not product:
+            return attrs
+
+        if product.stock_quantity <= 0 or product.status == 'out_of_stock':
+            raise serializers.ValidationError({'detail': 'Товар отсутствует на складе.'})
+
+        request = self.context.get('request')
+        current_quantity = 0
+        if request and request.user.is_authenticated:
+            from carts.models import CartItem
+
+            qs = CartItem.objects.filter(cart__user=request.user, product=product)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            current_quantity = sum(item.quantity for item in qs)
+
+        if quantity + current_quantity > product.stock_quantity:
+            raise serializers.ValidationError(
+                {'detail': f'Недостаточно товара на складе. Доступно: {product.stock_quantity}.'}
+            )
+
+        return attrs
     
     class Meta:
         model = CartItem
