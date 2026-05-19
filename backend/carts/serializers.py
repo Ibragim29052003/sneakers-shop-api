@@ -25,8 +25,11 @@ class CartItemSerializer(serializers.ModelSerializer):
         if not product:
             return attrs
 
-        if product.stock_quantity <= 0 or product.status == 'out_of_stock':
-            raise serializers.ValidationError({'detail': 'Товар отсутствует на складе.'})
+        if quantity <= 0:
+            raise serializers.ValidationError({'detail': 'Количество товара должно быть больше 0.'})
+
+        if product.stock_quantity <= 0 or product.status in ['draft', 'out_of_stock', 'archived']:
+            raise serializers.ValidationError({'detail': 'Товар недоступен для добавления в корзину.'})
 
         request = self.context.get('request')
         current_quantity = 0
