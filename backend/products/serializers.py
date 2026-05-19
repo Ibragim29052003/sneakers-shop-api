@@ -143,6 +143,29 @@ class ProductSerializer(serializers.ModelSerializer):
             return obj.supplier.name
         return None
 
+    def validate(self, attrs):
+        price = attrs.get('price', getattr(self.instance, 'price', None))
+        old_price = attrs.get('old_price', getattr(self.instance, 'old_price', None))
+        stock_quantity = attrs.get('stock_quantity', getattr(self.instance, 'stock_quantity', 0))
+        status = attrs.get('status', getattr(self.instance, 'status', 'draft'))
+        is_active = attrs.get('is_active', getattr(self.instance, 'is_active', True))
+
+        if price is not None and price <= 0:
+            raise serializers.ValidationError({'price': 'Цена должна быть больше 0.'})
+
+        if old_price is not None and price is not None and old_price < price:
+            raise serializers.ValidationError({'old_price': 'Старая цена должна быть больше или равна текущей цене.'})
+
+        if stock_quantity is not None and stock_quantity < 0:
+            raise serializers.ValidationError({'stock_quantity': 'Остаток не может быть отрицательным.'})
+
+        if is_active and stock_quantity == 0 and status != 'out_of_stock':
+            raise serializers.ValidationError(
+                {'status': 'Товар с нулевым остатком может быть активным только со статусом out_of_stock.'}
+            )
+
+        return attrs
+
     def validate_categories_ids(self, value):
         """Проверяет, что все переданные категории существуют."""
         unique_ids = set(value)

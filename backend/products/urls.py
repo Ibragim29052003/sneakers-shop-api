@@ -1,21 +1,19 @@
 """
-Эндпоинты для ProductViewSet (доступны через router):
-- GET /api/products/ - список товаров
-- POST /api/products/ - создать товар
-- GET /api/products/{id}/ - получить товар
-- PUT /api/products/{id}/ - обновить товар
-- DELETE /api/products/{id}/ - удалить товар
-- GET /api/products/filter-examples/ - примеры использования filter()
-- GET /api/products/manager-examples/ - примеры использования кастомного менеджера
-- GET /api/products/exclude-examples/ - примеры использования exclude()
-- GET /api/products/order-by-examples/ - примеры использования order_by()
-- GET /api/products/double-underscore-examples/ - примеры использования __
-- GET /api/products/aggregation-examples/ - примеры агрегации и аннотирования
-- GET /api/products/related-name-examples/ - примеры использования related_name
+Эндпоинты для каталога товаров интернет-магазина.
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CategoryViewSet, ProductViewSet, ProductImageViewSet, SliderImageViewSet, FilterGroupViewSet, FilterOptionViewSet, ProductFilterViewSet, ProductFavoriteViewSet
+from .views import (
+    AdminProductAnalyticsView,
+    CategoryViewSet,
+    FilterGroupViewSet,
+    FilterOptionViewSet,
+    ProductFavoriteViewSet,
+    ProductFilterViewSet,
+    ProductImageViewSet,
+    ProductViewSet,
+    SliderImageViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -29,4 +27,5 @@ router.register(r'favorites', ProductFavoriteViewSet, basename='product-favorite
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('analytics/products/', AdminProductAnalyticsView.as_view(), name='admin-product-analytics'),
 ]
