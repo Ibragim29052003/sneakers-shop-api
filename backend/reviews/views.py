@@ -2,36 +2,46 @@
 Представления для приложения отзывов
 """
 from rest_framework import viewsets, status
-from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Review
-from .serializers import ReviewSerializer
+from .serializers import ReviewSerializer, ReviewCreateSerializer, ReviewUpdateSerializer
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
     """ViewSet для модели отзывов."""
     serializer_class = ReviewSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ReviewCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return ReviewUpdateSerializer
+        return ReviewSerializer
     
     def get_queryset(self):
         """Получение отзывов для конкретного товара или пользователя."""
         product_pk = self.kwargs.get('product_pk')
         if product_pk:
-            return Review.objects.filter(product_id=product_pk)
-        return Review.objects.filter(user=self.request.user)
+            return Review.objects.filter(product_id=product_pk).select_related('user', 'product')
+        return Review.objects.filter(user=self.request.user).select_related('user', 'product')
     
     def perform_create(self, serializer):
         """Создание отзыва для товара."""
-        product_pk = self.kwargs.get('product_pk')
-        if product_pk:
-            serializer.save(
-                user=self.request.user,
-                product_id=product_pk
-            )
-        else:
-            serializer.save(user=self.request.user)
+        product_pk = self.kwargs.get('product_pk') or self.request.data.get('product')
+        if not product_pk:
+            raise ValidationError({'detail': 'Для создания отзыва нужно передать product.'})
+
+        from products.models import Product
+
+        try:
+            serializer.context['product'] = Product.objects.get(pk=product_pk)
+        except Product.DoesNotExist as exc:
+            raise ValidationError({'detail': 'Товар не найден.'}) from exc
+
+        serializer.save()
     
     def update(self, request, *args, **kwargs):
         """Обновление отзыва - только собственные отзывы."""

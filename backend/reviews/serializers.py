@@ -54,7 +54,19 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
                 {'detail': 'Вы уже оставили отзыв на этот товар.'}
             )
         
-        return Review.objects.create(user=user, product=product, **validated_data)
+        # Проверка, что пользователь действительно покупал товар
+        has_purchased = product.order_items.filter(order__user=user).exists()
+        if not has_purchased:
+            raise serializers.ValidationError(
+                {'detail': 'Оставлять отзыв могут только покупатели этого товара.'}
+            )
+
+        return Review.objects.create(
+            user=user,
+            product=product,
+            is_verified_purchase=True,
+            **validated_data,
+        )
 
 
 class ReviewUpdateSerializer(serializers.ModelSerializer):
