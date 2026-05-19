@@ -99,7 +99,17 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                         {'detail': f'Недостаточно товара "{product.name}" на складе.'}
                     )
 
-            order = Order.objects.create(user=user, **validated_data)
+            expected_total = sum(
+                (products_by_id[cart_item.product_id].price * cart_item.quantity) for cart_item in cart_items
+            )
+            if expected_total <= 0:
+                raise serializers.ValidationError({'detail': 'Сумма заказа должна быть больше 0 рублей.'})
+            if expected_total < self.MIN_ORDER_TOTAL or expected_total > self.MAX_ORDER_TOTAL:
+                raise serializers.ValidationError(
+                    {'detail': 'Сумма заказа должна быть от 500 до 100000 рублей.'}
+                )
+
+            order = Order.objects.create(user=user, total=expected_total, **validated_data)
 
             for cart_item in cart_items:
                 product = products_by_id[cart_item.product_id]
@@ -113,12 +123,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
                 product.stock_quantity -= cart_item.quantity
                 product.save(update_fields=['stock_quantity'])
-
-            total = order.calculate_total()
-            if total < self.MIN_ORDER_TOTAL or total > self.MAX_ORDER_TOTAL:
-                raise serializers.ValidationError(
-                    {'detail': 'Сумма заказа должна быть от 500 до 100000 рублей.'}
-                )
 
             cart.items.all().delete()
             return order

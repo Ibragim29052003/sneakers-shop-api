@@ -25,6 +25,13 @@ class OrderStatus(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        """Защита от рассинхронизации sequence при явном задании id."""
+        if self.pk is None:
+            last_id = OrderStatus.objects.order_by('-id').values_list('id', flat=True).first() or 0
+            self.pk = last_id + 1
+        return super().save(*args, **kwargs)
+
 
 class Order(models.Model):
     # модель заказа покупателя
@@ -61,7 +68,7 @@ class Order(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.CheckConstraint(
-                check=Q(total__gt=0),
+                condition=Q(total__gt=0),
                 name='order_total_gt_0',
             ),
         ]

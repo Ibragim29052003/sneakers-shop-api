@@ -5,17 +5,19 @@ from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from core.permissions import IsAdminRole, IsOrderOwnerOrAdmin
 from .models import OrderStatus, Order, OrderItem
 from .serializers import OrderStatusSerializer, OrderSerializer, OrderItemSerializer, OrderCreateSerializer
+from .tasks import send_order_created_email, send_order_status_changed_email
 
 
 class OrderStatusViewSet(viewsets.ModelViewSet):
     """ViewSet для модели статусов заказов."""
     queryset = OrderStatus.objects.all()
     serializer_class = OrderStatusSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAdminRole]
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -34,10 +36,18 @@ class OrderViewSet(viewsets.ModelViewSet):
         if is_admin:
             return queryset
         return queryset.filter(user=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update']:
+            return [IsAuthenticated()]
+        if self.action in ['retrieve', 'destroy']:
+            return [IsAuthenticated(), IsOrderOwnerOrAdmin()]
+        return super().get_permissions()
     
     def perform_create(self, serializer):
         """Создание заказа из корзины."""
-        serializer.save()
+        order = serializer.save()
+        send_order_created_email.delay(order.id)
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
@@ -51,9 +61,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not (is_admin or is_manager):
             raise PermissionDenied('Только администратор или менеджер может изменять заказ.')
 
+        previous_status_id = instance.status_id
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+
+        if previous_status_id != serializer.instance.status_id:
+            send_order_status_changed_email.delay(serializer.instance.id)
+
         return Response(serializer.data)
 
 
