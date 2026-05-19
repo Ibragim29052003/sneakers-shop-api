@@ -15,7 +15,7 @@
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CategoryViewSet, ProductViewSet, ProductImageViewSet, SliderImageViewSet, FilterGroupViewSet, FilterOptionViewSet, ProductFilterViewSet
+from .views import CategoryViewSet, ProductViewSet, ProductImageViewSet, SliderImageViewSet, FilterGroupViewSet, FilterOptionViewSet, ProductFilterViewSet, ProductFavoriteViewSet
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -25,6 +25,7 @@ router.register(r'slider', SliderImageViewSet, basename='slider')
 router.register(r'filter-groups', FilterGroupViewSet, basename='filter-group')
 router.register(r'filter-options', FilterOptionViewSet, basename='filter-option')
 router.register(r'product-filters', ProductFilterViewSet, basename='product-filter')
+router.register(r'favorites', ProductFavoriteViewSet, basename='product-favorite')
 
 urlpatterns = [
     path('', include(router.urls)),

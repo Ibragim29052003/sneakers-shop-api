@@ -11,14 +11,16 @@
 7. related_name - использование в запросах
 """
 from rest_framework import viewsets, filters, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import redirect, get_object_or_404, Http404
-from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value, IntegerField
-from django.db.models.functions import Concat, Coalesce
+from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, Value, IntegerField, DecimalField
+from django.db.models.functions import Concat, Coalesce, Cast
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Category, Product, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
-from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer, ProductSupplierDemoSerializer, ProductShowcaseSerializer
+from .filters import ProductFilterSet
+from .models import Category, Product, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter, ProductFavorite
+from .serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, SliderImageSerializer, FilterGroupSerializer, FilterGroupByCategorySerializer, FilterOptionSerializer, ProductFilterSerializer, ProductSupplierDemoSerializer, ProductShowcaseSerializer, ProductFavoriteSerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -54,11 +56,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = {
-        'price': ['gte', 'lte'],
-        'categories': ['exact'],
-        'is_active': ['exact'],
-    }
+    filterset_class = ProductFilterSet
     search_fields = ['name', 'description', 'sku']
     ordering_fields = ['price', 'created_at', 'name']
     ordering = ['-created_at']
@@ -74,7 +72,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             super()
             .get_queryset()
             .exclude(status='draft')
+            .select_related('supplier')
             .prefetch_related('categories', 'images')
+            .annotate(
+                avg_rating=Coalesce(
+                    Cast(Avg('reviews__rating'), output_field=DecimalField(max_digits=3, decimal_places=2)),
+                    Value(0, output_field=DecimalField(max_digits=3, decimal_places=2)),
+                ),
+                sold_quantity=Coalesce(Sum('order_items__quantity'), Value(0)),
+                favorites_count=Coalesce(Count('favorites', distinct=True), Value(0)),
+            )
         )
 
     def _apply_category_filter(self, queryset, category_param):
@@ -1448,3 +1455,15 @@ class ProductFilterViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Получение связей с предзагрузкой данных."""
         return super().get_queryset().select_related('product', 'filter_option__group')
+
+
+class ProductFavoriteViewSet(viewsets.ModelViewSet):
+    """ViewSet для избранных товаров текущего пользователя."""
+
+    serializer_class = ProductFavoriteSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete']
+
+    def get_queryset(self):
+        """Возвращает избранное только текущего пользователя."""
+        return ProductFavorite.objects.filter(user=self.request.user).select_related('product')

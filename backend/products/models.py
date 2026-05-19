@@ -8,7 +8,6 @@ from django.utils.text import slugify
 from simple_history.models import HistoricalRecords
 from datetime import timedelta
 
-#%%333333vi162
 class ProductManager(models.Manager):
     """
     Кастомный менеджер модели товара
@@ -52,7 +51,6 @@ class Category(models.Model):
     # модель категории с иерархической структурой
     name = models.CharField('название категории', max_length=100)
     description = models.TextField('описание', blank=True)
-#333333$$ser22view39
     parent = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -111,7 +109,6 @@ class ProductCategory(models.Model):
     def __str__(self):
         return f'{self.product.name} - {self.category.name}'
 
-#@@@ser and 55555
 class ProductImage(models.Model):
     product = models.ForeignKey(
         'Product',
@@ -143,7 +140,6 @@ class ProductImage(models.Model):
             )
         return ''
 
-#**66666
 class SliderImage(models.Model):
     """
     Модель для изображений слайдера на главной странице.
@@ -205,7 +201,6 @@ class SliderImage(models.Model):
             )
         return ''
 
-#3333333##
 class Product(models.Model):
     
     # Статусы товара
@@ -223,6 +218,7 @@ class Product(models.Model):
     name = models.CharField('название товара', max_length=200)
     description = models.TextField('описание', blank=True)
     price = models.DecimalField('цена', max_digits=10, decimal_places=2)
+    stock_quantity = models.PositiveIntegerField('количество на складе', default=0)
     old_price = models.DecimalField(
         'старая цена',
         max_digits=10,
@@ -283,7 +279,6 @@ class Product(models.Model):
         related_name='products',
         verbose_name='источник создания'
     )
-#444444(())
 
     categories = models.ManyToManyField(
         Category,
@@ -313,7 +308,7 @@ class Product(models.Model):
     # отслеживание истории изменений через simple_history
     history = HistoricalRecords()
     
-#333333##
+
     class Meta:
         verbose_name = 'товар'
         verbose_name_plural = 'товары'
@@ -323,7 +318,6 @@ class Product(models.Model):
         return self.name
     
 
-#$%555вопрос555
     def get_main_image(self):
         # получение основного изображения товара
         return self.images.filter(is_main=True).first()
@@ -340,11 +334,10 @@ class Product(models.Model):
 # reverse() для генерации URL по имени маршрута
     
     
-#**333se135
+
     def get_absolute_url(self):
 
         return reverse('product-detail', kwargs={'pk': self.pk})
-#33333##
     def get_days_in_warehouse(self):
         """
         Рассчитывает количество дней, которое товар хранится на складе.
@@ -460,3 +453,31 @@ class ProductFilter(models.Model):
     
     def __str__(self):
         return f"{self.product.name} - {self.filter_option.name}"
+
+
+class ProductFavorite(models.Model):
+    """Товар, добавленный пользователем в избранное."""
+
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='favorite_products',
+        verbose_name='пользователь',
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+        verbose_name='товар',
+    )
+    created_at = models.DateTimeField('дата добавления', default=timezone.now)
+
+    class Meta:
+        verbose_name = 'избранный товар'
+        verbose_name_plural = 'избранные товары'
+        unique_together = ('user', 'product')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.email} -> {self.product.name}'
+

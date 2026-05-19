@@ -3,7 +3,7 @@
 """
 from rest_framework import serializers
 from django.conf import settings
-from .models import Category, Product, ProductCategory, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter
+from .models import Category, Product, ProductCategory, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter, ProductFavorite
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -19,12 +19,8 @@ class CategorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-#333333$$ Получение количества подкатегорий
-
     def get_subcategories_count(self, obj):
         return obj.subcategories.count()
-
-#@@@ser 5555 (46 - Сериализаторы строят абсолютную ссылку, чтобы фронтенд мог сразу показать изображение)
 
 class ProductImageSerializer(serializers.ModelSerializer):
     """
@@ -86,6 +82,9 @@ class ProductSerializer(serializers.ModelSerializer):
     main_image_url = serializers.SerializerMethodField()
     absolute_url = serializers.SerializerMethodField()
     supplier_name = serializers.SerializerMethodField()
+    avg_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+    sold_quantity = serializers.IntegerField(read_only=True)
+    favorites_count = serializers.IntegerField(read_only=True)
     # Поле для создания товара с категориями - поддерживает categories_ids и categories
     categories_ids = serializers.ListField(
         child=serializers.IntegerField(),
@@ -103,10 +102,10 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'price', 'old_price', 'sku', 'status',
+            'id', 'name', 'description', 'price', 'stock_quantity', 'old_price', 'sku', 'status',
             'is_active', 'created_at', 'updated_at', 'categories', 'categories_ids',
             'images', 'main_image_url', 'absolute_url', 'external_url', 'supplier', 'supplier_name',
-            'published_pages', 'image_urls'
+            'avg_rating', 'sold_quantity', 'favorites_count', 'published_pages', 'image_urls'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
@@ -184,8 +183,7 @@ class ProductSerializer(serializers.ModelSerializer):
             # Убираем начальный слэш если есть
             if clean_path.startswith('/'):
                 clean_path = clean_path[1:]
-#@@@ser
-            # Создаём объект изображения
+
             ProductImage.objects.create(
                 product=product,
                 image=clean_path,  # Сохраняем путь без /media/
@@ -300,13 +298,34 @@ class FilterGroupSerializer(serializers.ModelSerializer):
 class ProductFilterSerializer(serializers.ModelSerializer):
     """Сериализатор для связи товаров и фильтров."""
     option_name = serializers.CharField(source='filter_option.name', read_only=True)
-    option_value = serializers.CharField(source='filter_option.value', read_only=True)
     group_name = serializers.CharField(source='filter_option.group.name', read_only=True)
     
     class Meta:
         model = ProductFilter
-        fields = ['id', 'product', 'filter_option', 'option_name', 'option_value', 'group_name', 'created_at']
+        fields = ['id', 'product', 'filter_option', 'option_name', 'group_name', 'created_at']
         read_only_fields = ['created_at']
+
+
+class ProductFavoriteSerializer(serializers.ModelSerializer):
+    """Сериализатор для избранных товаров пользователя."""
+
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        source='product',
+        write_only=True,
+    )
+
+    class Meta:
+        model = ProductFavorite
+        fields = ['id', 'product', 'product_id', 'created_at']
+        read_only_fields = ['created_at']
+
+    def create(self, validated_data):
+        """Добавляет товар в избранное или возвращает существующую запись."""
+        user = self.context['request'].user
+        favorite, _ = ProductFavorite.objects.get_or_create(user=user, **validated_data)
+        return favorite
 
 
 class FilterGroupByCategorySerializer(serializers.ModelSerializer):
