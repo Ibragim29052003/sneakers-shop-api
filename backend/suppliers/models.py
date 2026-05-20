@@ -1,19 +1,21 @@
 """
 Модели приложения управления поставщиками и договорами
 """
+from typing import Any
+
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from simple_history.models import HistoricalRecords
 
 
-def get_default_contract_status():
+def get_default_contract_status() -> Any:
     """Получить статус договора по умолчанию"""
     from .models import ContractStatus
     return ContractStatus.objects.get(name=ContractStatus.DRAFT)
 
 
-def get_default_request_status():
+def get_default_request_status() -> Any:
     """Получить статус заявки по умолчанию"""
     from .models import RequestStatus
     return RequestStatus.objects.get(name=RequestStatus.PENDING)
@@ -53,7 +55,8 @@ class ContractStatus(models.Model):
         verbose_name_plural = 'статусы договоров'
         ordering = ['name']
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.get_name_display()
 
 
@@ -91,7 +94,8 @@ class RequestStatus(models.Model):
         verbose_name_plural = 'статусы заявок'
         ordering = ['name']
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.get_name_display()
 
 
@@ -123,7 +127,8 @@ class AlertType(models.Model):
         verbose_name_plural = 'типы уведомлений'
         ordering = ['name']
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.get_name_display()
 
 
@@ -157,7 +162,8 @@ class ProductSupplierSource(models.Model):
         verbose_name_plural = 'источники товаров'
         ordering = ['name']
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.get_name_display()
 
 
@@ -197,7 +203,8 @@ class DocumentType(models.Model):
         verbose_name_plural = 'типы документов'
         ordering = ['name']
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.get_name_display()
 
 
@@ -245,7 +252,8 @@ class Supplier(models.Model):
             models.Index(fields=['is_active']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.name
 
 
@@ -303,21 +311,22 @@ class SupplierContract(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.contract_number} - {self.supplier.name}'
 
     @property
-    def is_expiring_soon(self):
+    def is_expiring_soon(self) -> Any:
         """Проверка, истекает ли договор в течение 30 дней"""
         from datetime import timedelta
         return self.end_date <= timezone.now().date() + timedelta(days=30)
 
     @property
-    def is_expired(self):
+    def is_expired(self) -> Any:
         """Проверка, истёк ли договор"""
         return self.end_date < timezone.now().date()
 
-    def handle_expiration(self):
+    def handle_expiration(self) -> Any:
         """
         Обработка истечения договора.
         Деактивирует товары поставщика, связанные с этим договором.
@@ -381,7 +390,8 @@ class ContractDocument(models.Model):
             models.Index(fields=['contract', 'document_type']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.file_name} ({self.document_type.name})'
 
 
@@ -477,7 +487,8 @@ class SupplierProductRequest(models.Model):
             models.Index(fields=['created_at']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'Заявка #{self.id} - {self.product_name} ({self.supplier.name})'
 
 
@@ -523,7 +534,8 @@ class RequestDocument(models.Model):
             models.Index(fields=['request', 'document_type']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.file_name} ({self.document_type.name})'
 
 
@@ -579,7 +591,8 @@ class SupplierProduct(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.product.name} - {self.supplier.name}'
 
 
@@ -638,7 +651,8 @@ class SystemAlert(models.Model):
             models.Index(fields=['contract', 'is_read']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.alert_type.name} - {self.title}'
 
 
@@ -688,5 +702,6 @@ class RequestCommunication(models.Model):
             models.Index(fields=['direction']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'Сообщение #{self.id} по заявке #{self.request_id}'

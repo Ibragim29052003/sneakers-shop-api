@@ -1,6 +1,8 @@
 """
 Настройка админки для приложения поставщиков
 """
+from typing import Any
+
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
@@ -46,7 +48,7 @@ class SupplierContractAdmin(SimpleHistoryAdmin):
     raw_id_fields = ('supplier',)
     
     @display(description='Статус истечения')
-    def get_expiration_status(self, obj):
+    def get_expiration_status(self, obj: Any) -> Any:
         """Отображение статуса истечения договора."""
         if obj.is_expired:
             return mark_safe('<span style="color: red;">Истёк</span>')
@@ -67,7 +69,7 @@ class SupplierProductRequestAdmin(SimpleHistoryAdmin):
     readonly_fields = ('created_at', 'updated_at', 'reviewed_at')
     
     @display(description='Статус проверки')
-    def get_review_status(self, obj):
+    def get_review_status(self, obj: Any) -> Any:
         """Отображение статуса проверки заявки."""
         if obj.reviewed_by:
             return format_html(
@@ -155,7 +157,7 @@ class SystemAlertAdmin(SimpleHistoryAdmin):
     raw_id_fields = ('read_by', 'contract', 'request')
     
     @display(description='Статус прочтения')
-    def get_read_status(self, obj):
+    def get_read_status(self, obj: Any) -> Any:
         """Отображение статуса прочтения уведомления."""
         if obj.is_read:
             return format_html(

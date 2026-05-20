@@ -1,6 +1,8 @@
 """
 Сериализаторы для приложения поставщиков
 """
+from typing import Any
+
 from rest_framework import serializers
 from .models import (
     Supplier,
@@ -80,10 +82,12 @@ class SupplierSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
-    def get_contracts_count(self, obj):
+    def get_contracts_count(self, obj: Any) -> Any:
+        """Возвращает данные через `get_contracts_count`."""
         return obj.contracts.count()
     
-    def get_products_count(self, obj):
+    def get_products_count(self, obj: Any) -> Any:
+        """Возвращает данные через `get_products_count`."""
         return obj.products.count()
 
 
@@ -99,7 +103,8 @@ class SupplierRegisterSerializer(serializers.ModelSerializer):
             'password', 'notes'
         ]
     
-    def create(self, validated_data):
+    def create(self, validated_data: Any) -> Any:
+        """Выполняет действие `create`."""
         password = validated_data.pop('password', None)
         from django.contrib.auth import get_user_model
         User = get_user_model()
@@ -159,10 +164,12 @@ class SupplierContractSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
-    def get_documents_count(self, obj):
+    def get_documents_count(self, obj: Any) -> Any:
+        """Возвращает данные через `get_documents_count`."""
         return obj.documents.count()
     
-    def get_products_count(self, obj):
+    def get_products_count(self, obj: Any) -> Any:
+        """Возвращает данные через `get_products_count`."""
         return obj.products.count()
 
 
@@ -200,7 +207,8 @@ class SupplierProductRequestSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at', 'reviewed_at']
     
-    def get_documents_count(self, obj):
+    def get_documents_count(self, obj: Any) -> Any:
+        """Возвращает данные через `get_documents_count`."""
         return obj.documents.count()
 
 
@@ -272,7 +280,8 @@ class SystemAlertSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'read_at']
     
-    def get_request_info(self, obj):
+    def get_request_info(self, obj: Any) -> Any:
+        """Возвращает данные через `get_request_info`."""
         if obj.request:
             return {
                 'id': obj.request.id,
@@ -317,7 +326,7 @@ class SupplierWithRequestSerializer(serializers.Serializer):
     suggested_price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     product_notes = serializers.CharField(required=False, allow_blank=True)
     
-    def validate_email(self, value):
+    def validate_email(self, value: Any) -> Any:
         """Проверка, что email ещё не используется."""
         from django.contrib.auth import get_user_model
         User = get_user_model()
@@ -325,7 +334,8 @@ class SupplierWithRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError("Пользователь с таким email уже существует. Используйте другой email или войдите в систему.")
         return value
     
-    def create(self, validated_data):
+    def create(self, validated_data: Any) -> Any:
+        """Выполняет действие `create`."""
         from django.contrib.auth import get_user_model
         from users.models import Role, UserRole
         
@@ -397,7 +407,8 @@ class RequestCommunicationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'read_at']
     
-    def get_request_info(self, obj):
+    def get_request_info(self, obj: Any) -> Any:
+        """Возвращает данные через `get_request_info`."""
         return {
             'id': obj.request.id,
             'product_name': obj.request.product_name,

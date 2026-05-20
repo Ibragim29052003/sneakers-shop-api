@@ -1,10 +1,13 @@
+from typing import Any
+
 from rest_framework import permissions
 
 
 class IsAdminRole(permissions.BasePermission):
     """Разрешает доступ только staff/admin роли."""
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Any, view: Any) -> Any:
+        """Выполняет действие `has_permission`."""
         user = request.user
         if not user or not user.is_authenticated:
             return False
@@ -14,7 +17,8 @@ class IsAdminRole(permissions.BasePermission):
 class IsAdminOrReadOnly(permissions.BasePermission):
     """Чтение доступно всем, изменение — только админу."""
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Any, view: Any) -> Any:
+        """Выполняет действие `has_permission`."""
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
@@ -26,7 +30,8 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 class IsOwnerOrAdmin(permissions.BasePermission):
     """Доступ владельцу объекта или админу."""
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Any, view: Any, obj: Any) -> Any:
+        """Выполняет действие `has_object_permission`."""
         if request.method in permissions.SAFE_METHODS:
             return True
         user = request.user
@@ -41,7 +46,8 @@ class IsOwnerOrAdmin(permissions.BasePermission):
 class IsOrderOwnerOrAdmin(permissions.BasePermission):
     """Для заказов: доступ владельцу или админу."""
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Any, view: Any, obj: Any) -> Any:
+        """Выполняет действие `has_object_permission`."""
         user = request.user
         if not user or not user.is_authenticated:
             return False

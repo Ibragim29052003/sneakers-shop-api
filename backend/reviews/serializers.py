@@ -1,6 +1,8 @@
 """
 Сериализаторы для приложения отзывов
 """
+from typing import Any
+
 from rest_framework import serializers
 from .models import Review
 from users.serializers import UserSerializer
@@ -25,7 +27,7 @@ class ReviewSerializer(serializers.ModelSerializer):
             'is_verified_purchase', 'created_at', 'updated_at'
         ]
     
-    def get_rating_stars(self, obj):
+    def get_rating_stars(self, obj: Any) -> Any:
         """Получение оценки в виде строки со звездами."""
         return '★' * obj.rating + '☆' * (5 - obj.rating)
 
@@ -37,13 +39,13 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
         model = Review
         fields = ['rating', 'comment']
     
-    def validate_rating(self, value):
+    def validate_rating(self, value: Any) -> Any:
         """Валидация значения оценки."""
         if not 1 <= value <= 5:
             raise serializers.ValidationError('Рейтинг должен быть от 1 до 5.')
         return value
     
-    def create(self, validated_data):
+    def create(self, validated_data: Any) -> Any:
         """Создание отзыва для товара."""
         user = self.context['request'].user
         product = self.context['product']
@@ -80,7 +82,7 @@ class ReviewUpdateSerializer(serializers.ModelSerializer):
         model = Review
         fields = ['rating', 'comment']
     
-    def validate_rating(self, value):
+    def validate_rating(self, value: Any) -> Any:
         """Валидация значения оценки."""
         if not 1 <= value <= 5:
             raise serializers.ValidationError('Рейтинг должен быть от 1 до 5.')

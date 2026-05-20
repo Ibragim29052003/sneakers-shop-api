@@ -1,10 +1,12 @@
 """
 Представления для приложения поставщиков
 """
+from typing import Any
+
 from rest_framework import viewsets, status, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -125,9 +127,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
     
-    def get_permissions(self):
+    def get_permissions(self) -> Any:
         # Создание, редактирование, удаление - только админ
         # Чтение - все авторизованные
+        """Возвращает данные через `get_permissions`."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAuthenticated()]
@@ -145,14 +148,16 @@ class SupplierContractViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'end_date']
     ordering = ['-created_at']
     
-    def get_permissions(self):
+    def get_permissions(self) -> Any:
         # Создание, редактирование, удаление - только админ
         # Чтение - все авторизованные
+        """Возвращает данные через `get_permissions`."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAuthenticated()]
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         queryset = super().get_queryset()
         # Фильтрация по истекающим договорам
         expiring_soon = self.request.query_params.get('expiring_soon')
@@ -175,7 +180,8 @@ class ContractDocumentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['uploaded_at']
     ordering = ['-uploaded_at']
     
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> Any:
+        """Выполняет действие `perform_create`."""
         serializer.save(uploaded_by=self.request.user)
 
 
@@ -192,7 +198,8 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'updated_at']
     ordering = ['-created_at']
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
+        """Возвращает данные через `get_serializer_class`."""
         if self.action == 'create':
             return SupplierProductRequestCreateSerializer
         if self.action in ['update', 'partial_update']:
@@ -200,12 +207,14 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
             return SupplierProductRequestManageSerializer
         return SupplierProductRequestSerializer
     
-    def get_permissions(self):
+    def get_permissions(self) -> Any:
+        """Возвращает данные через `get_permissions`."""
         if self.action in ['create', 'list', 'retrieve']:
             return [IsAuthenticated()]
         return [CanManageSupplierRequests()]
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         user = self.request.user
         search_query = (self.request.query_params.get('search') or '').strip()
         case_sensitive = self.request.query_params.get('case_sensitive', 'false').lower() == 'true'
@@ -234,10 +243,11 @@ class SupplierProductRequestViewSet(viewsets.ModelViewSet):
 
         return queryset.distinct()
     
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> Any:
+        """Выполняет действие `perform_create`."""
         serializer.save()
     
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         """Обновление заявки - для управления (одобрения/отклонения) заявок."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -267,7 +277,7 @@ class AssignManagerView(APIView):
     """API view для назначения менеджера заявки поставщика."""
     permission_classes = [CanAssignManager]
     
-    def post(self, request, request_id):
+    def post(self, request: Any, request_id: Any) -> Any:
         """Назначение менеджера заявке поставщика."""
         supplier_request = get_object_or_404(SupplierProductRequest, id=request_id)
         manager_id = request.data.get('manager_id')
@@ -307,7 +317,7 @@ class UploadProductImageView(APIView):
     """API view для загрузки изображений товара поставщика."""
     permission_classes = [IsAuthenticated]
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Загрузка изображения товара."""
         image_file = request.FILES.get('image')
         
@@ -358,7 +368,7 @@ class CreateProductFromRequestView(APIView):
     """API view для создания товара поставщика из одобренной заявки."""
     permission_classes = [IsAuthenticated]
     
-    def post(self, request, request_id):
+    def post(self, request: Any, request_id: Any) -> Any:
         """Создание товара поставщика из заявки."""
         supplier_request = get_object_or_404(SupplierProductRequest, id=request_id)
         
@@ -423,7 +433,8 @@ class RequestDocumentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['uploaded_at']
     ordering = ['-uploaded_at']
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         user = self.request.user
         if user.is_staff or user.user_roles.filter(role__name='admin').exists():
             return RequestDocument.objects.all()
@@ -431,7 +442,8 @@ class RequestDocumentViewSet(viewsets.ModelViewSet):
             request__manager_id=user.id
         ) | RequestDocument.objects.filter(uploaded_by=user)
     
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> Any:
+        """Выполняет действие `perform_create`."""
         serializer.save(uploaded_by=self.request.user)
 
 
@@ -461,7 +473,8 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at']
     ordering = ['-created_at']
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         user = self.request.user
         # Админ видит все уведомления
         if user.is_staff or user.user_roles.filter(role__name='admin').exists():
@@ -469,15 +482,17 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
         # Обычные пользователи видят только свои уведомления
         return SystemAlert.objects.filter(user=user)
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
+        """Возвращает данные через `get_serializer_class`."""
         if self.action == 'create':
             return SystemAlertCreateSerializer
         return SystemAlertSerializer
     
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> Any:
+        """Выполняет действие `perform_create`."""
         serializer.save()
     
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         """Отметка уведомления как прочитанного."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -501,7 +516,7 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
     
-    def mark_as_read(self, request, pk=None):
+    def mark_as_read(self, request: Any, pk: Any=None) -> Any:
         """Отметка конкретного уведомления как прочитанного."""
         alert = get_object_or_404(SystemAlert, id=pk, user=request.user)
         alert.is_read = True
@@ -515,7 +530,7 @@ class UserAlertsView(APIView):
     """API view для получения уведомлений текущего пользователя."""
     permission_classes = [IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """Получение уведомлений текущего пользователя."""
         alerts = SystemAlert.objects.filter(user=request.user)
         unread_count = alerts.filter(is_read=False).count()
@@ -526,7 +541,7 @@ class UserAlertsView(APIView):
             'alerts': serializer.data
         })
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Отметка всех уведомлений как прочитанных."""
         SystemAlert.objects.filter(user=request.user, is_read=False).update(
             is_read=True,
@@ -543,9 +558,10 @@ class SupplierRegisterView(APIView):
     API view для регистрации нового поставщика.
     Публичный эндпоинт - регистрация нового пользователя и поставщика.
     """
-    permission_classes = []  # Публичный доступ
+    permission_classes = [AllowAny]
+    throttle_scope = 'supplier_registration'
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Регистрация нового поставщика с созданием пользователя."""
         serializer = SupplierRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -563,7 +579,7 @@ class SupplierApplyView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Подача заявки на регистрацию поставщика."""
         # Проверяем, не является ли пользователь уже поставщиком
         if hasattr(request.user, 'supplier_profile') and request.user.supplier_profile:
@@ -601,7 +617,7 @@ class MySupplierProfileView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """Получение профиля поставщика текущего пользователя."""
         try:
             supplier = Supplier.objects.get(user=request.user)
@@ -629,9 +645,10 @@ class RegisterSupplierWithRequestView(APIView):
     
     Админ потом рассматривает заявку и одобряет/отклоняет.
     """
-    permission_classes = []  # Публичный эндпоинт
+    permission_classes = [AllowAny]
+    throttle_scope = 'supplier_registration'
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Регистрация поставщика с заявкой на товар."""
         serializer = SupplierWithRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -661,7 +678,8 @@ class RequestCommunicationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at']
     ordering = ['created_at']
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         user = self.request.user
         # Админ видит все коммуникации
         if user.is_staff or user.user_roles.filter(role__name='admin').exists():
@@ -678,12 +696,14 @@ class RequestCommunicationViewSet(viewsets.ModelViewSet):
             )
         return RequestCommunication.objects.none()
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
+        """Возвращает данные через `get_serializer_class`."""
         if self.action == 'create':
             return RequestCommunicationCreateSerializer
         return RequestCommunicationSerializer
     
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> Any:
+        """Выполняет действие `perform_create`."""
         user = self.request.user
         request_obj = serializer.validated_data['request']
         
@@ -708,7 +728,7 @@ class RequestCommunicationByRequestView(APIView):
     """API view для получения коммуникаций по конкретной заявке."""
     permission_classes = [IsAuthenticated]
     
-    def get(self, request, request_id):
+    def get(self, request: Any, request_id: Any) -> Any:
         """Получение всех сообщений по заявке."""
         supplier_request = get_object_or_404(SupplierProductRequest, id=request_id)
         user = request.user
@@ -734,7 +754,7 @@ class MarkCommunicationAsReadView(APIView):
     """API view для отметки сообщения как прочитанного."""
     permission_classes = [IsAuthenticated]
     
-    def post(self, request, communication_id):
+    def post(self, request: Any, communication_id: Any) -> Any:
         """Отметка сообщения как прочитанного."""
         communication = get_object_or_404(RequestCommunication, id=communication_id)
         user = request.user
@@ -770,7 +790,7 @@ class CreateSupplierContractView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Создание договора с поставщиком."""
         user = request.user
         
@@ -847,7 +867,7 @@ class MySupplierContractsView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """Получение договоров текущего поставщика."""
         user = request.user
         
@@ -872,7 +892,7 @@ class SupplierContractExpirationView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """Получение истекающих договоров."""
         from datetime import timedelta
         user = request.user
@@ -922,7 +942,7 @@ class HandleExpiredContractsView(APIView):
     """
     permission_classes = [IsAdminUser]
     
-    def post(self, request):
+    def post(self, request: Any) -> Any:
         """Обработка истекших договоров."""
         from datetime import timedelta
         

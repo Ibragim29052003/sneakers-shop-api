@@ -2,6 +2,8 @@
 Management command для проверки истекающих договоров
 Создаёт системные уведомления для договоров, которые истекают в течение 30 дней
 """
+from typing import Any
+
 from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -28,8 +30,9 @@ class Command(BaseCommand):
     
     help = 'Проверяет договоры на истечение срока и создаёт уведомления'
     
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: Any) -> Any:
         # Добавляем аргумент для количества дней
+        """Выполняет действие `add_arguments`."""
         parser.add_argument(
             '--days',
             type=int,
@@ -42,7 +45,8 @@ class Command(BaseCommand):
             help='Показать уведомления, которые будут созданы, без их создания'
         )
     
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> Any:
+        """Выполняет действие `handle`."""
         days = options['days']
         dry_run = options['dry_run']
         

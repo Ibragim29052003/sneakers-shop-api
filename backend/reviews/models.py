@@ -1,6 +1,8 @@
 """
 модели приложения отзывов
 """
+from typing import Any
+
 from django.db import models
 from django.utils import timezone
 from django.contrib.admin import display
@@ -40,25 +42,29 @@ class Review(models.Model):
         ordering = ['-created_at']
         unique_together = ('user', 'product')
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.user.email} - {self.product.name} ({self.rating}★)'
     
     @display(description='оценка')
-    def get_rating_stars(self):
+    def get_rating_stars(self) -> Any:
         # отображение оценки в виде звёзд
+        """Возвращает данные через `get_rating_stars`."""
         from django.utils.html import format_html
         stars = '★' * self.rating + '☆' * (5 - self.rating)
         return format_html('<span style="color: gold;">{}</span>', stars)
     
     @display(description='оценка')
-    def get_rating_with_label(self):
+    def get_rating_with_label(self) -> Any:
         # отображение оценки с подписью
+        """Возвращает данные через `get_rating_with_label`."""
         labels = {1: 'плохо', 2: 'неудовлетворительно', 3: 'средне', 4: 'хорошо', 5: 'отлично'}
         return f'{self.rating} - {labels.get(self.rating, "")}'
     
     @display(description='статус')
-    def get_moderation_status(self):
+    def get_moderation_status(self) -> Any:
         # отображение статуса модерации
+        """Возвращает данные через `get_moderation_status`."""
         from django.utils.html import format_html
         if self.is_moderated:
             return format_html('<span style="color: green;">✓ промодерирован</span>')
