@@ -1,3 +1,5 @@
+from typing import Any
+
 import os
 
 from celery import Celery
@@ -30,5 +32,6 @@ app.conf.beat_schedule = {
 
 
 @app.task(bind=True)
-def debug_task(self):
+def debug_task(self) -> Any:
+    """Выполняет действие `debug_task`."""
     print(f'Request: {self.request!r}')

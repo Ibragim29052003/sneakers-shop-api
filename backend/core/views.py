@@ -1,3 +1,5 @@
+from typing import Any
+
  
 from rest_framework.views import APIView
 
@@ -9,5 +11,6 @@ class DebugSentryView(APIView):
 
     permission_classes = [IsAdminRole]
 
-    def get(self, request):
+    def get(self, request: Any) -> Any:
+        """Выполняет действие `get`."""
         raise RuntimeError('Sentry test exception from /api/v1/debug/sentry/')
