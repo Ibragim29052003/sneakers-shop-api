@@ -1,6 +1,8 @@
 """
 Представления для приложения пользователей
 """
+from typing import Any
+
 from rest_framework import viewsets, status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -27,14 +29,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """Пользовательское представление получения токена с информацией о пользователе."""
     serializer_class = CustomTokenObtainPairSerializer
     permission_classes = [AllowAny]
+    throttle_scope = 'auth_login'
 
 
 class UserCreateAPIView(generics.CreateAPIView):
     """API представление для регистрации пользователя."""
     serializer_class = UserCreateSerializer
     permission_classes = [AllowAny]
+    throttle_scope = 'auth_register'
     
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        """Выполняет действие `create`."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -57,10 +62,12 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_object(self):
+    def get_object(self) -> Any:
+        """Возвращает данные через `get_object`."""
         return self.request.user.profile
     
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        """Выполняет действие `update`."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -74,7 +81,8 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     
-    def get_permissions(self):
+    def get_permissions(self) -> Any:
+        """Возвращает данные через `get_permissions`."""
         if self.action == 'create':
             return [AllowAny()]
         if self.action == 'list':
@@ -83,14 +91,16 @@ class UserViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsOwnerOrAdmin()]
         return [IsAuthenticated()]
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
+        """Возвращает данные через `get_serializer_class`."""
         if self.action == 'create':
             return UserCreateSerializer
         if self.action in ['update', 'partial_update']:
             return UserUpdateSerializer
         return UserSerializer
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         if self.request.user.is_staff:
             return User.objects.all()
         return User.objects.filter(id=self.request.user.id)
@@ -109,7 +119,8 @@ class UserRoleViewSet(viewsets.ModelViewSet):
     serializer_class = UserRoleSerializer
     permission_classes = [IsAdminRole]
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset().filter(user_id=self.kwargs.get('user_pk'))
 
 
@@ -117,7 +128,7 @@ class ManagersListView(APIView):
     """API view для получения списка менеджеров."""
     permission_classes = [IsAdminRole]
     
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """Получение всех пользователей с ролью менеджера или админа."""
         from .models import Role
         

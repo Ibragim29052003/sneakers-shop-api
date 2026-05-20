@@ -6,3 +6,4 @@ from rest_framework.permissions import AllowAny
 class GoogleLoginView(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     permission_classes = [AllowAny]
+    throttle_scope = 'social_auth'

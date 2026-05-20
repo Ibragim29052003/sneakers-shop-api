@@ -1,6 +1,8 @@
 """
 настройка админки для приложения пользователей
 """
+from typing import Any
+
 from django.contrib import admin
 from django.contrib.admin import display
 from django.contrib.auth import get_user_model
@@ -62,29 +64,34 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     )
     
     @display(description=_('фио'))
-    def get_full_name(self, obj):
+    def get_full_name(self, obj: Any) -> Any:
         # отображение полного имени пользователя
+        """Возвращает данные через `get_full_name`."""
         return f'{obj.first_name} {obj.last_name}'
     
     @display(description=_('активен'))
-    def get_is_active_status(self, obj):
+    def get_is_active_status(self, obj: Any) -> Any:
         # отображение статуса активности с цветовой индикацией
+        """Возвращает данные через `get_is_active_status`."""
         if obj.is_active:
             return format_html('<span style="color: green;">{} да</span>', '✓')
         return format_html('<span style="color: red;">{} нет</span>', '✗')
     
     @display(description=_('роли'))
-    def get_role_names(self, obj):
+    def get_role_names(self, obj: Any) -> Any:
         # отображение ролей пользователя
+        """Возвращает данные через `get_role_names`."""
         roles = [ur.role.name for ur in obj.user_roles.select_related('role').all()]
         if roles:
             return ', '.join(roles)
         return '-'
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).prefetch_related('user_roles', 'profile')
     
-    def get_inline_instances(self, request, obj=None):
+    def get_inline_instances(self, request: Any, obj: Any=None) -> Any:
+        """Возвращает данные через `get_inline_instances`."""
         if not obj:
             return []
         return super().get_inline_instances(request, obj)
@@ -98,11 +105,13 @@ class RoleAdmin(SimpleHistoryAdmin):
     search_fields = ('name', 'description')
     
     @display(description=_('количество пользователей'))
-    def get_user_count(self, obj):
+    def get_user_count(self, obj: Any) -> Any:
         # отображение количества пользователей с данной ролью
+        """Возвращает данные через `get_user_count`."""
         return obj.role_users.count()
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).prefetch_related('role_users')
 
 
@@ -117,14 +126,16 @@ class UserRoleAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_user_email', 'get_role_name')
     
     @display(description=_('пользователь'))
-    def get_user_email(self, obj):
+    def get_user_email(self, obj: Any) -> Any:
         # отображение email пользователя со ссылкой
+        """Возвращает данные через `get_user_email`."""
         url = reverse('admin:users_user_change', args=[obj.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.user.email)
     
     @display(description=_('роль'))
-    def get_role_name(self, obj):
+    def get_role_name(self, obj: Any) -> Any:
         # отображение названия роли
+        """Возвращает данные через `get_role_name`."""
         return obj.role.name
 
 
@@ -139,10 +150,12 @@ class UserProfileAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_user_email',)
     
     @display(description=_('пользователь'))
-    def get_user_email(self, obj):
+    def get_user_email(self, obj: Any) -> Any:
         # отображение email пользователя со ссылкой
+        """Возвращает данные через `get_user_email`."""
         url = reverse('admin:users_user_change', args=[obj.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.user.email)
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('user')

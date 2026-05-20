@@ -1,6 +1,8 @@
 """
 Сериализаторы для приложения пользователей
 """
+from typing import Any
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
@@ -13,14 +15,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Пользовательский сериализатор токена с дополнительной информацией о пользователе."""
     
     @classmethod
-    def get_token(cls, user):
+    def get_token(cls, user: Any) -> Any:
+        """Возвращает данные через `get_token`."""
         token = super().get_token(user)
         # Добавление пользовательских полей
         token['email'] = user.email
         token['is_staff'] = user.is_staff
         return token
     
-    def validate(self, attrs):
+    def validate(self, attrs: Any) -> Any:
+        """Выполняет действие `validate`."""
         data = super().validate(attrs)
         # Добавление информации о пользователе в ответ
         data['user'] = UserSerializer(self.user).data
@@ -78,12 +82,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name']
     
-    def validate(self, attrs):
+    def validate(self, attrs: Any) -> Any:
+        """Выполняет действие `validate`."""
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({'password_confirm': 'Пароли не совпадают'})
         return attrs
     
-    def create(self, validated_data):
+    def create(self, validated_data: Any) -> Any:
+        """Выполняет действие `create`."""
         validated_data.pop('password_confirm')
         user = User.objects.create_user(**validated_data)
         return user

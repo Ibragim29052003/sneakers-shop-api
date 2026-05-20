@@ -1,6 +1,8 @@
 """
 модели приложения пользователей
 """
+from typing import Any
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
@@ -9,8 +11,9 @@ from simple_history.models import HistoricalRecords
 
 class UserManager(BaseUserManager):
     # менеджер для кастомной модели пользователя
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email: Any, password: Any=None, **extra_fields: Any) -> Any:
         # создание и сохранение обычного пользователя
+        """Выполняет действие `create_user`."""
         if not email:
             raise ValueError('поле email должно быть заполнено')
         email = self.normalize_email(email)
@@ -19,8 +22,9 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
     
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email: Any, password: Any=None, **extra_fields: Any) -> Any:
         # создание и сохранение суперпользователя
+        """Выполняет действие `create_superuser`."""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
@@ -46,7 +50,8 @@ class User(AbstractUser):
         verbose_name = 'пользователь'
         verbose_name_plural = 'пользователи'
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.email
 
 
@@ -59,7 +64,8 @@ class Role(models.Model):
         verbose_name = 'роль'
         verbose_name_plural = 'роли'
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.name
 
 
@@ -84,7 +90,8 @@ class UserRole(models.Model):
         verbose_name = 'назначение роли'
         verbose_name_plural = 'назначения ролей'
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.user.email} - {self.role.name}'
 
 
@@ -108,5 +115,6 @@ class UserProfile(models.Model):
         verbose_name = 'профиль пользователя'
         verbose_name_plural = 'профили пользователей'
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'профиль пользователя {self.user.email}'
