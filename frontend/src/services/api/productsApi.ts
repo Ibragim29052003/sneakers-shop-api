@@ -43,6 +43,7 @@ export interface Product {
   supplier: number | null;  // ID поставщика
   supplier_name: string | null;  // Имя поставщика
   published_pages: string[];  // Страницы для публикации (women, men, children)
+  filter_attributes?: Array<{ group: string; values: string[] }>;
 }
 
 export interface ShowcaseProduct extends Product {
@@ -118,6 +119,10 @@ export interface FilterGroupCountsParams {
     colors?: string[];
     sizes?: string[];
     fabrics?: string[];
+    brands?: string[];
+    styles?: string[];
+    seasons?: string[];
+    purposes?: string[];
   };
   minPrice?: number;
   maxPrice?: number;
@@ -146,6 +151,10 @@ export interface FilterParams {
   colors?: string[];     // массив цветов
   sizes?: string[];      // массив размеров
   fabrics?: string[];    // массив материалов
+  brands?: string[];     // массив брендов
+  styles?: string[];     // массив стилей
+  seasons?: string[];    // массив сезонов
+  purposes?: string[];   // массив назначений
 }
 
 /**
@@ -233,6 +242,18 @@ export const productsApi = createApi({
         }
         if (params.fabrics && params.fabrics.length > 0) {
           queryParams.fabrics = params.fabrics.join(',');
+        }
+        if (params.brands && params.brands.length > 0) {
+          queryParams.brands = params.brands.join(',');
+        }
+        if (params.styles && params.styles.length > 0) {
+          queryParams.styles = params.styles.join(',');
+        }
+        if (params.seasons && params.seasons.length > 0) {
+          queryParams.seasons = params.seasons.join(',');
+        }
+        if (params.purposes && params.purposes.length > 0) {
+          queryParams.purposes = params.purposes.join(',');
         }
         
         return {
@@ -388,6 +409,18 @@ export const productsApi = createApi({
           }
           if (params.filters.fabrics && params.filters.fabrics.length > 0) {
             urlParams.append('fabrics', params.filters.fabrics.join(','));
+          }
+          if (params.filters.brands && params.filters.brands.length > 0) {
+            urlParams.append('brands', params.filters.brands.join(','));
+          }
+          if (params.filters.styles && params.filters.styles.length > 0) {
+            urlParams.append('styles', params.filters.styles.join(','));
+          }
+          if (params.filters.seasons && params.filters.seasons.length > 0) {
+            urlParams.append('seasons', params.filters.seasons.join(','));
+          }
+          if (params.filters.purposes && params.filters.purposes.length > 0) {
+            urlParams.append('purposes', params.filters.purposes.join(','));
           }
         }
         

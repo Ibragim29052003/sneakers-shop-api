@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, type FC } from "react";
+import { useState, useCallback, useEffect, useMemo, type FC } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   useGetProductByIdQuery,
@@ -48,6 +48,12 @@ interface ProductFormState {
   is_active: boolean;
 }
 
+const CATEGORY_LABELS: Record<"women" | "men" | "children", string> = {
+  women: "Женщинам",
+  men: "Мужчинам",
+  children: "Детям",
+};
+
 const ProductDetailPage: FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -93,7 +99,10 @@ const ProductDetailPage: FC = () => {
     if (!token) return;
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
-      setIsAdmin(!!payload.is_staff);
+      const hasAdminRole = Boolean(
+        payload?.is_staff || payload?.roles?.includes?.("admin") || payload?.role === "admin"
+      );
+      setIsAdmin(hasAdminRole);
     } catch {
       setIsAdmin(false);
     }
@@ -109,6 +118,11 @@ const ProductDetailPage: FC = () => {
       sku: product.sku || "",
       is_active: product.is_active,
     });
+
+    const primaryPage = product.published_pages?.[0];
+    if (primaryPage === "women" || primaryPage === "men" || primaryPage === "children") {
+      setCreatePublishedPage(primaryPage);
+    }
   }, [product]);
 
   const showNotification = useCallback((type: "success" | "error", title: string, message: string) => {
@@ -123,11 +137,23 @@ const ProductDetailPage: FC = () => {
     setNotifications((prev) => prev.filter((n) => n.id !== nid));
   }, []);
 
-  const images = product?.images?.length
-    ? product.images.map((img) => img.image)
-    : product?.main_image_url
-      ? [product.main_image_url]
-      : ["/placeholder-product.jpg"];
+  const images = useMemo(() => {
+    if (product?.images?.length) return product.images.map((img) => img.image);
+    if (product?.main_image_url) return [product.main_image_url];
+    return ["/placeholder-product.jpg"];
+  }, [product]);
+
+  const primaryCatalogPage: "women" | "men" | "children" =
+    product?.published_pages?.[0] === "women" || product?.published_pages?.[0] === "men" || product?.published_pages?.[0] === "children"
+      ? product.published_pages[0]
+      : "women";
+
+  const categoryLabel = CATEGORY_LABELS[primaryCatalogPage];
+  const categoryLink = `/${primaryCatalogPage}`;
+
+  const currentPrice = parseFloat(product?.price || "0") || 0;
+  const oldPrice = product?.old_price ? parseFloat(product.old_price) : null;
+  const discountPercent = oldPrice && oldPrice > currentPrice ? Math.round(((oldPrice - currentPrice) / oldPrice) * 100) : null;
 
   const goToNextSlide = useCallback(() => {
     setSelectedImageIndex((prev) => (prev + 1) % images.length);
@@ -151,14 +177,14 @@ const ProductDetailPage: FC = () => {
       addToCart({
         id: product.id,
         title: product.name,
-        imageUrl: product.main_image_url || "",
+        imageUrl: product.main_image_url || images[0] || "",
         price: parseFloat(product.price) || 0,
         oldPrice: product.old_price ? parseFloat(product.old_price) : undefined,
       })
     );
     setIsAddingToCart(false);
     showNotification("success", "Товар добавлен", product.name);
-  }, [dispatch, product, showNotification]);
+  }, [dispatch, images, product, showNotification]);
 
   const handleUpdateProduct = async () => {
     if (!product) return;
@@ -190,7 +216,7 @@ const ProductDetailPage: FC = () => {
     if (!window.confirm(`Удалить товар "${product.name}"?`)) return;
     try {
       await deleteProduct(product.id).unwrap();
-      navigate(`/${createPublishedPage}`);
+      navigate(categoryLink);
     } catch {
       showNotification("error", "Ошибка", "Не удалось удалить товар");
     }
@@ -262,11 +288,24 @@ const ProductDetailPage: FC = () => {
   };
 
   if (isLoading) {
-    return <div className={styles.productDetail}><div className={styles.productDetail__loading} /></div>;
+    return (
+      <div className={styles.productDetail}>
+        <div className={styles.productDetail__loading}>
+          <div className={styles.productDetail__loadingSpinner} />
+        </div>
+      </div>
+    );
   }
 
   if (error || !product) {
-    return <div className={styles.productDetail}><div className={styles.productDetail__error}>Ошибка загрузки товара</div></div>;
+    return (
+      <div className={styles.productDetail}>
+        <div className={styles.productDetail__error}>
+          <h2 className={styles.productDetail__errorTitle}>Не удалось загрузить товар</h2>
+          <p className={styles.productDetail__errorMessage}>Проверьте соединение и попробуйте обновить страницу.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -274,9 +313,9 @@ const ProductDetailPage: FC = () => {
       <nav className={styles.productDetail__breadcrumb} aria-label="Навигация">
         <Link to="/" className={styles.productDetail__breadcrumbLink}>Главная</Link>
         <span className={styles.productDetail__breadcrumbSeparator}>/</span>
-        <Link to="/women" className={styles.productDetail__breadcrumbLink}>Каталог</Link>
+        <Link to={categoryLink} className={styles.productDetail__breadcrumbLink}>{categoryLabel}</Link>
         <span className={styles.productDetail__breadcrumbSeparator}>/</span>
-        <span className={styles.productDetail__breadcrumbCurrent}>{product.categories?.[0]?.name || "Товар"}</span>
+        <span className={styles.productDetail__breadcrumbCurrent}>{product.name}</span>
       </nav>
 
       <div className={styles.productDetail}>
@@ -291,15 +330,71 @@ const ProductDetailPage: FC = () => {
                 ))}
               </div>
             </div>
+
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className={`${styles.productDetail__navButton} ${styles.productDetail__navButton_prev}`}
+                  onClick={goToPrevSlide}
+                  aria-label="Предыдущее фото"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.productDetail__navButton} ${styles.productDetail__navButton_next}`}
+                  onClick={goToNextSlide}
+                  aria-label="Следующее фото"
+                >
+                  ›
+                </button>
+                <div className={styles.productDetail__counter}>{selectedImageIndex + 1} / {images.length}</div>
+                <div className={styles.productDetail__dots}>
+                  {images.map((_, index) => (
+                    <button
+                      type="button"
+                      key={index}
+                      className={`${styles.productDetail__dot} ${index === selectedImageIndex ? styles.productDetail__dot_active : ""}`}
+                      onClick={() => setSelectedImageIndex(index)}
+                      aria-label={`Перейти к фото ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
+
+          {images.length > 1 && (
+            <div className={styles.productDetail__thumbnails}>
+              {images.map((image, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`${styles.productDetail__thumbnail} ${index === selectedImageIndex ? styles.productDetail__thumbnail_active : ""}`}
+                  onClick={() => setSelectedImageIndex(index)}
+                >
+                  <img src={image} alt={`Миниатюра ${index + 1}`} className={styles.productDetail__thumbnailImage} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className={styles.productDetail__info}>
           <h1 className={styles.productDetail__title}>{product.name}</h1>
           <p className={styles.productDetail__sku}>Артикул: {product.sku || "—"}</p>
+
           <div className={styles.productDetail__priceBlock}>
-            <span className={styles.productDetail__price}>{parseFloat(product.price).toLocaleString("ru-RU")} ₽</span>
+            <span className={styles.productDetail__price}>{currentPrice.toLocaleString("ru-RU")} ₽</span>
+            {oldPrice && oldPrice > currentPrice && (
+              <>
+                <span className={styles.productDetail__oldPrice}>{oldPrice.toLocaleString("ru-RU")} ₽</span>
+                {discountPercent !== null && <span className={styles.productDetail__discount}>-{discountPercent}%</span>}
+              </>
+            )}
           </div>
+
           <p className={styles.productDetail__description}>{product.description || "Описание товара недоступно."}</p>
 
           <div className={styles.productDetail__actions}>
@@ -307,6 +402,23 @@ const ProductDetailPage: FC = () => {
               <CartIcon />
               {isAddingToCart ? "Добавляем..." : "В корзину"}
             </button>
+          </div>
+
+          <div className={styles.productDetail__details}>
+            <div className={styles.productDetail__detailItem}>
+              <span className={styles.productDetail__detailLabel}>Категория</span>
+              <span className={styles.productDetail__detailValue}>{categoryLabel}</span>
+            </div>
+            <div className={styles.productDetail__detailItem}>
+              <span className={styles.productDetail__detailLabel}>Поставщик</span>
+              <span className={styles.productDetail__detailValue}>{product.supplier_name || "Не указан"}</span>
+            </div>
+            {product.filter_attributes?.map((item) => (
+              <div className={styles.productDetail__detailItem} key={item.group}>
+                <span className={styles.productDetail__detailLabel}>{item.group}</span>
+                <span className={styles.productDetail__detailValue}>{item.values.join(", ") || "—"}</span>
+              </div>
+            ))}
           </div>
 
           {isAdmin && (
@@ -348,7 +460,7 @@ const ProductDetailPage: FC = () => {
 
               <label className={styles.productDetail__adminLabel}>
                 Публикация:
-                <select className={styles.productDetail__adminSelect} value={createPublishedPage} onChange={(e) => setCreatePublishedPage(e.target.value as "women" | "men" | "children") }>
+                <select className={styles.productDetail__adminSelect} value={createPublishedPage} onChange={(e) => setCreatePublishedPage(e.target.value as "women" | "men" | "children")}>
                   <option value="women">Женщинам</option>
                   <option value="men">Мужчинам</option>
                   <option value="children">Детям</option>

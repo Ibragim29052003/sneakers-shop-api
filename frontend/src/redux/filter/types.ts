@@ -2,6 +2,10 @@ export type Filters = {
     fabrics: string[];
     sizes: string[];
     colors: string[];
+    brands: string[];
+    styles: string[];
+    seasons: string[];
+    purposes: string[];
     minPrice?: number;
     maxPrice?: number;
     isNew?: boolean;

@@ -18,7 +18,7 @@ interface FilterPanelProps {
 }
 
 // Маппинг названий групп фильтров на ключи Redux
-const FILTER_KEY_MAP: Record<string, 'colors' | 'sizes' | 'fabrics'> = {
+const FILTER_KEY_MAP: Record<string, 'colors' | 'sizes' | 'fabrics' | 'brands' | 'styles' | 'seasons' | 'purposes'> = {
   // Цвета
   'цвета': 'colors',
   'цвет': 'colors',
@@ -34,10 +34,30 @@ const FILTER_KEY_MAP: Record<string, 'colors' | 'sizes' | 'fabrics'> = {
   'материал': 'fabrics',
   'fabrics': 'fabrics',
   'fabric': 'fabrics',
+  // Бренды
+  'бренд': 'brands',
+  'бренды': 'brands',
+  'brand': 'brands',
+  'brands': 'brands',
+  // Стили
+  'стиль': 'styles',
+  'стили': 'styles',
+  'style': 'styles',
+  'styles': 'styles',
+  // Сезоны
+  'сезон': 'seasons',
+  'сезоны': 'seasons',
+  'season': 'seasons',
+  'seasons': 'seasons',
+  // Назначение
+  'назначение': 'purposes',
+  'назначения': 'purposes',
+  'purpose': 'purposes',
+  'purposes': 'purposes',
 };
 
 // Получение ключа Redux по названию группы
-const getFilterKey = (groupName: string): 'colors' | 'sizes' | 'fabrics' | null => {
+const getFilterKey = (groupName: string): 'colors' | 'sizes' | 'fabrics' | 'brands' | 'styles' | 'seasons' | 'purposes' | null => {
   const normalizedName = groupName.toLowerCase().trim();
   
   // Проверяем точное совпадение
@@ -58,6 +78,18 @@ const getFilterKey = (groupName: string): 'colors' | 'sizes' | 'fabrics' | null 
   if (normalizedName.includes('материал') || normalizedName.includes('fabric')) {
     return 'fabrics';
   }
+  if (normalizedName.includes('бренд') || normalizedName.includes('brand')) {
+    return 'brands';
+  }
+  if (normalizedName.includes('стиль') || normalizedName.includes('style')) {
+    return 'styles';
+  }
+  if (normalizedName.includes('сезон') || normalizedName.includes('season')) {
+    return 'seasons';
+  }
+  if (normalizedName.includes('назнач') || normalizedName.includes('purpose')) {
+    return 'purposes';
+  }
   
   return null;
 };
@@ -76,6 +108,10 @@ const FilterPanel = ({ category, onApply }: FilterPanelProps) => {
       colors: debouncedFilters.colors?.length ? debouncedFilters.colors : undefined,
       sizes: debouncedFilters.sizes?.length ? debouncedFilters.sizes : undefined,
       fabrics: debouncedFilters.fabrics?.length ? debouncedFilters.fabrics : undefined,
+      brands: debouncedFilters.brands?.length ? debouncedFilters.brands : undefined,
+      styles: debouncedFilters.styles?.length ? debouncedFilters.styles : undefined,
+      seasons: debouncedFilters.seasons?.length ? debouncedFilters.seasons : undefined,
+      purposes: debouncedFilters.purposes?.length ? debouncedFilters.purposes : undefined,
     },
     minPrice: debouncedFilters.minPrice,
     maxPrice: debouncedFilters.maxPrice,
