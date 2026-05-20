@@ -1,9 +1,32 @@
 """
 Сериализаторы для приложения товаров
 """
+import urllib.parse
+from collections import defaultdict
+from decimal import Decimal
+from typing import Any
+
 from rest_framework import serializers
 from django.conf import settings
 from .models import Category, Product, ProductCategory, ProductImage, SliderImage, FilterGroup, FilterOption, ProductFilter, ProductFavorite
+
+
+def clean_media_path(raw_url: str) -> str:
+    """Нормализует путь к медиафайлу перед сохранением в ImageField."""
+    clean_path = urllib.parse.unquote(raw_url)
+
+    while '/media/media/' in clean_path:
+        clean_path = clean_path.replace('/media/media/', '/media/', 1)
+
+    if clean_path.startswith('/media/'):
+        clean_path = clean_path[7:]
+    elif clean_path.startswith('media/'):
+        clean_path = clean_path[6:]
+
+    if clean_path.startswith('/'):
+        clean_path = clean_path[1:]
+
+    return clean_path
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -19,7 +42,8 @@ class CategorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-    def get_subcategories_count(self, obj):
+    def get_subcategories_count(self, obj: Category) -> int:
+        """Возвращает данные через `get_subcategories_count`."""
         return obj.subcategories.count()
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -34,7 +58,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'image_file', 'product', 'is_main', 'alt_text', 'created_at']
         read_only_fields = ['created_at']
     
-    def get_image(self, obj):
+    def get_image(self, obj: ProductImage) -> str | None:
         """Получение полного URL изображения."""
         if not obj.image:
             return None
@@ -62,7 +86,7 @@ class SliderImageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
-    def get_image_url(self, obj):
+    def get_image_url(self, obj: SliderImage) -> str | None:
         """Получение полного URL изображения."""
         if not obj.image:
             return None
@@ -77,11 +101,21 @@ class SliderImageSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     """Сериализатор для модели товара."""
+    DISCOUNT_ALLOWED_CATEGORY_KEYWORDS = (
+        'women',
+        'men',
+        'children',
+        'жен',
+        'муж',
+        'дет',
+    )
+
     images = ProductImageSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
     main_image_url = serializers.SerializerMethodField()
     absolute_url = serializers.SerializerMethodField()
     supplier_name = serializers.SerializerMethodField()
+    filter_attributes = serializers.SerializerMethodField()
     avg_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     sold_quantity = serializers.IntegerField(read_only=True)
     favorites_count = serializers.IntegerField(read_only=True)
@@ -105,11 +139,11 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'price', 'stock_quantity', 'old_price', 'sku', 'status',
             'is_active', 'created_at', 'updated_at', 'categories', 'categories_ids',
             'images', 'main_image_url', 'absolute_url', 'external_url', 'supplier', 'supplier_name',
-            'avg_rating', 'sold_quantity', 'favorites_count', 'published_pages', 'image_urls'
+            'avg_rating', 'sold_quantity', 'favorites_count', 'published_pages', 'image_urls', 'filter_attributes'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
-    def get_media_url(self, relative_url):
+    def get_media_url(self, relative_url: str | None) -> str | None:
         """Построение полного URL для медиафайла."""
         if not relative_url:
             return None
@@ -122,7 +156,7 @@ class ProductSerializer(serializers.ModelSerializer):
             base_url = 'http://localhost:8000'
         return f"{base_url}{relative_url}"
     
-    def get_main_image_url(self, obj):
+    def get_main_image_url(self, obj: Product) -> str | None:
         """Получение URL главного изображения без дополнительных запросов в БД."""
         images = list(obj.images.all())
         main_image = next((image for image in images if image.is_main), None)
@@ -134,16 +168,34 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return self.get_media_url(main_image.image.url)
 
-    def get_absolute_url(self, obj): # отдать ссылку на товар 
+    def get_absolute_url(self, obj: Product) -> str | None: # отдать ссылку на товар 
+        """Возвращает данные через `get_absolute_url`."""
         return self.get_media_url(obj.get_absolute_url())
     
-    def get_supplier_name(self, obj):
+    def get_supplier_name(self, obj: Product) -> str | None:
         """Получение имени поставщика."""
         if obj.supplier:
             return obj.supplier.name
         return None
 
-    def validate(self, attrs):
+    def get_filter_attributes(self, obj: Product) -> list[dict[str, Any]]:
+        """Возвращает сгруппированные атрибуты товара на основе ProductFilter."""
+        grouped_values: dict[str, list[str]] = defaultdict(list)
+        product_filters = obj.product_filters.select_related('filter_option__group').all()
+
+        for product_filter in product_filters:
+            group_name = product_filter.filter_option.group.name
+            option_name = product_filter.filter_option.name
+            grouped_values[group_name].append(option_name)
+
+        result: list[dict[str, Any]] = []
+        for group_name in sorted(grouped_values.keys()):
+            values = sorted(set(grouped_values[group_name]))
+            result.append({'group': group_name, 'values': values})
+        return result
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Выполняет действие `validate`."""
         price = attrs.get('price', getattr(self.instance, 'price', None))
         old_price = attrs.get('old_price', getattr(self.instance, 'old_price', None))
         stock_quantity = attrs.get('stock_quantity', getattr(self.instance, 'stock_quantity', 0))
@@ -156,6 +208,29 @@ class ProductSerializer(serializers.ModelSerializer):
         if old_price is not None and price is not None and old_price < price:
             raise serializers.ValidationError({'old_price': 'Старая цена должна быть больше или равна текущей цене.'})
 
+        # Валидация соответствия скидки и категории:
+        # скидка применяется только для категорий, где она разрешена бизнес-правилом.
+        if old_price is not None and price is not None and old_price > price:
+            category_ids = self._get_category_ids_for_validation(attrs)
+            if not category_ids:
+                raise serializers.ValidationError(
+                    {'categories_ids': 'Для товара со скидкой необходимо указать хотя бы одну категорию.'}
+                )
+
+            categories = Category.objects.filter(id__in=category_ids)
+            has_allowed_category = any(
+                any(keyword in category.name.lower() for keyword in self.DISCOUNT_ALLOWED_CATEGORY_KEYWORDS)
+                for category in categories
+            )
+            if not has_allowed_category:
+                raise serializers.ValidationError(
+                    {'old_price': 'Скидка недоступна для выбранной категории товара.'}
+                )
+
+            discount_percent = ((old_price - price) / old_price) * Decimal('100')
+            if discount_percent > Decimal('80'):
+                raise serializers.ValidationError({'old_price': 'Скидка не может превышать 80%.'})
+
         if stock_quantity is not None and stock_quantity < 0:
             raise serializers.ValidationError({'stock_quantity': 'Остаток не может быть отрицательным.'})
 
@@ -166,7 +241,18 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    def validate_categories_ids(self, value):
+    def _get_category_ids_for_validation(self, attrs: dict[str, Any]) -> list[int]:
+        """Возвращает список category ids для валидации скидок."""
+        category_ids = attrs.get('categories_ids')
+        if category_ids is not None:
+            return list(set(category_ids))
+
+        if self.instance is not None:
+            return list(self.instance.categories.values_list('id', flat=True))
+
+        return []
+
+    def validate_categories_ids(self, value: list[int]) -> list[int]:
         """Проверяет, что все переданные категории существуют."""
         unique_ids = set(value)
         existing_count = Category.objects.filter(id__in=unique_ids).count()
@@ -174,7 +260,7 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Одна или несколько категорий не найдены.')
         return value
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> Product:
         """Создание товара с категориями через through модель."""
         # Получаем категории из validated_data
         category_ids = validated_data.pop('categories_ids', [])
@@ -190,40 +276,16 @@ class ProductSerializer(serializers.ModelSerializer):
         
         # Создаём изображения товара
         for index, image_url in enumerate(image_urls):
-            # Очищаем URL от двойного кодирования
-            import urllib.parse
-            
-            # Декодируем URL (убираем двойное кодирование типа %2520 -> %20)
-            decoded_url = urllib.parse.unquote(image_url)
-            
-            # Убираем префикс /media/ если есть (Django добавит его сам)
-            # и убираем двойные /media/ если есть
-            clean_path = decoded_url
-            
-            # Убираем любые повторения /media/
-            while '/media/media/' in clean_path:
-                clean_path = clean_path.replace('/media/media/', '/media/', 1)
-            
-            # Убираем /media/ в начале
-            if clean_path.startswith('/media/'):
-                clean_path = clean_path[7:]  # убираем /media/
-            elif clean_path.startswith('media/'):
-                clean_path = clean_path[6:]  # убираем media/
-            
-            # Убираем начальный слэш если есть
-            if clean_path.startswith('/'):
-                clean_path = clean_path[1:]
-
             ProductImage.objects.create(
                 product=product,
-                image=clean_path,  # Сохраняем путь без /media/
+                image=clean_media_path(image_url),
                 is_main=(index == 0),  # Первое изображение - главное
                 alt_text=product.name
             )
         
         return product
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Product, validated_data: dict[str, Any]) -> Product:
         """Обновление товара с категориями."""
         category_ids = validated_data.pop('categories_ids', None)
         image_urls = validated_data.pop('image_urls', None)
@@ -245,28 +307,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
         # Полная замена изображений, если передан новый список URL
         if image_urls is not None:
-            import urllib.parse
-
             ProductImage.objects.filter(product=instance).delete()
 
             for index, image_url in enumerate(image_urls):
-                decoded_url = urllib.parse.unquote(image_url)
-                clean_path = decoded_url
-
-                while '/media/media/' in clean_path:
-                    clean_path = clean_path.replace('/media/media/', '/media/', 1)
-
-                if clean_path.startswith('/media/'):
-                    clean_path = clean_path[7:]
-                elif clean_path.startswith('media/'):
-                    clean_path = clean_path[6:]
-
-                if clean_path.startswith('/'):
-                    clean_path = clean_path[1:]
-
                 ProductImage.objects.create(
                     product=instance,
-                    image=clean_path,
+                    image=clean_media_path(image_url),
                     is_main=(index == 0),
                     alt_text=instance.name
                 )
@@ -348,7 +394,13 @@ class ProductFavoriteSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'product_id', 'created_at']
         read_only_fields = ['created_at']
 
-    def create(self, validated_data):
+    def validate_product_id(self, product: Product) -> Product:
+        """Запрещает добавлять в избранное скрытые или недоступные товары."""
+        if not product.is_active or product.status in ['draft', 'archived']:
+            raise serializers.ValidationError('Нельзя добавить недоступный товар в избранное.')
+        return product
+
+    def create(self, validated_data: dict[str, Any]) -> ProductFavorite:
         """Добавляет товар в избранное или возвращает существующую запись."""
         user = self.context['request'].user
         favorite, _ = ProductFavorite.objects.get_or_create(user=user, **validated_data)

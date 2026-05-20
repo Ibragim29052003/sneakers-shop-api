@@ -1,3 +1,5 @@
+from typing import Any
+
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
@@ -6,7 +8,8 @@ from products.models import Product
 
 
 @shared_task
-def check_low_stock_products(threshold=5):
+def check_low_stock_products(threshold: Any=5) -> Any:
+    """Выполняет действие `check_low_stock_products`."""
     low_stock_products = Product.objects.filter(stock_quantity__lt=threshold, is_active=True)
     count = low_stock_products.count()
 

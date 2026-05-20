@@ -1,3 +1,5 @@
+from typing import Any
+
 
 from django.db import models
 from django.utils import timezone
@@ -14,11 +16,11 @@ class ProductManager(models.Manager):
     Позволяет выполнять расширенные запросы к товарам
     """
     
-    def active(self):
+    def active(self) -> Any:
         """Возвращает только активные товары"""
         return self.filter(is_active=True)
     
-    def with_price_range(self, min_price=None, max_price=None):
+    def with_price_range(self, min_price: Any=None, max_price: Any=None) -> Any:
         """Фильтрует товары по диапазону цен"""
         queryset = self.all()
         if min_price is not None:
@@ -27,22 +29,22 @@ class ProductManager(models.Manager):
             queryset = queryset.filter(price__lte=max_price)
         return queryset
     
-    def recently_created(self, days=7):
+    def recently_created(self, days: Any=7) -> Any:
         """Возвращает товары, созданные за последние N дней"""
         from django.utils import timezone
         start_date = timezone.now() - timedelta(days=days)
         return self.filter(created_at__gte=start_date)
     
-    def low_stock(self, threshold=10):
+    def low_stock(self, threshold: Any=10) -> Any:
         """Возвращает товары с низким запасом (требует связи с Inventory)"""
         # Пример использования через связанную таблицу
         return self.filter(inventory__quantity__lt=threshold)
     
-    def without_category(self):
+    def without_category(self) -> Any:
         """Возвращает товары без категории"""
         return self.filter(categories__isnull=True)
     
-    def created_by_supplier(self, supplier_id):
+    def created_by_supplier(self, supplier_id: Any) -> Any:
         """Возвращает товары конкретного поставщика"""
         return self.filter(supplier_id=supplier_id)
 
@@ -71,12 +73,14 @@ class Category(models.Model):
         verbose_name_plural = 'категории'
         ordering = ['name']
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.name
     
     @display(description='полный путь')
-    def get_full_path(self):
+    def get_full_path(self) -> Any:
         # получение полного пути категории включая родителей
+        """Возвращает данные через `get_full_path`."""
         if self.parent:
             return f'{self.parent.get_full_path()} > {self.name}'
         return self.name
@@ -106,7 +110,8 @@ class ProductCategory(models.Model):
         verbose_name_plural = 'связи товаров и категорий'
         unique_together = ('product', 'category')
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.product.name} - {self.category.name}'
 
 class ProductImage(models.Model):
@@ -127,12 +132,14 @@ class ProductImage(models.Model):
         verbose_name_plural = 'изображения товаров'
         ordering = ['-is_main', 'created_at']
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.product.name} - {self.id}'
     
     @display(description='превью')
-    def image_preview(self):
+    def image_preview(self) -> Any:
         # отображение превью изображения в админке
+        """Выполняет действие `image_preview`."""
         if self.image:
             return format_html(
                 '<img src="{}" style="width: 100px; height: auto;" />',
@@ -183,17 +190,19 @@ class SliderImage(models.Model):
         verbose_name_plural = 'слайды'
         ordering = ['order', '-created_at']
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.title
     
-    def get_image_url(self):
+    def get_image_url(self) -> Any:
         """Получение полного URL изображения."""
         if self.image:
             return self.image.url
         return None
     
     @display(description='превью')
-    def image_preview(self):
+    def image_preview(self) -> Any:
+        """Выполняет действие `image_preview`."""
         if self.image:
             return format_html(
                 '<img src="{}" style="width: 200px; height: auto;" />',
@@ -314,31 +323,36 @@ class Product(models.Model):
         verbose_name_plural = 'товары'
         ordering = ['-created_at'] # минус означает сортировку по убыванию
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.name
     
 
-    def get_main_image(self):
+    def get_main_image(self) -> Any:
         # получение основного изображения товара
+        """Возвращает данные через `get_main_image`."""
         return self.images.filter(is_main=True).first()
     # заголовок колонки в админке
     @display(description='цена')
-    def get_price_with_currency(self):
+    def get_price_with_currency(self) -> Any:
         # отображение цены с символом валюты
+        """Возвращает данные через `get_price_with_currency`."""
         return f'{self.price} ₽'
     
     @display(description='категории')
-    def get_categories_list(self):
+    def get_categories_list(self) -> Any:
         # получение списка названий категорий
+        """Возвращает данные через `get_categories_list`."""
         return ', '.join([c.name for c in self.categories.all()])
 # reverse() для генерации URL по имени маршрута
     
     
 
-    def get_absolute_url(self):
+    def get_absolute_url(self) -> Any:
 
+        """Возвращает данные через `get_absolute_url`."""
         return reverse('product-detail', kwargs={'pk': self.pk})
-    def get_days_in_warehouse(self):
+    def get_days_in_warehouse(self) -> Any:
         """
         Рассчитывает количество дней, которое товар хранится на складе.
         """
@@ -347,8 +361,9 @@ class Product(models.Model):
             return max(0, days)
         return 0
     
-    def get_discount_percentage(self):
+    def get_discount_percentage(self) -> Any:
 
+        """Возвращает данные через `get_discount_percentage`."""
         days = self.get_days_in_warehouse()
         
         if days >= 90:
@@ -360,7 +375,7 @@ class Product(models.Model):
         else:
             return 0
     
-    def get_discounted_price(self):
+    def get_discounted_price(self) -> Any:
         """
         Рассчитывает цену со скидкой на основе срока хранения товара.
         Returns:
@@ -370,7 +385,7 @@ class Product(models.Model):
         discount = Decimal(str(self.get_discount_percentage())) / 100
         return self.price * (Decimal('1') - discount)
     
-    def is_new(self):
+    def is_new(self) -> Any:
         """        
         Определяет, является ли товар "новым" (менее 7 дней с момента создания).
         """
@@ -399,7 +414,8 @@ class FilterGroup(models.Model):
         verbose_name_plural = 'группы фильтров'
         ordering = ['order', 'name']
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f"{self.category.name} - {self.name}"
 
 
@@ -423,7 +439,8 @@ class FilterOption(models.Model):
         verbose_name_plural = 'значения фильтров'
         ordering = ['order', 'name']
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f"{self.group.name}: {self.name}"
 
 
@@ -451,7 +468,8 @@ class ProductFilter(models.Model):
         verbose_name_plural = 'фильтры товаров'
         unique_together = ('product', 'filter_option')
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f"{self.product.name} - {self.filter_option.name}"
 
 
@@ -478,6 +496,7 @@ class ProductFavorite(models.Model):
         unique_together = ('user', 'product')
         ordering = ['-created_at']
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.user.email} -> {self.product.name}'
 

@@ -1,6 +1,8 @@
 """Представления для приложения товаров."""
 
-from django.db.models import Avg, Count, DecimalField, F, IntegerField, Q, Sum, Value
+from typing import Any
+
+from django.db.models import Avg, Count, DecimalField, F, IntegerField, Q, QuerySet, Sum, Value
 from django.db.models.functions import Cast, Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
@@ -45,7 +47,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Category]:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset().prefetch_related('subcategories')
 
 
@@ -65,13 +68,22 @@ class ProductViewSet(viewsets.ModelViewSet):
         'children': ['детей', 'children', 'child', 'детская', 'для детей', 'ребенок', 'kids'],
     }
 
-    def _get_base_queryset(self):
-        return (
+    def _is_admin_request(self) -> bool:
+        """Проверяет, может ли пользователь видеть административную выдачу товаров."""
+        user = getattr(self.request, 'user', None)
+        return bool(
+            user
+            and user.is_authenticated
+            and (user.is_staff or user.user_roles.filter(role__name='admin').exists())
+        )
+
+    def _get_base_queryset(self) -> QuerySet[Product]:
+        """Выполняет действие `_get_base_queryset`."""
+        queryset = (
             super()
             .get_queryset()
-            .exclude(status='draft')
             .select_related('supplier')
-            .prefetch_related('categories', 'images')
+            .prefetch_related('categories', 'images', 'product_filters__filter_option__group')
             .annotate(
                 avg_rating=Coalesce(
                     Cast(Avg('reviews__rating'), output_field=DecimalField(max_digits=3, decimal_places=2)),
@@ -88,7 +100,13 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         )
 
-    def _apply_category_filter(self, queryset, category_param):
+        if self._is_admin_request():
+            return queryset
+
+        return queryset.filter(is_active=True, status='active', stock_quantity__gt=0)
+
+    def _apply_category_filter(self, queryset: QuerySet[Product], category_param: str | None) -> QuerySet[Product]:
+        """Выполняет действие `_apply_category_filter`."""
         if not category_param:
             return queryset
 
@@ -105,19 +123,27 @@ class ProductViewSet(viewsets.ModelViewSet):
         if category_ids:
             product_filter |= Q(categories__id__in=category_ids)
 
-        matching_product_ids = (
-            Product.objects.exclude(status='draft').filter(product_filter).values_list('id', flat=True).distinct()
-        )
-        return queryset.filter(id__in=matching_product_ids)
+        return queryset.filter(product_filter)
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Product]:
+        """Возвращает данные через `get_queryset`."""
         queryset = self._get_base_queryset()
 
         category_param = self.request.query_params.get('category')
         if category_param:
             queryset = self._apply_category_filter(queryset, category_param)
 
-        for filter_name in ['colors', 'sizes', 'fabrics']:
+        group_aliases_map = {
+            'colors': ['цвет', 'color'],
+            'sizes': ['размер', 'size'],
+            'fabrics': ['материал', 'fabric'],
+            'brands': ['бренд', 'brand'],
+            'styles': ['стиль', 'style'],
+            'seasons': ['сезон', 'season'],
+            'purposes': ['назнач', 'purpose'],
+        }
+
+        for filter_name, aliases in group_aliases_map.items():
             raw_values = self.request.query_params.get(filter_name)
             if not raw_values:
                 continue
@@ -125,19 +151,24 @@ class ProductViewSet(viewsets.ModelViewSet):
             if values:
                 query = Q()
                 for value in values:
-                    query |= Q(product_filters__filter_option__name__iexact=value)
+                    value_query = Q(product_filters__filter_option__name__iexact=value)
+                    group_query = Q()
+                    for alias in aliases:
+                        group_query |= Q(product_filters__filter_option__group__name__icontains=alias)
+                    query |= (value_query & group_query)
                 queryset = queryset.filter(query)
 
         return queryset.distinct()
 
     @action(detail=False, methods=['get'], url_path='home-showcases')
-    def home_showcases(self, request):
+    def home_showcases(self, request: Any) -> Response:
+        """Выполняет действие `home_showcases`."""
         category = request.query_params.get('category')
         limit = request.query_params.get('limit', '4')
         limit = int(limit) if str(limit).isdigit() else 4
         limit = max(1, min(limit, 8))
 
-        base_queryset = self._apply_category_filter(self._get_base_queryset().filter(is_active=True), category)
+        base_queryset = self._apply_category_filter(self._get_base_queryset(), category)
 
         premium_queryset = base_queryset.order_by('-price', '-created_at')[:limit]
 
@@ -192,7 +223,8 @@ class ProductImageViewSet(viewsets.ModelViewSet):
     serializer_class = ProductImageSerializer
     permission_classes = [IsAdminOrReadOnly]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[ProductImage]:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset().select_related('product')
 
 
@@ -206,14 +238,14 @@ class SliderImageViewSet(viewsets.ModelViewSet):
     ordering_fields = ['order', 'created_at']
     ordering = ['order', '-created_at']
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[SliderImage]:
         """
         Получение слайдов с предзагрузкой связанного товара.
         """
         return super().get_queryset().select_related('product')
     
     @action(detail=False, methods=['get'], url_path='active-slides')
-    def active_slides(self, request):
+    def active_slides(self, request: Any) -> Response:
         """
         Получение только активных слайдов для публичного API.
         
@@ -234,12 +266,12 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
     ordering_fields = ['order', 'name', 'created_at']
     ordering = ['order', 'name']
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[FilterGroup]:
         """Получение групп фильтров с предзагрузкой опций."""
         return super().get_queryset().prefetch_related('options')
     
     @action(detail=False, methods=['get'])
-    def by_category(self, request):
+    def by_category(self, request: Any) -> Any:
         """
         Получение групп фильтров для конкретной категории.
         
@@ -285,7 +317,7 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
-    def with_counts(self, request):
+    def with_counts(self, request: Any) -> Any:
         """
         Получение фильтров с подсчетом количества товаров для каждой опции.
         
@@ -337,10 +369,15 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
             'colors': ['цвета', 'цвет', 'colors', 'color'],
             'sizes': ['размеры', 'размер', 'sizes', 'size'],
             'fabrics': ['материалы', 'материал', 'fabrics', 'fabric'],
+            'brands': ['бренд', 'бренды', 'brand', 'brands'],
+            'styles': ['стиль', 'стили', 'style', 'styles'],
+            'seasons': ['сезон', 'сезоны', 'season', 'seasons'],
+            'purposes': ['назначение', 'назначения', 'purpose', 'purposes'],
         }
         
         # Функция для определения типа фильтра по названию группы
-        def get_filter_key(group_name):
+        def get_filter_key(group_name: Any) -> Any:
+            """Возвращает данные через `get_filter_key`."""
             normalized = group_name.lower().strip()
             for key, names in GROUP_KEY_MAP.items():
                 if normalized in names:
@@ -349,7 +386,7 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         
         # Получаем все выбранные фильтры из разных групп
         selected_filters = {}
-        for param_name in ['colors', 'sizes', 'fabrics']:
+        for param_name in ['colors', 'sizes', 'fabrics', 'brands', 'styles', 'seasons', 'purposes']:
             value = request.query_params.get(param_name)
             if value:
                 selected_filters[param_name] = [v.strip() for v in value.split(',') if v.strip()]
@@ -440,7 +477,7 @@ class FilterOptionViewSet(viewsets.ModelViewSet):
     ordering_fields = ['order', 'name', 'created_at']
     ordering = ['order', 'name']
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[FilterOption]:
         """Получение значений фильтров с предзагрузкой группы."""
         return super().get_queryset().select_related('group')
 
@@ -452,7 +489,7 @@ class ProductFilterViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['product', 'filter_option']
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[ProductFilter]:
         """Получение связей с предзагрузкой данных."""
         return super().get_queryset().select_related('product', 'filter_option__group')
 
@@ -464,9 +501,13 @@ class ProductFavoriteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete']
 
-    def get_queryset(self):
-        """Возвращает избранное только текущего пользователя."""
-        return ProductFavorite.objects.filter(user=self.request.user).select_related('product')
+    def get_queryset(self) -> QuerySet[ProductFavorite]:
+        """Возвращает избранное только текущего пользователя с оптимизацией связанных данных."""
+        return (
+            ProductFavorite.objects.filter(user=self.request.user)
+            .select_related('product', 'product__supplier')
+            .prefetch_related('product__categories', 'product__images')
+        )
 
 
 class AdminProductAnalyticsView(APIView):
@@ -474,7 +515,8 @@ class AdminProductAnalyticsView(APIView):
 
     permission_classes = [IsAdminRole]
 
-    def get(self, request):
+    def get(self, request: Any) -> Response:
+        """Выполняет действие `get`."""
         paid_statuses = ['paid', 'delivered', 'completed']
 
         top_sold_products_qs = (

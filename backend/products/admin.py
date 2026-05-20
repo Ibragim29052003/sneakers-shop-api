@@ -7,6 +7,8 @@
 - Генерация PDF документа в админке
 - Действия на сайте администрирования (admin actions)
 """
+from typing import Any
+
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
@@ -46,14 +48,15 @@ class ProductFilterInline(admin.TabularInline):
     extra = 1
     # Используем обычный select вместо raw_id_fields для удобства выбора
     
-    def get_formset(self, request, obj=None, **kwargs):
+    def get_formset(self, request: Any, obj: Any=None, **kwargs: Any) -> Any:
         """
         Динамически фильтруем options на основе выбранной категории.
         """
         from django import forms
         
         class ProductFilterFormSet(forms.ModelForm):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, *args: Any, **kwargs: Any) -> Any:
+                """Выполняет действие `__init__`."""
                 super().__init__(*args, **kwargs)
                 
                 # Для существующего объекта фильтруем по категориям
@@ -92,8 +95,9 @@ class ProductImageInline(admin.TabularInline):
     readonly_fields = ('created_at', 'image_preview')
     
     @display(description='превью')
-    def image_preview(self, obj):
+    def image_preview(self, obj: Any) -> Any:
         # отображение превью изображения
+        """Выполняет действие `image_preview`."""
         if obj.image:
             return format_html(
                 '<img src="{}" style="width: 80px; height: auto;" />',
@@ -159,7 +163,8 @@ class ProductAdmin(SimpleHistoryAdmin):
     class Media:
         js = ('admin/js/product_filters.js',)
 
-    def formfield_for_choice_field(self, db_field, request, **kwargs):
+    def formfield_for_choice_field(self, db_field: Any, request: Any, **kwargs: Any) -> Any:
+        """Выполняет действие `formfield_for_choice_field`."""
         if db_field.name == 'status':
             kwargs['choices'] = [
                 ('active', 'Активен'),
@@ -167,14 +172,15 @@ class ProductAdmin(SimpleHistoryAdmin):
             ]
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
-    def save_model(self, request, obj, form, change):
+    def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> Any:
         # Делаем статус главным переключателем видимости товара.
+        """Выполняет действие `save_model`."""
         obj.is_active = obj.status == 'active'
         super().save_model(request, obj, form, change)
     
 
 #555555##
-    def archive_products(self, request, queryset):
+    def archive_products(self, request: Any, queryset: Any) -> Any:
         """
         Действие: архивирование выбранных товаров.
         1. Массовое удаление объектов
@@ -185,13 +191,13 @@ class ProductAdmin(SimpleHistoryAdmin):
         self.message_user(request, f'{updated} товаров архивировано.')
     archive_products.short_description = 'Архивировать выбранные товары'
     
-    def activate_products(self, request, queryset):
+    def activate_products(self, request: Any, queryset: Any) -> Any:
         """Действие: активация выбранных товаров."""
         updated = queryset.update(status='active', is_active=True)
         self.message_user(request, f'{updated} товаров активировано.')
     activate_products.short_description = 'Активировать выбранные товары'
     
-    def mark_as_draft(self, request, queryset):
+    def mark_as_draft(self, request: Any, queryset: Any) -> Any:
         """Действие: перевод в черновик."""
         updated = queryset.update(status='draft')
         self.message_user(request, f'{updated} товаров переведено в черновик.')
@@ -201,8 +207,9 @@ class ProductAdmin(SimpleHistoryAdmin):
     actions = [activate_products, mark_as_draft, 'generate_pdf_report']
 ##55555#
     
-    def generate_pdf_report(self, request, queryset):
+    def generate_pdf_report(self, request: Any, queryset: Any) -> Any:
     
+        """Выполняет действие `generate_pdf_report`."""
         import os
         
         # Шрифт с поддержкой кириллицы (Arial Unicode MS)
@@ -288,31 +295,36 @@ class ProductAdmin(SimpleHistoryAdmin):
     generate_pdf_report.short_description = 'Сгенерировать PDF отчёт'
     
     @display(description=_('цена'))
-    def get_price_display(self, obj):
+    def get_price_display(self, obj: Any) -> Any:
         # отображение цены с валютой
+        """Возвращает данные через `get_price_display`."""
         return f'{obj.price} ₽'
     
     @display(description=_('старая цена'))
-    def get_old_price_display(self, obj):
+    def get_old_price_display(self, obj: Any) -> Any:
         # отображение старой цены с валютой
+        """Возвращает данные через `get_old_price_display`."""
         if obj.old_price:
             return f'{obj.old_price} ₽'
         return '-'
     
     @display(description=_('активен'))
-    def get_is_active_status(self, obj):
+    def get_is_active_status(self, obj: Any) -> Any:
         # отображение статуса активности
+        """Возвращает данные через `get_is_active_status`."""
         if obj.is_active:
             return format_html('<span style="color: green;">{} {}</span>', '✓', 'да')
         return format_html('<span style="color: red;">{} {}</span>', '✗', 'нет')
     
     @display(description=_('категории'))
-    def get_category_list(self, obj):
+    def get_category_list(self, obj: Any) -> Any:
         # отображение списка категорий
+        """Возвращает данные через `get_category_list`."""
         categories = [pc.category.name for pc in obj.product_categories.select_related('category').all()]
         return ', '.join(categories) if categories else '-'
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).prefetch_related('categories', 'images')
 
 
@@ -328,20 +340,23 @@ class ProductImageAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_product_name',)
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
         # отображение названия товара со ссылкой
+        """Возвращает данные через `get_product_name`."""
         from django.urls import reverse
         url = reverse('admin:products_product_change', args=[obj.product.id])
         return format_html('<a href="{}">{}</a>', url, obj.product.name)
     
     @display(description=_('основное'))
-    def get_is_main_status(self, obj):
+    def get_is_main_status(self, obj: Any) -> Any:
         # отображение статуса основного изображения
+        """Возвращает данные через `get_is_main_status`."""
         if obj.is_main:
             return format_html('<span style="color: green;">{}</span>', '✓')
         return format_html('<span style="color: gray;">{}</span>', '-')
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('product')
 
 
@@ -357,20 +372,23 @@ class ProductCategoryAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_product_name', 'get_category_name')
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
         # отображение товара со ссылкой
+        """Возвращает данные через `get_product_name`."""
         from django.urls import reverse
         url = reverse('admin:products_product_change', args=[obj.product.id])
         return format_html('<a href="{}">{}</a>', url, obj.product.name)
     
     @display(description=_('категория'))
-    def get_category_name(self, obj):
+    def get_category_name(self, obj: Any) -> Any:
         # отображение категории со ссылкой
+        """Возвращает данные через `get_category_name`."""
         from django.urls import reverse
         url = reverse('admin:products_category_change', args=[obj.category.id])
         return format_html('<a href="{}">{}</a>', url, obj.category.name)
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('product', 'category')
 
 
@@ -412,7 +430,8 @@ class SliderImageAdmin(SimpleHistoryAdmin):
     readonly_fields = ('created_at', 'updated_at')
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
+        """Возвращает данные через `get_product_name`."""
         if obj.product:
             from django.urls import reverse
             url = reverse('admin:products_product_change', args=[obj.product.id])
@@ -420,7 +439,8 @@ class SliderImageAdmin(SimpleHistoryAdmin):
         return '-'
     
     @display(description='превью')
-    def image_preview(self, obj):
+    def image_preview(self, obj: Any) -> Any:
+        """Выполняет действие `image_preview`."""
         if obj.image:
             return format_html(
                 '<img src="{}" style="width: 200px; height: auto;" />',
@@ -428,7 +448,8 @@ class SliderImageAdmin(SimpleHistoryAdmin):
             )
         return '-'
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('product')
 
 
@@ -457,7 +478,8 @@ class FilterOptionAdmin(SimpleHistoryAdmin):
     list_editable = ('is_active', 'order')
     list_display_links = ('name',)
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('group')
 
 
@@ -469,5 +491,6 @@ class ProductFilterAdmin(SimpleHistoryAdmin):
     search_fields = ('product__name', 'filter_option__name')
     list_display_links = ('product',)
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('product', 'filter_option__group')
