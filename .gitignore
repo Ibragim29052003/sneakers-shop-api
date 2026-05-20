@@ -11,6 +11,7 @@ media/
 /backend/media/
 staticfiles/
 .env
+backend/.env
 test.env
 /test.env
 
@@ -28,3 +29,4 @@ build/
 
 # OS
 .DS_Store
+~$*.docx
