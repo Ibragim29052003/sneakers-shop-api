@@ -1,3 +1,5 @@
+from typing import Any
+
 from datetime import datetime, timedelta
 
 from celery import shared_task
@@ -10,7 +12,8 @@ from .models import Order, OrderStatus
 
 
 @shared_task
-def cancel_unpaid_orders(hours=24):
+def cancel_unpaid_orders(hours: Any=24) -> Any:
+    """Выполняет действие `cancel_unpaid_orders`."""
     cutoff = timezone.now() - timedelta(hours=hours)
     cancel_status = OrderStatus.objects.filter(name__iexact='cancelled').first()
     if cancel_status is None:
@@ -28,7 +31,8 @@ def cancel_unpaid_orders(hours=24):
 
 
 @shared_task
-def send_daily_sales_report():
+def send_daily_sales_report() -> Any:
+    """Выполняет действие `send_daily_sales_report`."""
     today = timezone.localdate()
     start_dt = timezone.make_aware(datetime.combine(today, datetime.min.time()))
     end_dt = timezone.make_aware(datetime.combine(today, datetime.max.time()))
@@ -53,7 +57,8 @@ def send_daily_sales_report():
 
 
 @shared_task
-def send_order_created_email(order_id):
+def send_order_created_email(order_id: Any) -> Any:
+    """Выполняет действие `send_order_created_email`."""
     order = Order.objects.select_related('user').get(id=order_id)
     send_mail(
         subject=f'Ваш заказ #{order.id} создан',
@@ -66,7 +71,8 @@ def send_order_created_email(order_id):
 
 
 @shared_task
-def send_order_status_changed_email(order_id):
+def send_order_status_changed_email(order_id: Any) -> Any:
+    """Выполняет действие `send_order_status_changed_email`."""
     order = Order.objects.select_related('user', 'status').get(id=order_id)
     send_mail(
         subject=f'Обновлён статус заказа #{order.id}',
@@ -79,7 +85,8 @@ def send_order_status_changed_email(order_id):
 
 
 @shared_task
-def recalculate_product_popularity():
+def recalculate_product_popularity() -> Any:
     # Заглушка под периодический пересчёт метрик популярности
+    """Выполняет действие `recalculate_product_popularity`."""
     products_count = Order.objects.values('items__product').distinct().count()
     return {'recalculated_products': products_count}

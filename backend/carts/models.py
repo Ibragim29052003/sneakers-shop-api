@@ -1,6 +1,8 @@
 """
 модели приложения корзины
 """
+from typing import Any
+
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator
@@ -26,23 +28,27 @@ class Cart(models.Model):
         verbose_name = 'корзина'
         verbose_name_plural = 'корзины'
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'корзина пользователя {self.user.email}'
     
     @display(description='количество товаров')
-    def get_total_items(self):
+    def get_total_items(self) -> Any:
         # получение общего количества товаров в корзине
+        """Возвращает данные через `get_total_items`."""
         return self.items.count()
     
     @display(description='общая сумма')
-    def get_total_price(self):
+    def get_total_price(self) -> Any:
         # получение общей суммы товаров в корзине
+        """Возвращает данные через `get_total_price`."""
         total = sum(item.get_total_price() for item in self.items.all())
         return total
     
     @display(description='общая сумма')
-    def get_total_price_display(self):
+    def get_total_price_display(self) -> Any:
         # отображение общей суммы с валютой
+        """Возвращает данные через `get_total_price_display`."""
         return f'{self.get_total_price()} ₽'
 
 
@@ -76,19 +82,23 @@ class CartItem(models.Model):
         verbose_name_plural = 'товары в корзине'
         unique_together = ('cart', 'product')
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.product.name} x {self.quantity}'
     
-    def get_total_price(self):
+    def get_total_price(self) -> Any:
         # расчёт общей стоимости позиции
+        """Возвращает данные через `get_total_price`."""
         return self.product.price * self.quantity
     
     @display(description='сумма')
-    def get_total_price_display(self):
+    def get_total_price_display(self) -> Any:
         # отображение общей стоимости с валютой
+        """Возвращает данные через `get_total_price_display`."""
         return f'{self.get_total_price()} ₽'
     
     @display(description='цена за шт.')
-    def get_product_price(self):
+    def get_product_price(self) -> Any:
         # получение цены за единицу товара
+        """Возвращает данные через `get_product_price`."""
         return self.product.price

@@ -1,6 +1,8 @@
 """
 настройка админки для приложения корзины
 """
+from typing import Any
+
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
@@ -20,20 +22,23 @@ class CartItemInline(admin.TabularInline):
     raw_id_fields = ('product',)
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
         # отображение названия товара со ссылкой
+        """Возвращает данные через `get_product_name`."""
         from django.urls import reverse
         url = reverse('admin:products_product_change', args=[obj.product.id])
         return format_html('<a href="{}">{}</a>', url, obj.product.name)
     
     @display(description=_('цена за шт.'))
-    def get_product_price(self, obj):
+    def get_product_price(self, obj: Any) -> Any:
         # отображение цены за единицу товара
+        """Возвращает данные через `get_product_price`."""
         return f'{obj.product.price} ₽'
     
     @display(description=_('сумма'))
-    def get_total_price_display(self, obj):
+    def get_total_price_display(self, obj: Any) -> Any:
         # отображение общей стоимости позиции
+        """Возвращает данные через `get_total_price_display`."""
         return f'{obj.get_total_price()} ₽'
 
 
@@ -53,23 +58,27 @@ class CartAdmin(SimpleHistoryAdmin):
     readonly_fields = ('created_at', 'updated_at')
     
     @display(description=_('пользователь'))
-    def get_user_email(self, obj):
+    def get_user_email(self, obj: Any) -> Any:
         # отображение email пользователя со ссылкой
+        """Возвращает данные через `get_user_email`."""
         from django.urls import reverse
         url = reverse('admin:users_user_change', args=[obj.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.user.email)
     
     @display(description=_('количество товаров'))
-    def get_total_items(self, obj):
+    def get_total_items(self, obj: Any) -> Any:
         # получение общего количества товаров в корзине
+        """Возвращает данные через `get_total_items`."""
         return obj.items.count()
     
     @display(description=_('общая сумма'))
-    def get_total_price_display(self, obj):
+    def get_total_price_display(self, obj: Any) -> Any:
         # отображение общей суммы с валютой
+        """Возвращает данные через `get_total_price_display`."""
         return f'{obj.get_total_price()} ₽'
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).prefetch_related('items', 'user')
 
 
@@ -88,28 +97,33 @@ class CartItemAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_cart_user', 'get_product_name')
     
     @display(description=_('пользователь'))
-    def get_cart_user(self, obj):
+    def get_cart_user(self, obj: Any) -> Any:
         # отображение пользователя корзины
+        """Возвращает данные через `get_cart_user`."""
         from django.urls import reverse
         url = reverse('admin:users_user_change', args=[obj.cart.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.cart.user.email)
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
         # отображение названия товара со ссылкой
+        """Возвращает данные через `get_product_name`."""
         from django.urls import reverse
         url = reverse('admin:products_product_change', args=[obj.product.id])
         return format_html('<a href="{}">{}</a>', url, obj.product.name)
     
     @display(description=_('цена за шт.'))
-    def get_product_price(self, obj):
+    def get_product_price(self, obj: Any) -> Any:
         # отображение цены за единицу товара
+        """Возвращает данные через `get_product_price`."""
         return f'{obj.product.price} ₽'
     
     @display(description=_('сумма'))
-    def get_total_price_display(self, obj):
+    def get_total_price_display(self, obj: Any) -> Any:
         # отображение общей стоимости позиции
+        """Возвращает данные через `get_total_price_display`."""
         return f'{obj.get_total_price()} ₽'
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('cart', 'cart__user', 'product')

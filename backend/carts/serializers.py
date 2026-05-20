@@ -1,6 +1,8 @@
 """
 Сериализаторы для приложения корзины
 """
+from typing import Any
+
 from rest_framework import serializers
 from .models import Cart, CartItem
 from products.serializers import ProductSerializer
@@ -17,7 +19,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     )
     total_price = serializers.SerializerMethodField()
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Проверка наличия товара на складе."""
         product = attrs.get('product')
         quantity = attrs.get('quantity', 1)
@@ -28,7 +30,11 @@ class CartItemSerializer(serializers.ModelSerializer):
         if quantity <= 0:
             raise serializers.ValidationError({'detail': 'Количество товара должно быть больше 0.'})
 
-        if product.stock_quantity <= 0 or product.status in ['draft', 'out_of_stock', 'archived']:
+        if (
+            not product.is_active
+            or product.stock_quantity <= 0
+            or product.status in ['draft', 'out_of_stock', 'archived']
+        ):
             raise serializers.ValidationError({'detail': 'Товар недоступен для добавления в корзину.'})
 
         request = self.context.get('request')
@@ -56,7 +62,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
-    def get_total_price(self, obj):
+    def get_total_price(self, obj: CartItem) -> str:
         """Расчет общей стоимости товара."""
         return str(obj.get_total_price())
 
@@ -75,10 +81,10 @@ class CartSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at', 'user']
     
-    def get_total_items(self, obj):
+    def get_total_items(self, obj: Cart) -> int:
         """Получение общего количества товаров."""
         return obj.items.count()
     
-    def get_total_price(self, obj):
+    def get_total_price(self, obj: Cart) -> str:
         """Расчет общей стоимости корзины."""
         return str(obj.get_total_price())

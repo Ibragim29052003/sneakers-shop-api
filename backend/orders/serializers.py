@@ -3,6 +3,7 @@
 """
 import re
 from decimal import Decimal
+from typing import Any
 
 from rest_framework import serializers
 from .models import OrderStatus, Order, OrderItem
@@ -45,7 +46,7 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at', 'user', 'total']
     
-    def get_total_display(self, obj):
+    def get_total_display(self, obj: Order) -> str:
         """Получение общей суммы в виде строки."""
         return str(obj.total)
 
@@ -61,7 +62,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['shipping_address', 'notes']
 
-    def validate_shipping_address(self, value):
+    def validate_shipping_address(self, value: str) -> str:
         """Валидация адреса доставки: улица, дом, город, индекс."""
         if not re.match(self.SHIPPING_ADDRESS_PATTERN, value.strip(), flags=re.IGNORECASE):
             raise serializers.ValidationError(
@@ -69,7 +70,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             )
         return value
     
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> Order:
         """Создание заказа из корзины."""
         user = self.context['request'].user
         from carts.models import Cart
@@ -90,7 +91,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
             for cart_item in cart_items:
                 product = products_by_id.get(cart_item.product_id)
-                if not product or product.stock_quantity <= 0 or product.status == 'out_of_stock':
+                if (
+                    not product
+                    or not product.is_active
+                    or product.stock_quantity <= 0
+                    or product.status in ['draft', 'out_of_stock', 'archived']
+                ):
                     raise serializers.ValidationError(
                         {'detail': f'Товар "{cart_item.product.name}" недоступен для заказа.'}
                     )

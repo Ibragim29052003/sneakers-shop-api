@@ -1,6 +1,8 @@
 """
 Представления для приложения корзины
 """
+from typing import Any
+
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -13,15 +15,16 @@ class CartViewSet(viewsets.ModelViewSet):
     serializer_class = CartSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return Cart.objects.filter(user=self.request.user).prefetch_related('items__product')
     
-    def get_object(self):
+    def get_object(self) -> Any:
         """Получение или создание корзины для пользователя."""
         cart, created = Cart.objects.get_or_create(user=self.request.user)
         return cart
     
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         """Получение корзины текущего пользователя."""
         cart = self.get_object()
         serializer = self.get_serializer(cart)
@@ -33,10 +36,11 @@ class CartItemViewSet(viewsets.ModelViewSet):
     serializer_class = CartItemSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return CartItem.objects.filter(cart__user=self.request.user).select_related('product', 'cart')
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         """Добавление товара в корзину с объединением одинаковых позиций."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -55,7 +59,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
         serializer.save(cart=cart)
         return Response(serializer.data, status=201)
     
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         """Обновление количества товара в корзине."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()

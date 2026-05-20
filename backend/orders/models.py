@@ -1,6 +1,8 @@
 """
 модели приложения заказов
 """
+from typing import Any
+
 from django.db import models
 from django.db.models import Q
 from django.core.exceptions import ValidationError
@@ -22,10 +24,11 @@ class OrderStatus(models.Model):
         verbose_name_plural = 'статусы заказов'
         ordering = ['created_at']
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return self.name
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> Any:
         """Защита от рассинхронизации sequence при явном задании id."""
         if self.pk is None:
             last_id = OrderStatus.objects.order_by('-id').values_list('id', flat=True).first() or 0
@@ -73,17 +76,20 @@ class Order(models.Model):
             ),
         ]
     
-    def clean(self):
+    def clean(self) -> Any:
+        """Выполняет действие `clean`."""
         super().clean()
         if self.total <= 0:
             raise ValidationError({'total': 'Сумма заказа должна быть больше 0.'})
 
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'заказ #{self.id} - {self.user.email}'
     
     @display(description='статус')
-    def get_status_display(self):
+    def get_status_display(self) -> Any:
         # отображение статуса с цветовой индикацией
+        """Возвращает данные через `get_status_display`."""
         from django.utils.html import format_html
         if self.status.is_final:
             return format_html(
@@ -96,16 +102,18 @@ class Order(models.Model):
         )
     
     @display(description='сумма')
-    def get_total_display(self):
+    def get_total_display(self) -> Any:
         # отображение суммы с валютой
+        """Возвращает данные через `get_total_display`."""
         return f'{self.total} ₽'
     
     @display(description='количество товаров')
-    def get_items_count(self):
+    def get_items_count(self) -> Any:
         # получение количества товаров в заказе
+        """Возвращает данные через `get_items_count`."""
         return self.items.count()
     
-    def calculate_total(self):
+    def calculate_total(self) -> Any:
         """Расчёт общей суммы заказа."""
         total = sum(item.get_total_price() for item in self.items.all())
         self.total = total
@@ -141,22 +149,26 @@ class OrderItem(models.Model):
         verbose_name = 'товар в заказе'
         verbose_name_plural = 'товары в заказе'
     
-    def __str__(self):
+    def __str__(self) -> Any:
+        """Выполняет действие `__str__`."""
         return f'{self.product_name} x {self.quantity}'
     
-    def get_total_price(self):
+    def get_total_price(self) -> Any:
         # расчёт общей стоимости позиции
+        """Возвращает данные через `get_total_price`."""
         if self.price is not None:
             return self.price * self.quantity
         return Decimal('0.00')
     
     @display(description='сумма')
-    def get_total_price_display(self):
+    def get_total_price_display(self) -> Any:
         # отображение общей стоимости с валютой
+        """Возвращает данные через `get_total_price_display`."""
         return f'{self.get_total_price()} ₽'
     
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> Any:
         # сохранение информации о товаре из связанной модели
+        """Выполняет действие `save`."""
         if self.product and not self.product_name:
             self.product_name = self.product.name
             self.product_sku = self.product.sku

@@ -1,6 +1,8 @@
 """
 настройка админки для приложения заказов
 """
+from typing import Any
+
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
@@ -20,8 +22,9 @@ class OrderItemInline(admin.TabularInline):
     raw_id_fields = ('product',)
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
         # отображение названия товара со ссылкой
+        """Возвращает данные через `get_product_name`."""
         if obj.product:
             from django.urls import reverse
             url = reverse('admin:products_product_change', args=[obj.product.id])
@@ -29,8 +32,9 @@ class OrderItemInline(admin.TabularInline):
         return obj.product_name
     
     @display(description=_('сумма'))
-    def get_total_price_display(self, obj):
+    def get_total_price_display(self, obj: Any) -> Any:
         # отображение общей стоимости позиции
+        """Возвращает данные через `get_total_price_display`."""
         return f'{obj.get_total_price()} ₽'
 
 
@@ -86,15 +90,17 @@ class OrderAdmin(SimpleHistoryAdmin):
     readonly_fields = ('created_at', 'updated_at')
     
     @display(description=_('пользователь'))
-    def get_user_email(self, obj):
+    def get_user_email(self, obj: Any) -> Any:
         # отображение email пользователя со ссылкой
+        """Возвращает данные через `get_user_email`."""
         from django.urls import reverse
         url = reverse('admin:users_user_change', args=[obj.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.user.email)
     
     @display(description=_('статус'))
-    def get_status_display(self, obj):
+    def get_status_display(self, obj: Any) -> Any:
         # отображение статуса с цветовой индикацией
+        """Возвращает данные через `get_status_display`."""
         if obj.status.is_final:
             return format_html(
                 '<span style="color: green; font-weight: bold;">{}</span>',
@@ -106,20 +112,24 @@ class OrderAdmin(SimpleHistoryAdmin):
         )
     
     @display(description=_('сумма'))
-    def get_total_display(self, obj):
+    def get_total_display(self, obj: Any) -> Any:
         # отображение общей суммы заказа
+        """Возвращает данные через `get_total_display`."""
         return f'{obj.total} ₽'
     
     @display(description=_('количество товаров'))
-    def get_items_count(self, obj):
+    def get_items_count(self, obj: Any) -> Any:
         # получение количества товаров в заказе
+        """Возвращает данные через `get_items_count`."""
         return obj.items.count()
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).prefetch_related('items', 'user')
     
-    def save_model(self, request, obj, form, change):
+    def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> Any:
         # сохранение заказа с пересчётом суммы
+        """Выполняет действие `save_model`."""
         if not change:
             pass
         super().save_model(request, obj, form, change)
@@ -140,15 +150,17 @@ class OrderItemAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_order_id', 'get_product_name')
     
     @display(description=_('заказ №'))
-    def get_order_id(self, obj):
+    def get_order_id(self, obj: Any) -> Any:
         # отображение номера заказа со ссылкой
+        """Возвращает данные через `get_order_id`."""
         from django.urls import reverse
         url = reverse('admin:orders_order_change', args=[obj.order.id])
         return format_html('<a href="{}">#{}</a>', url, obj.order.id)
     
     @display(description=_('товар'))
-    def get_product_name(self, obj):
+    def get_product_name(self, obj: Any) -> Any:
         # отображение названия товара со ссылкой
+        """Возвращает данные через `get_product_name`."""
         if obj.product:
             from django.urls import reverse
             url = reverse('admin:products_product_change', args=[obj.product.id])
@@ -156,9 +168,11 @@ class OrderItemAdmin(SimpleHistoryAdmin):
         return obj.product_name
     
     @display(description=_('сумма'))
-    def get_total_price_display(self, obj):
+    def get_total_price_display(self, obj: Any) -> Any:
         # отображение общей стоимости позиции
+        """Возвращает данные через `get_total_price_display`."""
         return f'{obj.get_total_price()} ₽'
     
-    def get_queryset(self, request):
+    def get_queryset(self, request: Any) -> Any:
+        """Возвращает данные через `get_queryset`."""
         return super().get_queryset(request).select_related('order', 'order__user', 'product')
