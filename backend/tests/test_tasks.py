@@ -1,3 +1,5 @@
+from typing import Any
+
 from datetime import timedelta
 from decimal import Decimal
 
@@ -12,7 +14,8 @@ from products.models import Product
 
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 class TaskFunctionsTests(TestCase):
-    def setUp(self):
+    def setUp(self) -> Any:
+        """Выполняет действие `setUp`."""
         user_model = get_user_model()
         self.user = user_model.objects.create_user(email='task-user@test.com', password='testpass123')
 
@@ -30,7 +33,8 @@ class TaskFunctionsTests(TestCase):
             is_active=True,
         )
 
-    def test_check_cancel_unpaid_orders_returns_count(self):
+    def test_check_cancel_unpaid_orders_returns_count(self) -> Any:
+        """Проверяет сценарий `test_check_cancel_unpaid_orders_returns_count`."""
         stale_order = Order.objects.create(
             user=self.user,
             status=self.new_status,
@@ -54,7 +58,8 @@ class TaskFunctionsTests(TestCase):
         self.assertEqual(stale_order.status.name, 'cancelled')
         self.assertEqual(fresh_order.status.name, 'new')
 
-    def test_send_daily_sales_report_returns_sales_amount(self):
+    def test_send_daily_sales_report_returns_sales_amount(self) -> Any:
+        """Проверяет сценарий `test_send_daily_sales_report_returns_sales_amount`."""
         Order.objects.create(
             user=self.user,
             status=self.paid_status,
@@ -65,7 +70,8 @@ class TaskFunctionsTests(TestCase):
         self.assertEqual(result['paid_orders_count'], 1)
         self.assertEqual(result['sales_amount'], 1500.0)
 
-    def test_recalculate_product_popularity_returns_count(self):
+    def test_recalculate_product_popularity_returns_count(self) -> Any:
+        """Проверяет сценарий `test_recalculate_product_popularity_returns_count`."""
         order = Order.objects.create(user=self.user, status=self.paid_status, total=Decimal('1000.00'), shipping_address='A')
         OrderItem.objects.create(
             order=order,
