@@ -17,6 +17,12 @@
 - OAuth2 (Google через dj-rest-auth + allauth)
 - Docker / Docker Compose
 
+## 2.1) Что обязательно, а что опционально
+- Для базовой защиты (`удовлетворительно`) не требуются реальные ключи Google/Sentry.
+- Для демонстрации дополнительных требований (`хорошо` и `отлично`) нужны:
+`SENTRY_DSN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+- Если ключи не заданы, можно показывать только базовый функционал API без живой интеграции Sentry/OAuth.
+
 ## 3) Локальный запуск на Mac
 ```bash terminal
 cd backend
