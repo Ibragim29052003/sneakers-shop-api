@@ -62,27 +62,20 @@ class ProductFilterSet(django_filters.FilterSet):
         if not parsed:
             return queryset
 
-        value_query = Q()
+        combined_query = Q()
         for value in parsed:
-            value_query |= Q(product_filters__filter_option__name__iexact=value)
+            value_query = Q(product_filters__filter_option__name__iexact=value)
+            group_query = Q()
+            for alias in aliases:
+                alias = alias.strip()
+                if not alias:
+                    continue
+                group_query |= Q(product_filters__filter_option__group__name__icontains=alias)
+                group_query |= Q(product_filters__filter_option__group__name__iexact=alias)
+                group_query |= Q(product_filters__filter_option__group__name__iexact=alias.capitalize())
+            combined_query |= (value_query & group_query) if group_query else value_query
 
-        filtered_by_value = queryset.filter(value_query)
-
-        group_query = Q()
-        for alias in aliases:
-            alias = alias.strip()
-            if not alias:
-                continue
-            group_query |= Q(product_filters__filter_option__group__name__icontains=alias)
-            group_query |= Q(product_filters__filter_option__group__name__iexact=alias)
-            group_query |= Q(product_filters__filter_option__group__name__iexact=alias.capitalize())
-
-        if group_query:
-            filtered_with_group = filtered_by_value.filter(group_query).distinct()
-            if filtered_with_group.exists():
-                return filtered_with_group
-
-        return filtered_by_value.distinct()
+        return queryset.filter(combined_query).distinct()
 
     def filter_category(self, queryset: Any, name: Any, value: Any) -> Any:
         """
@@ -119,7 +112,7 @@ class ProductFilterSet(django_filters.FilterSet):
 
     def filter_fabric(self, queryset: Any, name: Any, value: Any) -> Any:
         """Выполняет действие `filter_fabric`."""
-        return self._filter_by_group_values(queryset, value, ['материал', 'ткан', 'fabric', 'style'])
+        return self._filter_by_group_values(queryset, value, ['материал', 'ткан', 'fabric'])
 
     def filter_fabrics(self, queryset: Any, name: Any, value: Any) -> Any:
         """Выполняет действие `filter_fabrics`."""
