@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState, type FC } from "react";
 import styles from "./Header.module.scss";
 import Arrow from "@/shared/assets/icons/header/arrow-down.svg?react";
-import Search from "@/shared/assets/icons/header/search.svg?react";
 import TransitionWB from "@/shared/assets/icons/header/transition-wb.svg?react";
 import Logo from "@/shared/assets/icons/Logo.svg?react";
 import Basket from "@/shared/assets/icons/header/basket.svg?react";
@@ -10,11 +9,6 @@ import DropdownMenu from "./DropdownMenu";
 import { LoginModal } from "@/components/LoginModal/LoginModal";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
 import { clearCart, setCart } from "@/redux/cart/slice";
-import {
-  clearSearchQuery,
-  setSearchQuery,
-} from "@/redux/catalogSearch/slice";
-import { selectCatalogSearchQuery } from "@/redux/catalogSearch/selectors";
 
 const Header: FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -25,25 +19,19 @@ const Header: FC = () => {
   const [isSupplier, setIsSupplier] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const location = useLocation();
   const currentPath = location.pathname;
   const catalogRoutes = ["/women", "/men", "/children"];
   const isMainActive = catalogRoutes.includes(currentPath);
-  const isCatalogPage = isMainActive;
 
   // Получаем общее количество товаров в корзине из Redux
   const cartTotalCount = useAppSelector((state) => state.cart.totalCount);
-  const searchQuery = useAppSelector(selectCatalogSearchQuery);
   const dispatch = useAppDispatch();
 
   const burgerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
-  const searchPanelRef = useRef<HTMLFormElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Проверка авторизации и статуса поставщика при загрузке
   useEffect(() => {
@@ -165,11 +153,6 @@ const Header: FC = () => {
     }
   }, [location]);
 
-  useEffect(() => {
-    setIsSearchOpen(false);
-    dispatch(clearSearchQuery());
-  }, [currentPath, dispatch]);
-
   // Обработчик выхода
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -204,13 +187,12 @@ const Header: FC = () => {
   ];
 
   useEffect(() => {
-    if (!isCategoriesOpen && !menuOpen && !isSearchOpen) return;
+    if (!isCategoriesOpen && !menuOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsCategoriesOpen(false);
         setMenuOpen(false);
-        setIsSearchOpen(false);
       }
     };
     const handleClickOutside = (event: MouseEvent) => {
@@ -219,17 +201,10 @@ const Header: FC = () => {
         !!listRef.current?.contains(target) ||
         !!buttonRef.current?.contains(target) ||
         !!burgerRef.current?.contains(target);
-      const clickedInsideSearch =
-        !!searchPanelRef.current?.contains(target) ||
-        !!searchButtonRef.current?.contains(target);
 
       if (!clickedInsideMenu) {
         setIsCategoriesOpen(false);
         setMenuOpen(false);
-      }
-
-      if (!clickedInsideSearch) {
-        setIsSearchOpen(false);
       }
     };
     document.addEventListener("click", handleClickOutside);
@@ -238,13 +213,7 @@ const Header: FC = () => {
       document.removeEventListener("click", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isCategoriesOpen, isSearchOpen, menuOpen]);
-
-  useEffect(() => {
-    if (isSearchOpen) {
-      searchInputRef.current?.focus();
-    }
-  }, [isSearchOpen]);
+  }, [isCategoriesOpen, menuOpen]);
 
   useEffect(() => {
     if (isCategoriesOpen) {
@@ -277,14 +246,6 @@ const Header: FC = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const handleSearchToggle = () => {
-    if (!isCatalogPage) return;
-
-    setMenuOpen(false);
-    setIsCategoriesOpen(false);
-    setIsSearchOpen((prevState) => !prevState);
-  };
 
   return (
     <>
@@ -391,30 +352,6 @@ const Header: FC = () => {
                 )}
               </ul>
               <div className={styles.header__actions}>
-                {isCatalogPage && (
-                  <button
-                    type="button"
-                    className={`${styles.header__searchToggle} ${
-                      isSearchOpen ? styles.header__searchToggle_active : ""
-                    } ${
-                      searchQuery ? styles.header__searchToggle_filled : ""
-                    }`}
-                    onClick={handleSearchToggle}
-                    aria-label={
-                      isSearchOpen
-                        ? "Свернуть поиск по товарам"
-                        : "Открыть поиск по товарам"
-                    }
-                    aria-expanded={isSearchOpen}
-                    aria-controls="header-search-panel"
-                    ref={searchButtonRef}
-                  >
-                    <Search
-                      className={styles.header__searchIcon}
-                      aria-hidden="true"
-                    />
-                  </button>
-                )}
                 {!menuOpen && (
                   <>
                     <Link to="/cart" className={styles.header__cart} aria-label={`Корзина, ${cartTotalCount} товаров`}>
@@ -469,57 +406,6 @@ const Header: FC = () => {
                 <span className={styles.header__burger_line}></span>
               </button>
             </nav>
-
-            {isCatalogPage && (
-              <div
-                id="header-search-panel"
-                className={`${styles.header__searchPanel} ${
-                  isSearchOpen ? styles.header__searchPanel_open : ""
-                }`}
-              >
-                <form
-                  className={styles.header__searchPanel_inner}
-                  role="search"
-                  aria-label="Поиск товаров по текущему разделу"
-                  onSubmit={(event) => event.preventDefault()}
-                  ref={searchPanelRef}
-                >
-                  <label
-                    className={styles.header__searchField}
-                    htmlFor="catalog-search-input"
-                  >
-                    <Search
-                      className={styles.header__searchField_icon}
-                      aria-hidden="true"
-                    />
-                    <input
-                      id="catalog-search-input"
-                      ref={searchInputRef}
-                      type="search"
-                      className={styles.header__searchInput}
-                      placeholder="Найти товар на этой странице"
-                      value={searchQuery}
-                      onChange={(event) =>
-                        dispatch(setSearchQuery(event.target.value))
-                      }
-                    />
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        className={styles.header__searchClear}
-                        onClick={() => dispatch(clearSearchQuery())}
-                        aria-label="Очистить поиск"
-                      >
-                        Сбросить
-                      </button>
-                    )}
-                  </label>
-                  <p className={styles.header__searchHint}>
-                    Поиск работает только по товарам открытого раздела.
-                  </p>
-                </form>
-              </div>
-            )}
           </div>
         </div>
       </header>
