@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import mimetypes
 from datetime import timedelta
 from decimal import Decimal
@@ -70,6 +71,7 @@ SNEAKER_IMAGE_URLS = [
 ]
 
 SLIDER_SEED_ASSETS_DIR = Path(__file__).resolve().parent / "seed_assets" / "slider"
+PRODUCT_SEED_ASSETS_DIR = Path(__file__).resolve().parent / "seed_assets" / "products"
 SLIDER_SEED_FILENAMES = [
     "slide_01.png",
     "slide_02.png",
@@ -384,298 +386,10 @@ class Command(BaseCommand):
             categories[slug] = category
 
         filter_options = self._seed_filter_options(categories)
+        local_product_assets = self._get_product_seed_assets()
 
         products: list[Product] = []
-        product_specs = [
-            {
-                "page": "women",
-                "prefix": "W",
-                "name": "Air Bloom",
-                "price": Decimal("5900.00"),
-                "old_price": Decimal("7600.00"),
-                "filters": {
-                    "colors": "white",
-                    "sizes": "36",
-                    "fabrics": "mesh",
-                    "brands": "nova",
-                    "styles": "running",
-                    "seasons": "summer",
-                    "purposes": "daily",
-                },
-            },
-            {
-                "page": "women",
-                "prefix": "W",
-                "name": "City Lace",
-                "price": Decimal("6400.00"),
-                "old_price": Decimal("8100.00"),
-                "filters": {
-                    "colors": "black",
-                    "sizes": "37",
-                    "fabrics": "leather",
-                    "brands": "aurora",
-                    "styles": "casual",
-                    "seasons": "all-season",
-                    "purposes": "city",
-                },
-            },
-            {
-                "page": "women",
-                "prefix": "W",
-                "name": "Nova Cloud",
-                "price": Decimal("6700.00"),
-                "old_price": Decimal("8400.00"),
-                "filters": {
-                    "colors": "blue",
-                    "sizes": "38",
-                    "fabrics": "textile",
-                    "brands": "pulse",
-                    "styles": "sport",
-                    "seasons": "spring",
-                    "purposes": "training",
-                },
-            },
-            {
-                "page": "women",
-                "prefix": "W",
-                "name": "Rose Drift",
-                "price": Decimal("6200.00"),
-                "old_price": Decimal("7900.00"),
-                "filters": {
-                    "colors": "red",
-                    "sizes": "39",
-                    "fabrics": "synthetic",
-                    "brands": "vibe",
-                    "styles": "fashion",
-                    "seasons": "summer",
-                    "purposes": "travel",
-                },
-            },
-            {
-                "page": "women",
-                "prefix": "W",
-                "name": "Soft Pulse",
-                "price": Decimal("7100.00"),
-                "old_price": Decimal("8900.00"),
-                "filters": {
-                    "colors": "gray",
-                    "sizes": "40",
-                    "fabrics": "suede",
-                    "brands": "eclipse",
-                    "styles": "retro",
-                    "seasons": "autumn",
-                    "purposes": "city",
-                },
-            },
-            {
-                "page": "women",
-                "prefix": "W",
-                "name": "Sand Sprint",
-                "price": Decimal("6800.00"),
-                "old_price": Decimal("8500.00"),
-                "filters": {
-                    "colors": "beige",
-                    "sizes": "41",
-                    "fabrics": "cotton",
-                    "brands": "nova",
-                    "styles": "minimal",
-                    "seasons": "all-season",
-                    "purposes": "daily",
-                },
-            },
-            {
-                "page": "men",
-                "prefix": "M",
-                "name": "Turbo Edge",
-                "price": Decimal("7200.00"),
-                "old_price": Decimal("9100.00"),
-                "filters": {
-                    "colors": "black",
-                    "sizes": "41",
-                    "fabrics": "mesh",
-                    "brands": "strike",
-                    "styles": "running",
-                    "seasons": "summer",
-                    "purposes": "training",
-                },
-            },
-            {
-                "page": "men",
-                "prefix": "M",
-                "name": "Street Alpha",
-                "price": Decimal("7600.00"),
-                "old_price": Decimal("9500.00"),
-                "filters": {
-                    "colors": "white",
-                    "sizes": "42",
-                    "fabrics": "leather",
-                    "brands": "vector",
-                    "styles": "casual",
-                    "seasons": "all-season",
-                    "purposes": "city",
-                },
-            },
-            {
-                "page": "men",
-                "prefix": "M",
-                "name": "Vector Run",
-                "price": Decimal("7900.00"),
-                "old_price": Decimal("9800.00"),
-                "filters": {
-                    "colors": "blue",
-                    "sizes": "43",
-                    "fabrics": "synthetic",
-                    "brands": "bolt",
-                    "styles": "sport",
-                    "seasons": "spring",
-                    "purposes": "running",
-                },
-            },
-            {
-                "page": "men",
-                "prefix": "M",
-                "name": "Ever Trail",
-                "price": Decimal("8300.00"),
-                "old_price": Decimal("10300.00"),
-                "filters": {
-                    "colors": "green",
-                    "sizes": "44",
-                    "fabrics": "suede",
-                    "brands": "summit",
-                    "styles": "outdoor",
-                    "seasons": "autumn",
-                    "purposes": "travel",
-                },
-            },
-            {
-                "page": "men",
-                "prefix": "M",
-                "name": "Urban Shift",
-                "price": Decimal("7500.00"),
-                "old_price": Decimal("9400.00"),
-                "filters": {
-                    "colors": "gray",
-                    "sizes": "42",
-                    "fabrics": "cotton",
-                    "brands": "core",
-                    "styles": "minimal",
-                    "seasons": "all-season",
-                    "purposes": "daily",
-                },
-            },
-            {
-                "page": "men",
-                "prefix": "M",
-                "name": "Sprint Zone",
-                "price": Decimal("7700.00"),
-                "old_price": Decimal("9600.00"),
-                "filters": {
-                    "colors": "red",
-                    "sizes": "43",
-                    "fabrics": "textile",
-                    "brands": "strike",
-                    "styles": "fashion",
-                    "seasons": "winter",
-                    "purposes": "city",
-                },
-            },
-            {
-                "page": "children",
-                "prefix": "C",
-                "name": "Kid Flash",
-                "price": Decimal("4100.00"),
-                "old_price": Decimal("5200.00"),
-                "filters": {
-                    "colors": "white",
-                    "sizes": "33",
-                    "fabrics": "mesh",
-                    "brands": "junior",
-                    "styles": "sport",
-                    "seasons": "summer",
-                    "purposes": "school",
-                },
-            },
-            {
-                "page": "children",
-                "prefix": "C",
-                "name": "Jump Mini",
-                "price": Decimal("4300.00"),
-                "old_price": Decimal("5400.00"),
-                "filters": {
-                    "colors": "blue",
-                    "sizes": "34",
-                    "fabrics": "textile",
-                    "brands": "rookie",
-                    "styles": "casual",
-                    "seasons": "spring",
-                    "purposes": "playground",
-                },
-            },
-            {
-                "page": "children",
-                "prefix": "C",
-                "name": "Play Dash",
-                "price": Decimal("4500.00"),
-                "old_price": Decimal("5600.00"),
-                "filters": {
-                    "colors": "red",
-                    "sizes": "35",
-                    "fabrics": "synthetic",
-                    "brands": "tiny-step",
-                    "styles": "running",
-                    "seasons": "all-season",
-                    "purposes": "sports",
-                },
-            },
-            {
-                "page": "children",
-                "prefix": "C",
-                "name": "Rocket Step",
-                "price": Decimal("4700.00"),
-                "old_price": Decimal("5900.00"),
-                "filters": {
-                    "colors": "black",
-                    "sizes": "36",
-                    "fabrics": "leather",
-                    "brands": "junior",
-                    "styles": "outdoor",
-                    "seasons": "autumn",
-                    "purposes": "school",
-                },
-            },
-            {
-                "page": "children",
-                "prefix": "C",
-                "name": "School Move",
-                "price": Decimal("4600.00"),
-                "old_price": Decimal("5800.00"),
-                "filters": {
-                    "colors": "gray",
-                    "sizes": "37",
-                    "fabrics": "cotton",
-                    "brands": "rookie",
-                    "styles": "minimal",
-                    "seasons": "winter",
-                    "purposes": "daily",
-                },
-            },
-            {
-                "page": "children",
-                "prefix": "C",
-                "name": "Young Comet",
-                "price": Decimal("4800.00"),
-                "old_price": Decimal("6100.00"),
-                "filters": {
-                    "colors": "green",
-                    "sizes": "38",
-                    "fabrics": "mesh",
-                    "brands": "tiny-step",
-                    "styles": "fashion",
-                    "seasons": "summer",
-                    "purposes": "playground",
-                },
-            },
-        ]
+        product_specs = self._build_product_specs(filter_options)
         images_per_product = 3
         target_skus = {
             f"DEMO-{spec['prefix']}-{idx:03d}" for idx, spec in enumerate(product_specs, start=1)
@@ -687,15 +401,21 @@ class Command(BaseCommand):
             page = spec["page"]
             prefix = spec["prefix"]
             sku = f"DEMO-{prefix}-{idx:03d}"
-            product_image_urls = [
-                SNEAKER_IMAGE_URLS[((idx - 1) * images_per_product + img_idx) % len(SNEAKER_IMAGE_URLS)]
-                for img_idx in range(images_per_product)
-            ]
+            if local_product_assets:
+                product_image_sources: list[str | Path] = [
+                    local_product_assets[((idx - 1) * images_per_product + img_idx) % len(local_product_assets)]
+                    for img_idx in range(images_per_product)
+                ]
+            else:
+                product_image_sources = [
+                    SNEAKER_IMAGE_URLS[((idx - 1) * images_per_product + img_idx) % len(SNEAKER_IMAGE_URLS)]
+                    for img_idx in range(images_per_product)
+                ]
             product, _ = Product.objects.update_or_create(
                 sku=sku,
                 defaults={
                     "name": spec["name"],
-                    "description": f"Demo product for {page} page.",
+                    "description": spec["description"],
                     "price": spec["price"],
                     "old_price": spec["old_price"],
                     "stock_quantity": 20 + idx,
@@ -712,7 +432,7 @@ class Command(BaseCommand):
             )
             product.categories.set([categories[page]])
             self._set_product_filters(product, filter_options, page, spec["filters"])
-            self._ensure_product_images(product, product_image_urls)
+            self._ensure_product_images(product, product_image_sources)
             products.append(product)
 
         # Полностью пересобираем слайдер: удаляем старые записи и создаем только новый набор.
@@ -791,46 +511,157 @@ class Command(BaseCommand):
 
         return options
 
+    def _cycle_pick(self, values: list[str], offset: int, count: int) -> list[str]:
+        """Возвращает count уникальных значений из списка с циклическим смещением."""
+        if not values or count <= 0:
+            return []
+        picked = [values[(offset + step) % len(values)] for step in range(count)]
+        return list(dict.fromkeys(picked))
+
+    def _build_product_specs(
+        self,
+        filter_options: dict[str, dict[str, dict[str, FilterOption]]],
+    ) -> list[dict[str, Any]]:
+        """Генерирует 20 товаров на страницу и несколько значений фильтров для каждого товара."""
+        category_configs = {
+            "women": {
+                "prefix": "W",
+                "base_price": 5600,
+                "price_step": 180,
+                "names": [
+                    "Air Bloom", "City Lace", "Nova Cloud", "Rose Drift", "Soft Pulse",
+                    "Sand Sprint", "Urban Grace", "Velvet Run", "Luna Motion", "Skyline Step",
+                    "Comet Silk", "Crystal Pace", "Daylight Wave", "Astra Fit", "Echo Walk",
+                    "Sunrise Flow", "Pearl Dash", "Mosaic Run", "Bloom Shift", "Cloud Sprint",
+                ],
+            },
+            "men": {
+                "prefix": "M",
+                "base_price": 6900,
+                "price_step": 210,
+                "names": [
+                    "Turbo Edge", "Street Alpha", "Vector Run", "Ever Trail", "Urban Shift",
+                    "Sprint Zone", "Core Motion", "Titan Step", "Orbit Walk", "Storm Pace",
+                    "North Drift", "Forge Run", "Impact Glide", "Ridge Sprint", "Shadow Track",
+                    "Signal Dash", "Pioneer Flow", "Iron Pulse", "Quest Move", "Rapid Bolt",
+                ],
+            },
+            "children": {
+                "prefix": "C",
+                "base_price": 3900,
+                "price_step": 120,
+                "names": [
+                    "Kid Flash", "Jump Mini", "Play Dash", "Rocket Step", "School Move",
+                    "Young Comet", "Tiny Run", "Fun Glide", "Spark Walk", "Dream Sprint",
+                    "Star Hop", "Smile Track", "Junior Pace", "Mini Drift", "Fast Fox",
+                    "Cloud Kid", "Buddy Move", "Swift Cub", "Happy Step", "Joy Runner",
+                ],
+            },
+        }
+
+        product_specs: list[dict[str, Any]] = []
+        for page_slug, config in category_configs.items():
+            page_filters = filter_options.get(page_slug, {})
+            colors = list(page_filters.get("colors", {}).keys())
+            sizes = list(page_filters.get("sizes", {}).keys())
+            fabrics = list(page_filters.get("fabrics", {}).keys())
+            brands = list(page_filters.get("brands", {}).keys())
+            styles = list(page_filters.get("styles", {}).keys())
+            seasons = list(page_filters.get("seasons", {}).keys())
+            purposes = list(page_filters.get("purposes", {}).keys())
+
+            for idx, name in enumerate(config["names"], start=1):
+                price = Decimal(str(config["base_price"] + config["price_step"] * (idx - 1)))
+                old_price = price + Decimal("1700.00")
+                selected_filters = {
+                    "colors": self._cycle_pick(colors, idx - 1, 2),
+                    "sizes": self._cycle_pick(sizes, idx - 1, 2),
+                    "fabrics": self._cycle_pick(fabrics, idx, 2),
+                    "brands": self._cycle_pick(brands, idx - 1, 2),
+                    "styles": self._cycle_pick(styles, idx + 1, 2),
+                    "seasons": self._cycle_pick(seasons, idx + 2, 2),
+                    "purposes": self._cycle_pick(purposes, idx, 2),
+                }
+
+                description = (
+                    f"{name} sneaker for {page_slug}. "
+                    f"Brand: {' / '.join(selected_filters['brands'])}. "
+                    f"Style: {' / '.join(selected_filters['styles'])}. "
+                    f"Purpose: {' / '.join(selected_filters['purposes'])}."
+                )
+
+                product_specs.append(
+                    {
+                        "page": page_slug,
+                        "prefix": config["prefix"],
+                        "name": name,
+                        "description": description,
+                        "price": price,
+                        "old_price": old_price,
+                        "filters": selected_filters,
+                    }
+                )
+
+        return product_specs
+
     def _set_product_filters(
         self,
         product: Product,
         filter_options: dict[str, dict[str, dict[str, FilterOption]]],
         page_slug: str,
-        selected_filters: dict[str, str],
+        selected_filters: dict[str, str | list[str]],
     ) -> None:
         """Полностью обновляет связи товара с фильтрами по переданному набору значений."""
         ProductFilter.objects.filter(product=product).delete()
 
         page_options = filter_options.get(page_slug, {})
         for group_key, selected_value in selected_filters.items():
-            option = page_options.get(group_key, {}).get(selected_value)
-            if option is not None:
-                ProductFilter.objects.get_or_create(product=product, filter_option=option)
+            selected_values = selected_value if isinstance(selected_value, list) else [selected_value]
+            for value in selected_values:
+                option = page_options.get(group_key, {}).get(value)
+                if option is not None:
+                    ProductFilter.objects.get_or_create(product=product, filter_option=option)
 
-    def _ensure_product_images(self, product: Product, image_urls: list[str]) -> None:
-        """Гарантирует наличие нескольких изображений товара с fallback на заглушку."""
-        expected_count = max(1, len(image_urls))
-        existing_images = list(product.images.order_by("created_at"))
-        existing_names = {img.image.name.rsplit("/", 1)[-1] for img in existing_images if img.image}
+    def _ensure_product_images(self, product: Product, image_sources: list[str | Path]) -> None:
+        """Пересобирает набор изображений товара только из валидных sneaker-фото."""
+        ProductImage.objects.filter(product=product).delete()
 
-        if len(existing_images) >= expected_count:
-            if not any(img.is_main for img in existing_images):
-                first_image = existing_images[0]
-                first_image.is_main = True
-                first_image.save(update_fields=["is_main"])
-            return
+        for img_idx, image_source in enumerate(image_sources, start=1):
+            if isinstance(image_source, Path):
+                if not image_source.exists() or not image_source.is_file():
+                    continue
+                image_bytes = image_source.read_bytes()
+                extension = image_source.suffix.lower().lstrip(".") or "jpg"
+            else:
+                image_bytes, extension = self._download_image_bytes(image_source)
 
-        for img_idx, image_url in enumerate(image_urls, start=1):
-            image_bytes, extension = self._download_image_bytes(image_url)
-            file_name = f"{product.sku.lower()}-{img_idx}.{extension}"
-            if file_name in existing_names:
+            if not self._is_valid_product_photo(image_bytes):
                 continue
 
             ProductImage.objects.create(
                 product=product,
-                image=ContentFile(image_bytes, name=file_name),
-                is_main=(img_idx == 1 and not existing_images),
+                image=ContentFile(image_bytes, name=f"{product.sku.lower()}-{img_idx}.{extension}"),
+                is_main=(img_idx == 1),
                 alt_text=f"{product.name} photo {img_idx}",
+            )
+
+        if not product.images.exists():
+            fallback_assets = self._get_product_seed_assets()
+            if fallback_assets:
+                fallback_bytes = fallback_assets[0].read_bytes()
+                ProductImage.objects.create(
+                    product=product,
+                    image=ContentFile(fallback_bytes, name=f"{product.sku.lower()}-fallback.jpg"),
+                    is_main=True,
+                    alt_text=f"{product.name} fallback photo",
+                )
+                return
+
+            ProductImage.objects.create(
+                product=product,
+                image=ContentFile(base64.b64decode(TINY_PNG_B64), name=f"{product.sku.lower()}-fallback.png"),
+                is_main=True,
+                alt_text=f"{product.name} fallback photo",
             )
 
         if not product.images.filter(is_main=True).exists():
@@ -840,7 +671,7 @@ class Command(BaseCommand):
                 first_image.save(update_fields=["is_main"])
 
     def _download_image_bytes(self, image_url: str) -> tuple[bytes, str]:
-        """Скачивает изображение; при сбое возвращает PNG-заглушку."""
+        """Скачивает изображение; при сбое возвращает placeholder."""
         request = Request(image_url, headers={"User-Agent": "Mozilla/5.0 (demo seeder)"})
         try:
             with urlopen(request, timeout=20) as response:
@@ -894,6 +725,43 @@ class Command(BaseCommand):
                 pass
 
         return base64.b64decode(TINY_PNG_B64), f"slide-{slide_index}.png"
+
+    def _get_product_seed_assets(self) -> list[Path]:
+        """Возвращает локальные ассеты изображений товара для стабильного сидирования."""
+        if not PRODUCT_SEED_ASSETS_DIR.exists():
+            return []
+        files = sorted(
+            [
+                p
+                for p in PRODUCT_SEED_ASSETS_DIR.iterdir()
+                if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
+            ]
+        )
+        return files
+
+    def _is_valid_product_photo(self, image_bytes: bytes) -> bool:
+        """Быстрая валидация: не битое и не почти однотонное изображение."""
+        if len(image_bytes) < 1024:
+            return False
+
+        try:
+            from PIL import Image, ImageStat, UnidentifiedImageError  # lazy import for environments without Pillow in sys deps
+            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            width, height = image.size
+            if width < 200 or height < 200:
+                return False
+
+            stat = ImageStat.Stat(image)
+            channel_std = stat.stddev
+            if not channel_std or max(channel_std) < 8:
+                return False
+        except ImportError:
+            # Если Pillow отсутствует, проверяем только размер файла.
+            return len(image_bytes) > 20_000
+        except (UnidentifiedImageError, OSError, ValueError):
+            return False
+
+        return True
 
     def _seed_cart_and_orders(self, users: dict[str, Any], product_context: dict[str, Any]) -> None:
         """Создает демо-корзины, статусы заказов и тестовые заказы."""
