@@ -189,7 +189,7 @@ STATICFILES_DIRS = [
 # медиа файлы (загрузки)
 # MEDIA_URL - URL по которому будут доступны загруженные файлы
 # MEDIA_ROOT - физическая директория для хранения файлов
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # тип поля первичного ключа по умолчанию
