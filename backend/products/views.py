@@ -133,31 +133,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         if category_param:
             queryset = self._apply_category_filter(queryset, category_param)
 
-        group_aliases_map = {
-            'colors': ['цвет', 'color'],
-            'sizes': ['размер', 'size'],
-            'fabrics': ['материал', 'fabric'],
-            'brands': ['бренд', 'brand'],
-            'styles': ['стиль', 'style'],
-            'seasons': ['сезон', 'season'],
-            'purposes': ['назнач', 'purpose'],
-        }
-
-        for filter_name, aliases in group_aliases_map.items():
-            raw_values = self.request.query_params.get(filter_name)
-            if not raw_values:
-                continue
-            values = [v.strip() for v in raw_values.split(',') if v.strip()]
-            if values:
-                query = Q()
-                for value in values:
-                    value_query = Q(product_filters__filter_option__name__iexact=value)
-                    group_query = Q()
-                    for alias in aliases:
-                        group_query |= Q(product_filters__filter_option__group__name__icontains=alias)
-                    query |= (value_query & group_query)
-                queryset = queryset.filter(query)
-
         return queryset.distinct()
 
     @action(detail=False, methods=['get'], url_path='home-showcases')
@@ -336,19 +311,15 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         - min_price: минимальная цена
         - max_price: максимальная цена
         """
-        from django.db.models import Q, Count
+        from django.db.models import Q
         
         category_param = request.query_params.get('category')
         category_id = request.query_params.get('category_id')
         
+        category_mapping = ProductViewSet.category_mapping
+
         # Определяем category_id
         if category_param:
-            category_mapping = {
-                'women': ['женщин', 'women', 'woman', 'женская'],
-                'men': ['мужчин', 'men', 'man', 'мужская'],
-                'children': ['детей', 'children', 'child', 'детская'],
-            }
-            
             search_names = category_mapping.get(category_param, [])
             if search_names:
                 query = Q()
@@ -395,11 +366,27 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
         
-        # Базовый queryset товаров для категории
+        # Базовый queryset товаров: синхронизирован с публичной выдачей каталога.
         base_products = Product.objects.filter(
-            categories__id=category_id,
-            is_active=True
+            is_active=True,
+            status='active',
+            stock_quantity__gt=0,
         ).distinct()
+
+        if category_param:
+            search_names = category_mapping.get(category_param, [])
+            category_query = Q()
+            for name in search_names:
+                category_query |= Q(name__icontains=name)
+            category_ids = list(Category.objects.filter(category_query).values_list('id', flat=True))
+
+            product_filter = Q(published_pages__contains=[category_param])
+            if category_ids:
+                product_filter |= Q(categories__id__in=category_ids)
+
+            base_products = base_products.filter(product_filter)
+        else:
+            base_products = base_products.filter(categories__id=category_id)
         
         # Применяем ценовой фильтр к базовому набору
         if min_price:
@@ -446,10 +433,15 @@ class FilterGroupViewSet(viewsets.ModelViewSet):
                         continue
                     
                     if filter_values:
-                        # Создаем OR условие для значений внутри группы
+                        # Создаем OR условие для значений внутри группы + ограничиваем группу по alias.
+                        aliases = GROUP_KEY_MAP.get(filter_key, [])
                         filter_query = Q()
                         for val in filter_values:
-                            filter_query |= Q(product_filters__filter_option__name__iexact=val)
+                            value_query = Q(product_filters__filter_option__name__iexact=val)
+                            alias_query = Q()
+                            for alias in aliases:
+                                alias_query |= Q(product_filters__filter_option__group__name__icontains=alias)
+                            filter_query |= (value_query & alias_query) if alias_query else value_query
                         
                         products_with_option = products_with_option.filter(filter_query)
                 
