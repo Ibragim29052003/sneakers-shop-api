@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, type FC } from "react";
+import { useEffect, useMemo, useState, type FC } from "react";
 import styles from "./CatalogLayout.module.scss";
 import ProductGridStyles from "@/components/ProductList/ProductGrid/ProductGrid.module.scss";
 import FilterPanel from "@/components/FilterPanel/FilterPanel";
@@ -8,8 +8,9 @@ import type { Slide } from "@/redux/slider/types";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import useLockBodyScroll from "@/hooks/useLockBodyScroll";
 import Arrow from "@/shared/assets/icons/header/arrow-down.svg?react";
+import Search from "@/shared/assets/icons/header/search.svg?react";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
-import { clearSearchQuery } from "@/redux/catalogSearch/slice";
+import { clearSearchQuery, setSearchQuery } from "@/redux/catalogSearch/slice";
 import { selectCatalogSearchQuery } from "@/redux/catalogSearch/selectors";
 import { setCurrentPage } from "@/redux/pagination/slice";
 import { selectFilters } from "@/redux/filter/selectors";
@@ -34,31 +35,17 @@ const CatalogLayout: FC<CatalogLayoutProps> = ({
   const searchQuery = useAppSelector(selectCatalogSearchQuery);
   const filters = useAppSelector(selectFilters);
   const normalizedSearchQuery = searchQuery.trim();
-  const deferredSearchQuery = useDeferredValue(
-    normalizedSearchQuery.toLowerCase()
-  );
   const hasActiveSearch = normalizedSearchQuery.length > 0;
 
   useLockBodyScroll(mobileFiltersOpen);
 
   useEffect(() => {
     dispatch(setCurrentPage(1));
-  }, [deferredSearchQuery, dispatch]);
-
-  const filteredProducts = products.filter((product) => {
-    if (!deferredSearchQuery) return true;
-
-    const searchableText = [product.title, product.supplierName]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return searchableText.includes(deferredSearchQuery);
-  });
+  }, [normalizedSearchQuery, dispatch]);
 
   // Фронтовая сортировка для наглядного примера order_by (аналог через sort)
   const sortedProducts = useMemo(() => {
-    const productsToSort = [...filteredProducts];
+    const productsToSort = [...products];
 
     if (filters.sortBy === "price_asc") {
       productsToSort.sort((a, b) => a.newPrice - b.newPrice);
@@ -67,10 +54,10 @@ const CatalogLayout: FC<CatalogLayoutProps> = ({
     }
 
     return productsToSort;
-  }, [filteredProducts, filters.sortBy]);
+  }, [products, filters.sortBy]);
 
   const productsCountLabel = hasActiveSearch
-    ? `Найдено: ${filteredProducts.length} из ${products.length}`
+    ? `Найдено: ${sortedProducts.length}`
     : `Всего товаров: ${products.length}`;
 
   return (
@@ -84,6 +71,31 @@ const CatalogLayout: FC<CatalogLayoutProps> = ({
           <div className={styles.catalog__productsCount}>
             {productsCountLabel}
           </div>
+          <form
+            className={styles.catalog__search}
+            role="search"
+            aria-label="Поиск товаров по разделу"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <Search className={styles.catalog__searchIcon} aria-hidden="true" />
+            <input
+              type="search"
+              className={styles.catalog__searchInput}
+              placeholder="Найти товар в разделе"
+              value={searchQuery}
+              onChange={(event) => dispatch(setSearchQuery(event.target.value))}
+            />
+            {hasActiveSearch && (
+              <button
+                type="button"
+                className={styles.catalog__searchClear}
+                onClick={() => dispatch(clearSearchQuery())}
+                aria-label="Очистить поиск"
+              >
+                Сбросить
+              </button>
+            )}
+          </form>
           <SortPanel />
 
           <button
@@ -135,6 +147,31 @@ const CatalogLayout: FC<CatalogLayoutProps> = ({
                   {productsCountLabel}
                 </div>
               </div>
+              <form
+                className={styles.catalog__search}
+                role="search"
+                aria-label="Поиск товаров по разделу"
+                onSubmit={(event) => event.preventDefault()}
+              >
+                <Search className={styles.catalog__searchIcon} aria-hidden="true" />
+                <input
+                  type="search"
+                  className={styles.catalog__searchInput}
+                  placeholder="Найти товар в разделе"
+                  value={searchQuery}
+                  onChange={(event) => dispatch(setSearchQuery(event.target.value))}
+                />
+                {hasActiveSearch && (
+                  <button
+                    type="button"
+                    className={styles.catalog__searchClear}
+                    onClick={() => dispatch(clearSearchQuery())}
+                    aria-label="Очистить поиск"
+                  >
+                    Сбросить
+                  </button>
+                )}
+              </form>
               {!isFilterVisible && (
                 <button
                 className={styles.catalog__toggleButton}
@@ -159,7 +196,7 @@ const CatalogLayout: FC<CatalogLayoutProps> = ({
               aria-live="polite"
             >
               <p className={styles.catalog__searchSummary_text}>
-                Найдено {filteredProducts.length} товаров по запросу «
+                Найдено {sortedProducts.length} товаров по запросу «
                 {normalizedSearchQuery}»
               </p>
               <button
