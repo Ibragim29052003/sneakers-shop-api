@@ -141,6 +141,8 @@ export interface FilterParams {
   category?: string;     // фильтр по категории
   min_price?: number;    // минимальная цена
   max_price?: number;    // максимальная цена
+  minPrice?: number;     // минимальная цена (camelCase из Redux)
+  maxPrice?: number;     // максимальная цена (camelCase из Redux)
   price__gte?: number;   // минимальная цена (django-filter)
   price__lte?: number;   // максимальная цена (django-filter)
   search?: string;       // поиск по названию
@@ -217,6 +219,9 @@ export const productsApi = createApi({
      */
     getFilteredProducts: builder.query<Product[], FilterParams>({
       query: (params) => {
+        const minPrice = params.min_price ?? params.minPrice ?? params.price__gte;
+        const maxPrice = params.max_price ?? params.maxPrice ?? params.price__lte;
+
         // Формируем URL параметры
         const queryParams: Record<string, string | number | boolean | undefined> = {
           is_active: true,
@@ -224,10 +229,8 @@ export const productsApi = createApi({
         
         // Добавляем параметры если они есть
         if (params.category) queryParams.category = params.category;
-        if (params.min_price) queryParams.min_price = params.min_price;
-        if (params.max_price) queryParams.max_price = params.max_price;
-        if (params.price__gte !== undefined) queryParams.price__gte = params.price__gte;
-        if (params.price__lte !== undefined) queryParams.price__lte = params.price__lte;
+        if (minPrice !== undefined) queryParams.min_price = minPrice;
+        if (maxPrice !== undefined) queryParams.max_price = maxPrice;
         if (params.search) queryParams.search = params.search;
         if (params.ordering) queryParams.ordering = params.ordering;
         if (params.page) queryParams.page = params.page;

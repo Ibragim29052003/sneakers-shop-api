@@ -2,6 +2,9 @@ import { useEffect, type FC } from "react";
 import styles from "./CategoryPage.module.scss";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { selectFilters } from "@/redux/filter/selectors";
+import { selectCatalogSearchQuery } from "@/redux/catalogSearch/selectors";
+import { clearFilters } from "@/redux/filter/slice";
+import { clearSearchQuery } from "@/redux/catalogSearch/slice";
 
 // Импортируем хуки из RTK Query
 // useGetFilteredProductsQuery - получает отфильтрованные товары для каталога
@@ -75,10 +78,17 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
   
   // Получаем фильтры из Redux
   const filters = useAppSelector(selectFilters);
+  const searchQuery = useAppSelector(selectCatalogSearchQuery);
   
   // Debounce - задержка 300мс перед отправкой запроса при изменении фильтров
   // Это нужно чтобы не отправлять запрос на каждый чих
   const debouncedFilters = useDebounce(filters, 300);
+  const debouncedSearchQuery = useDebounce(searchQuery.trim(), 300);
+
+  useEffect(() => {
+    dispatch(clearFilters());
+    dispatch(clearSearchQuery());
+  }, [category, dispatch]);
 
   // Функция преобразования sortBy в ordering для API
   const getOrderingParam = (sortBy: string | undefined, isNew: boolean | undefined): string | undefined => {
@@ -103,13 +113,10 @@ const CategoryPage: FC<CategoryPageProps> = ({ category }) => {
     ...debouncedFilters,
     category,
     ordering,
-    price__gte: debouncedFilters.minPrice,
-    price__lte: debouncedFilters.maxPrice,
+    search: debouncedSearchQuery || undefined,
+    min_price: debouncedFilters.minPrice,
+    max_price: debouncedFilters.maxPrice,
   };
-
-  // Удаляем дублирующие поля (minPrice/maxPrice теперь в min_price/max_price)
-  delete (apiParams as any).minPrice;
-  delete (apiParams as any).maxPrice;
 
   /**
    * ЗАПРОС 1: Получение товаров для каталога
